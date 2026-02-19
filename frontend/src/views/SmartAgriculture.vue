@@ -38,6 +38,18 @@
           <span>环境监测</span>
         </el-card>
       </el-col>
+      <el-col :span="6">
+        <el-card class="nav-card" @click="activeTab = 'decision'">
+          <el-icon><TrendCharts /></el-icon>
+          <span>智能决策</span>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="nav-card" @click="activeTab = 'traceability'">
+          <el-icon><Link /></el-icon>
+          <span>追溯系统</span>
+        </el-card>
+      </el-col>
     </el-row>
     
     <!-- 地块管理 -->
@@ -338,6 +350,119 @@
         </el-card>
       </div>
     </el-card>
+
+    <!-- 智能决策系统 -->
+    <el-card v-if="activeTab === 'decision'" class="section-card">
+      <template #header>
+        <div class="card-header">
+          <span>🤖 智能决策系统</span>
+          <el-button type="primary" size="small" @click="showDecisionDialog()">生成决策</el-button>
+        </div>
+      </template>
+      
+      <el-alert title="基于农作物生长模型的智能决策系统" type="info" :closable="false" style="margin-bottom: 15px" />
+      
+      <el-row :gutter="10" class="stats-row">
+        <el-col :span="8">
+          <div class="stat-box">
+            <span class="num">{{ cropModels.length }}</span>
+            <span class="label">作物模型</span>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="stat-box">
+            <span class="num">{{ decisionRecords.length }}</span>
+            <span class="label">决策记录</span>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="stat-box">
+            <span class="num">{{ decisionRecords.filter(r => r.executed).length }}</span>
+            <span class="label">已执行</span>
+          </div>
+        </el-col>
+      </el-row>
+      
+      <el-divider>作物生长模型</el-divider>
+      <div class="model-grid">
+        <el-card v-for="model in cropModels" :key="model.id" class="model-card">
+          <div class="model-info">
+            <h4>{{ model.cropName }}</h4>
+            <p>类型: {{ model.cropType }}</p>
+            <p>预期产量: {{ model.expectedYield }}斤/亩</p>
+            <p>预测准确率: {{ model.predictionAccuracy }}%</p>
+            <el-tag size="small">{{ model.modelVersion }}</el-tag>
+          </div>
+        </el-card>
+      </div>
+      
+      <el-divider>决策记录</el-divider>
+      <el-timeline>
+        <el-timeline-item v-for="record in decisionRecords" :key="record.id" :timestamp="record.createdAt" placement="top">
+          <el-card>
+            <div class="decision-info">
+              <h4>
+                <el-tag :type="record.decisionType === '灌溉' ? 'primary' : record.decisionType === '施肥' ? 'success' : 'warning'">
+                  {{ record.decisionType }}
+                </el-tag>
+                决策建议
+              </h4>
+              <p>{{ record.recommendation }}</p>
+              <p>置信度: {{ (record.confidence * 100).toFixed(0) }}%</p>
+              <el-button v-if="!record.executed" type="primary" size="small" @click="executeDecision(record.id)">执行</el-button>
+              <el-tag v-else type="success" size="small">已执行</el-tag>
+            </div>
+          </el-card>
+        </el-timeline-item>
+      </el-timeline>
+    </el-card>
+
+    <!-- 全产业链追溯系统 -->
+    <el-card v-if="activeTab === 'traceability'" class="section-card">
+      <template #header>
+        <div class="card-header">
+          <span>📋 全</span>
+         产业链追溯系统 <el-button type="primary" size="small" @click="showTraceabilityDialog()">添加产品</el-button>
+        </div>
+      </template>
+      
+      <el-alert title="农产品从田间到餐桌的全程追溯" type="info" :closable="false" style="margin-bottom: 15px" />
+      
+      <el-row :gutter="10" class="stats-row">
+        <el-col :span="8">
+          <div class="stat-box">
+            <span class="num">{{ traceabilityRecords.length }}</span>
+            <span class="label">追溯记录</span>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="stat-box">
+            <span class="num">{{ traceabilityRecords.filter(r => r.status === 'active').length }}</span>
+            <span class="label">在售</span>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="stat-box">
+            <span class="num">{{ traceabilityRecords.filter(r => r.status === 'sold').length }}</span>
+            <span class="label">已售</span>
+          </div>
+        </el-col>
+      </el-row>
+      
+      <el-divider>追溯记录列表</el-divider>
+      <div class="trace-grid">
+        <el-card v-for="record in traceabilityRecords" :key="record.id" class="trace-card">
+          <div class="trace-info">
+            <h4>{{ record.productName }}</h4>
+            <p>批次: {{ record.productBatch }}</p>
+            <p>产地: {{ record.originFarm }}</p>
+            <p>追溯码: <el-tag size="small">{{ record.traceCode }}</el-tag></p>
+            <p>种植: {{ record.plantingDate }} | 收获: {{ record.harvestDate }}</p>
+            <el-tag :type="record.status === 'active' ? 'success' : 'info'" size="small">{{ record.status === 'active' ? '在售' : record.status }}</el-tag>
+          </div>
+        </el-card>
+      </div>
+    </el-card>
     
     <!-- 地块对话框 -->
     <el-dialog v-model="landDialogVisible" :title="isEditLand ? '编辑地块' : '添加地块'" width="90%">
@@ -509,13 +634,64 @@
         <el-button type="primary" @click="saveFarm" size="small">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 智能决策生成对话框 -->
+    <el-dialog v-model="decisionDialogVisible" title="生成智能决策" width="90%">
+      <el-form :model="decisionForm" label-width="80px" size="small">
+        <el-form-item label="决策类型">
+          <el-select v-model="decisionForm.decisionType" style="width: 100%">
+            <el-option label="灌溉" value="灌溉" />
+            <el-option label="施肥" value="施肥" />
+            <el-option label="喷药" value="喷药" />
+            <el-option label="收获预警" value="收获预警" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="decisionDialogVisible = false" size="small">取消</el-button>
+        <el-button type="primary" @click="generateDecision" size="small">生成</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 追溯记录添加对话框 -->
+    <el-dialog v-model="traceabilityDialogVisible" title="添加追溯记录" width="90%">
+      <el-form :model="traceabilityForm" label-width="80px" size="small">
+        <el-form-item label="产品名称">
+          <el-input v-model="traceabilityForm.productName" placeholder="如：有机大米" />
+        </el-form-item>
+        <el-form-item label="批次号">
+          <el-input v-model="traceabilityForm.productBatch" placeholder="如：RICE20260219" />
+        </el-form-item>
+        <el-form-item label="分类">
+          <el-select v-model="traceabilityForm.category" style="width: 100%">
+            <el-option label="粮食" value="粮食" />
+            <el-option label="水果" value="水果" />
+            <el-option label="蔬菜" value="蔬菜" />
+            <el-option label="茶叶" value="茶叶" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="产地农场">
+          <el-input v-model="traceabilityForm.originFarm" placeholder="如：智慧生态农场" />
+        </el-form-item>
+        <el-form-item label="种植日期">
+          <el-date-picker v-model="traceabilityForm.plantingDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+        </el-form-item>
+        <el-form-item label="收获日期">
+          <el-date-picker v-model="traceabilityForm.harvestDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="traceabilityDialogVisible = false" size="small">取消</el-button>
+        <el-button type="primary" @click="saveTraceability" size="small">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MapLocation, OfficeBuilding, Cpu, DataAnalysis, Sunny, Cloudy, Grid, WindPower, VideoCamera, Grape } from '@element-plus/icons-vue'
+import { MapLocation, OfficeBuilding, Cpu, DataAnalysis, Sunny, Cloudy, Grid, WindPower, VideoCamera, Grape, TrendCharts, Link } from '@element-plus/icons-vue'
 import axios from 'axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -865,6 +1041,89 @@ const saveDevice = async () => {
 }
 
 const icons: any = { temp: Sunny, humidity: Cloudy, soil: Grid, weather: Sunny, camera: VideoCamera }
+
+// 智能决策系统数据
+const cropModels = ref<any[]>([])
+const decisionRecords = ref<any[]>([])
+const decisionDialogVisible = ref(false)
+const decisionForm = reactive({ landId: undefined as number | undefined, decisionType: '灌溉' })
+
+const loadCropModels = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/decision/models`)
+    cropModels.value = res.data
+  } catch (e) { console.error('加载作物模型失败', e) }
+}
+
+const loadDecisionRecords = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/decision/records`)
+    decisionRecords.value = res.data
+  } catch (e) { console.error('加载决策记录失败', e) }
+}
+
+const showDecisionDialog = () => {
+  Object.assign(decisionForm, { landId: undefined, decisionType: '灌溉' })
+  decisionDialogVisible.value = true
+}
+
+const generateDecision = async () => {
+  try {
+    const res = await axios.post(`${API_BASE}/decision/generate`, decisionForm)
+    ElMessage.success('决策生成成功')
+    decisionDialogVisible.value = false
+    loadDecisionRecords()
+  } catch (e) { ElMessage.error('生成失败') }
+}
+
+const executeDecision = async (id: number) => {
+  try {
+    await axios.post(`${API_BASE}/decision/records/${id}/execute`)
+    ElMessage.success('执行成功')
+    loadDecisionRecords()
+  } catch (e) { ElMessage.error('执行失败') }
+}
+
+// 追溯系统数据
+const traceabilityRecords = ref<any[]>([])
+const traceabilityDialogVisible = ref(false)
+const traceabilityForm = reactive({ productName: '', productBatch: '', category: '', originFarm: '', originAddress: '', plantingDate: '', harvestDate: '' })
+
+const loadTraceabilityRecords = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/traceability/records`)
+    traceabilityRecords.value = res.data
+  } catch (e) { console.error('加载追溯记录失败', e) }
+}
+
+const showTraceabilityDialog = () => {
+  Object.assign(traceabilityForm, { productName: '', productBatch: '', category: '', originFarm: '', originAddress: '', plantingDate: '', harvestDate: '' })
+  traceabilityDialogVisible.value = true
+}
+
+const saveTraceability = async () => {
+  try {
+    await axios.post(`${API_BASE}/traceability/records`, traceabilityForm)
+    ElMessage.success('追溯记录添加成功')
+    traceabilityDialogVisible.value = false
+    loadTraceabilityRecords()
+  } catch (e) { ElMessage.error('添加失败') }
+}
+
+// 加载新模块数据
+onMounted(() => {
+  fetchFarms()
+  fetchLands()
+  loadCrops()
+  fetchDevices()
+  loadSoilData()
+  loadWeatherData()
+  loadIrrigationData()
+  loadAnalytics()
+  loadCropModels()
+  loadDecisionRecords()
+  loadTraceabilityRecords()
+})
 </script>
 
 <style scoped>

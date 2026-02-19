@@ -9,7 +9,7 @@ from datetime import datetime
 import random
 
 from app.database import get_db
-from app.models.smart_agriculture import Land, FarmInfo, IoTDevice, Warehouse, Member, Campaign, Crop
+from app.models.smart_agriculture import Land, FarmInfo, IoTDevice, Warehouse, Member, Campaign, Crop, CropGrowthModel, DecisionRecord, TraceabilityRecord, TraceabilityNode
 from app.models.base import Base
 from app.database import engine
 
@@ -495,3 +495,284 @@ def get_analytics():
             "change": round(random.uniform(-10, 20), 1)
         }
     }
+
+# ============= 智能决策系统 API =============
+
+@router.get("/decision/models")
+def get_crop_models(db: Session = Depends(get_db)):
+    """获取农作物生长模型列表"""
+    models = db.query(CropGrowthModel).all()
+    return [{
+        "id": m.id,
+        "cropName": m.crop_name,
+        "cropType": m.crop_type,
+        "growthStages": m.growth_stages,
+        "baseTemp": m.base_temp,
+        "optimalTempMin": m.optimal_temp_min,
+        "optimalTempMax": m.optimal_temp_max,
+        "optimalHumidityMin": m.optimal_humidity_min,
+        "optimalHumidityMax": m.optimal_humidity_max,
+        "waterRequirement": m.water_requirement,
+        "fertilizerRequirement": m.fertilizer_requirement,
+        "expectedYield": m.expected_yield,
+        "predictionAccuracy": m.prediction_accuracy,
+        "modelVersion": m.model_version,
+        "status": m.status,
+        "description": m.description
+    } for m in models]
+
+@router.post("/decision/models")
+def create_crop_model(data: dict = Body(...), db: Session = Depends(get_db)):
+    """创建农作物生长模型"""
+    model = CropGrowthModel(
+        crop_name=data.get("cropName"),
+        crop_type=data.get("cropType"),
+        growth_stages=data.get("growthStages"),
+        base_temp=data.get("baseTemp", 10),
+        optimal_temp_min=data.get("optimalTempMin", 20),
+        optimal_temp_max=data.get("optimalTempMax", 30),
+        optimal_humidity_min=data.get("optimalHumidityMin", 60),
+        optimal_humidity_max=data.get("optimalHumidityMax", 80),
+        water_requirement=data.get("waterRequirement", 500),
+        fertilizer_requirement=data.get("fertilizerRequirement", 0),
+        expected_yield=data.get("expectedYield", 0),
+        prediction_accuracy=data.get("predictionAccuracy", 95),
+        model_version=data.get("modelVersion", "v1.0"),
+        description=data.get("description")
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+    return {"id": model.id, "message": "模型创建成功"}
+
+@router.get("/decision/models/{model_id}")
+def get_crop_model(model_id: int, db: Session = Depends(get_db)):
+    """获取单个作物模型详情"""
+    model = db.query(CropGrowthModel).filter(CropGrowthModel.id == model_id).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    return {
+        "id": model.id,
+        "cropName": model.crop_name,
+        "cropType": model.crop_type,
+        "growthStages": model.growth_stages,
+        "baseTemp": model.base_temp,
+        "optimalTempMin": model.optimal_temp_min,
+        "optimalTempMax": model.optimal_temp_max,
+        "optimalHumidityMin": model.optimal_humidity_min,
+        "optimalHumidityMax": model.optimal_humidity_max,
+        "waterRequirement": model.water_requirement,
+        "fertilizerRequirement": model.fertilizer_requirement,
+        "expectedYield": model.expected_yield,
+        "predictionAccuracy": model.prediction_accuracy,
+        "modelVersion": model.model_version,
+        "status": model.status,
+        "description": model.description
+    }
+
+@router.put("/decision/models/{model_id}")
+def update_crop_model(model_id: int, data: dict = Body(...), db: Session = Depends(get_db)):
+    """更新作物模型"""
+    model = db.query(CropGrowthModel).filter(CropGrowthModel.id == model_id).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    for key, value in data.items():
+        if hasattr(model, key):
+            setattr(model, key, value)
+    db.commit()
+    return {"message": "更新成功"}
+
+@router.delete("/decision/models/{model_id}")
+def delete_crop_model(model_id: int, db: Session = Depends(get_db)):
+    """删除作物模型"""
+    model = db.query(CropGrowthModel).filter(CropGrowthModel.id == model_id).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    db.delete(model)
+    db.commit()
+    return {"message": "删除成功"}
+
+@router.get("/decision/records")
+def get_decision_records(land_id: int = None, db: Session = Depends(get_db)):
+    """获取智能决策记录"""
+    query = db.query(DecisionRecord)
+    if land_id:
+        query = query.filter(DecisionRecord.land_id == land_id)
+    records = query.order_by(DecisionRecord.created_at.desc()).all()
+    return [{
+        "id": r.id,
+        "landId": r.land_id,
+        "cropModelId": r.crop_model_id,
+        "decisionType": r.decision_type,
+        "currentValue": r.current_value,
+        "recommendedValue": r.recommended_value,
+        "recommendation": r.recommendation,
+        "visualizationData": r.visualization_data,
+        "confidence": r.confidence,
+        "executed": r.executed,
+        "executedAt": r.executed_at.isoformat() if r.executed_at else None,
+        "createdAt": r.created_at.isoformat() if r.created_at else None
+    } for r in records]
+
+@router.post("/decision/generate")
+def generate_decision(data: dict = Body(...), db: Session = Depends(get_db)):
+    """生成智能决策建议"""
+    land_id = data.get("landId")
+    decision_type = data.get("decisionType", "灌溉")
+    recommendations = {
+        "灌溉": {"recommendation": "建议当前土壤湿度偏低(35%)，需进行灌溉", "recommendedValue": 25, "visualizationData": '{"type": "irrigation_heatmap"}'},
+        "施肥": {"recommendation": "氮含量不足，建议追施尿素5kg/亩", "recommendedValue": 5, "visualizationData": '{"type": "fertilizer_prescription"}'},
+        "喷药": {"recommendation": "发现轻度病虫害，建议喷施生物农药", "recommendedValue": 1, "visualizationData": '{"type": "spray_status"}'},
+        "收获预警": {"recommendation": "预计7天后进入收获期，请提前准备", "recommendedValue": 7, "visualizationData": '{"type": "harvest_timeline"}'}
+    }
+    rec = recommendations.get(decision_type, recommendations["灌溉"])
+    record = DecisionRecord(
+        land_id=land_id,
+        decision_type=decision_type,
+        current_value=data.get("currentValue", 35),
+        recommended_value=rec["recommendedValue"],
+        recommendation=rec["recommendation"],
+        visualization_data=rec["visualizationData"],
+        confidence=0.95
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"id": record.id, "decisionType": record.decision_type, "recommendation": record.recommendation, "recommendedValue": record.recommended_value, "confidence": record.confidence}
+
+@router.post("/decision/records/{record_id}/execute")
+def execute_decision(record_id: int, db: Session = Depends(get_db)):
+    """执行决策"""
+    record = db.query(DecisionRecord).filter(DecisionRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="决策记录不存在")
+    record.executed = True
+    record.executed_at = datetime.now()
+    db.commit()
+    return {"message": "执行成功"}
+
+# ============= 全产业链追溯系统 API =============
+
+@router.get("/traceability/records")
+def get_traceability_records(category: str = None, status: str = None, db: Session = Depends(get_db)):
+    """获取追溯记录列表"""
+    query = db.query(TraceabilityRecord)
+    if category:
+        query = query.filter(TraceabilityRecord.category == category)
+    if status:
+        query = query.filter(TraceabilityRecord.status == status)
+    records = query.order_by(TraceabilityRecord.created_at.desc()).all()
+    return [{
+        "id": r.id,
+        "productName": r.product_name,
+        "productBatch": r.product_batch,
+        "category": r.category,
+        "originFarm": r.origin_farm,
+        "originAddress": r.origin_address,
+        "plantingDate": r.planting_date,
+        "harvestDate": r.harvest_date,
+        "processingDate": r.processing_date,
+        "processingFactory": r.processing_factory,
+        "logisticsCompany": r.logistics_company,
+        "logisticsNo": r.logistics_no,
+        "warehouse": r.warehouse,
+        "retailOutlet": r.retail_outlet,
+        "saleDate": r.sale_date,
+        "certifications": r.certifications,
+        "traceCode": r.trace_code,
+        "qrCode": r.qr_code,
+        "status": r.status
+    } for r in records]
+
+@router.post("/traceability/records")
+def create_traceability_record(data: dict = Body(...), db: Session = Depends(get_db)):
+    """创建追溯记录"""
+    import uuid
+    trace_code = f"TRACE-{uuid.uuid4().hex[:12].upper()}"
+    record = TraceabilityRecord(
+        product_name=data.get("productName"),
+        product_batch=data.get("productBatch"),
+        category=data.get("category"),
+        origin_farm=data.get("originFarm"),
+        origin_address=data.get("originAddress"),
+        planting_date=data.get("plantingDate"),
+        harvest_date=data.get("harvestDate"),
+        processing_date=data.get("processingDate"),
+        processing_factory=data.get("processingFactory"),
+        logistics_company=data.get("logisticsCompany"),
+        logistics_no=data.get("logisticsNo"),
+        warehouse=data.get("warehouse"),
+        retail_outlet=data.get("retailOutlet"),
+        sale_date=data.get("saleDate"),
+        certifications=data.get("certifications"),
+        trace_code=trace_code,
+        qr_code=f"/api/traceability/qr/{trace_code}.png",
+        status="active"
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"id": record.id, "traceCode": record.trace_code, "message": "追溯记录创建成功"}
+
+@router.get("/traceability/records/{record_id}")
+def get_traceability_record(record_id: int, db: Session = Depends(get_db)):
+    """获取追溯记录详情"""
+    record = db.query(TraceabilityRecord).filter(TraceabilityRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="追溯记录不存在")
+    nodes = db.query(TraceabilityNode).filter(TraceabilityNode.trace_record_id == record_id).order_by(TraceabilityNode.created_at).all()
+    return {
+        "id": record.id,
+        "productName": record.product_name,
+        "productBatch": record.product_batch,
+        "category": record.category,
+        "originFarm": record.origin_farm,
+        "plantingDate": record.planting_date,
+        "harvestDate": record.harvest_date,
+        "traceCode": record.trace_code,
+        "status": record.status,
+        "nodes": [{"id": n.id, "nodeType": n.node_type, "nodeName": n.node_name, "description": n.description, "timestamp": n.timestamp} for n in nodes]
+    }
+
+@router.get("/traceability/code/{trace_code}")
+def get_traceability_by_code(trace_code: str, db: Session = Depends(get_db)):
+    """通过追溯码查询"""
+    record = db.query(TraceabilityRecord).filter(TraceabilityRecord.trace_code == trace_code).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="追溯码不存在")
+    nodes = db.query(TraceabilityNode).filter(TraceabilityNode.trace_record_id == record.id).order_by(TraceabilityNode.created_at).all()
+    return {"productName": record.product_name, "productBatch": record.product_batch, "originFarm": record.origin_farm, "traceCode": record.trace_code, "status": record.status, "nodes": [{"nodeType": n.node_type, "nodeName": n.node_name, "timestamp": n.timestamp} for n in nodes]}
+
+@router.post("/traceability/records/{record_id}/nodes")
+def add_traceability_node(record_id: int, data: dict = Body(...), db: Session = Depends(get_db)):
+    """添加追溯节点"""
+    record = db.query(TraceabilityRecord).filter(TraceabilityRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="追溯记录不存在")
+    node = TraceabilityNode(
+        trace_record_id=record_id,
+        node_type=data.get("nodeType"),
+        node_name=data.get("nodeName"),
+        description=data.get("description"),
+        operator=data.get("operator"),
+        location=data.get("location"),
+        data=data.get("data"),
+        image_url=data.get("imageUrl"),
+        timestamp=datetime.now().isoformat()
+    )
+    db.add(node)
+    db.commit()
+    db.refresh(node)
+    return {"id": node.id, "message": "节点添加成功"}
+
+@router.put("/traceability/records/{record_id}")
+def update_traceability_record(record_id: int, data: dict = Body(...), db: Session = Depends(get_db)):
+    """更新追溯记录"""
+    record = db.query(TraceabilityRecord).filter(TraceabilityRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="追溯记录不存在")
+    for key, value in data.items():
+        if hasattr(record, key):
+            setattr(record, key, value)
+    db.commit()
+    return {"message": "更新成功"}
