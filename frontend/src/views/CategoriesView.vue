@@ -67,7 +67,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Apple, Food, Rice, Chicken, Box } from '@element-plus/icons-vue'
 
@@ -80,13 +81,32 @@ interface Category {
   status: string
 }
 
-const categories = ref<Category[]>([
-  { id: 1, name: '水果', icon: 'Apple', color: '#f56c6c', productCount: 25, status: 'active' },
-  { id: 2, name: '蔬菜', icon: 'Food', color: '#67c23a', productCount: 42, status: 'active' },
-  { id: 3, name: '粮食', icon: 'Rice', color: '#e6a23c', productCount: 18, status: 'active' },
-  { id: 4, name: '畜牧', icon: 'Chicken', color: '#909399', productCount: 12, status: 'active' },
-  { id: 5, name: '其他', icon: 'Box', color: '#409eff', productCount: 8, status: 'active' }
-])
+// 从API加载分类数据
+const categories = ref<Category[]>([])
+
+onMounted(async () => {
+  try {
+    const res = await axios.get('/api/categories/')
+    categories.value = res.data.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      icon: c.icon || 'Box',
+      color: '#409eff',
+      productCount: 0,
+      status: 'active'
+    }))
+  } catch (e) {
+    console.error('加载分类失败', e)
+    // 加载失败时使用默认数据
+    categories.value = [
+      { id: 1, name: '水果', icon: 'Apple', color: '#f56c6c', productCount: 25, status: 'active' },
+      { id: 2, name: '蔬菜', icon: 'Food', color: '#67c23a', productCount: 42, status: 'active' },
+      { id: 3, name: '粮食', icon: 'Rice', color: '#e6a23c', productCount: 18, status: 'active' },
+      { id: 4, name: '畜牧', icon: 'Chicken', color: '#909399', productCount: 12, status: 'active' },
+      { id: 5, name: '其他', icon: 'Box', color: '#409eff', productCount: 8, status: 'active' }
+    ]
+  }
+})
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
