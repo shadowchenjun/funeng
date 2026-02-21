@@ -574,3 +574,346 @@ def get_inventory_stats():
             "pending": random.randint(5, 20)
         }
     }
+
+
+# ========== 货主管理 ==========
+@router.get("/owner/list")
+def get_owner_list():
+    """获取货主列表"""
+    owners = []
+    for i in range(15):
+        owners.append({
+            "id": f"OWN{i+1:04d}",
+            "name": f"货主{chr(65+i)}",
+            "code": f"OW{1000+i}",
+            "contact": f"联系人{i+1}",
+            "phone": f"138{random.randint(10000000, 99999999)}",
+            "warehouse_count": random.randint(1, 5),
+            "zone_count": random.randint(2, 10),
+            "status": random.choice(["正常", "正常", "暂停"]),
+            "total_stock": random.randint(1000, 50000),
+            "monthly_inbound": random.randint(50, 500),
+            "monthly_outbound": random.randint(50, 500),
+            "created_at": (datetime.now() - timedelta(days=random.randint(30, 365))).strftime("%Y-%m-%d")
+        })
+    return owners
+
+@router.get("/owner/{owner_id}")
+def get_owner_detail(owner_id: str):
+    """获取货主详情"""
+    return {
+        "id": owner_id,
+        "name": "货主A",
+        "code": "OW1000",
+        "contact": "张三",
+        "phone": "13812345678",
+        "email": "zhangsan@example.com",
+        "address": "北京市朝阳区xxx",
+        "warehouses": [
+            {"id": "WH001", "name": "北京中心仓", "zones": 5},
+            {"id": "WH002", "name": "上海中心仓", "zones": 3}
+        ],
+        "pricing_model": "按件计费+固定月租",
+        "status": "正常",
+        "contracts": [
+            {"no": "CT202601001", "start": "2026-01-01", "end": "2026-12-31", "status": "生效中"}
+        ]
+    }
+
+@router.post("/owner")
+def create_owner(data: dict):
+    """创建货主"""
+    return {"success": True, "id": f"OWN{datetime.now().strftime('%Y%m%d')}{random.randint(100, 999)}"}
+
+@router.put("/owner/{owner_id}")
+def update_owner(owner_id: str, data: dict):
+    """更新货主信息"""
+    return {"success": True, "message": f"货主 {owner_id} 更新成功"}
+
+@router.delete("/owner/{owner_id}")
+def delete_owner(owner_id: str):
+    """删除货主"""
+    return {"success": True, "message": f"货主 {owner_id} 删除成功"}
+
+
+# ========== 温区管理 ==========
+@router.get("/zone/list")
+def get_zone_list():
+    """获取温区列表"""
+    zones = []
+    zone_types = ["冷藏区", "冷冻区", "常温区", "恒温区"]
+    for i in range(20):
+        zones.append({
+            "id": f"Z{i+1:04d}",
+            "name": f"{zone_types[i%4]}{chr(65+i//4)}",
+            "type": zone_types[i%4],
+            "temperature_min": random.choice([-18, 0, 5, 15]),
+            "temperature_max": random.choice([-12, 5, 10, 25]),
+            "warehouse": f"仓库{random.randint(1, 5)}",
+            "capacity": random.randint(100, 1000),
+            "used": random.randint(10, 500),
+            "status": random.choice(["正常", "正常", "维护中"])
+        })
+    return zones
+
+
+# ========== 入库管理 ==========
+@router.get("/inbound/appointments")
+def get_inbound_appointments():
+    """获取入库预约列表"""
+    appointments = []
+    for i in range(15):
+        appt_id = f"INB{datetime.now().strftime('%Y%m')}{i+1:04d}"
+        appointments.append({
+            "id": appt_id,
+            "owner": f"货主{random.randint(1, 15)}",
+            "owner_code": f"OW{1000+random.randint(0, 14)}",
+            "vehicle_no": f"京A{random.randint(10000, 99999)}",
+            "driver": f"司机{random.randint(1, 10)}",
+            "driver_phone": f"138{random.randint(10000000, 99999999)}",
+            "estimated_arrival": (datetime.now() + timedelta(hours=random.randint(1, 48))).strftime("%Y-%m-%d %H:%M"),
+            "actual_arrival": None,
+            "appointment_date": (datetime.now() + timedelta(days=random.randint(0, 7))).strftime("%Y-%m-%d"),
+            "expected_items": random.randint(5, 50),
+            "expected_quantity": random.randint(100, 5000),
+            "status": random.choice(["已预约", "已到货", "收货中", "已完成"]),
+            "dock": f"D{random.randint(1, 10)}",
+            "zone": random.choice(["冷藏区", "冷冻区", "常温区"]),
+            "remark": random.choice(["", "加急", "需要叉车", "散货"])
+        })
+    return appointments
+
+@router.get("/inbound/appointments/{appointment_id}")
+def get_appointment_detail(appointment_id: str):
+    """获取预约详情"""
+    return {
+        "id": appointment_id,
+        "owner": "货主A",
+        "owner_code": "OW1000",
+        "vehicle_no": "京A12345",
+        "driver": "司机张三",
+        "driver_phone": "13812345678",
+        "estimated_arrival": (datetime.now() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
+        "appointment_date": datetime.now().strftime("%Y-%m-%d"),
+        "expected_items": 20,
+        "expected_quantity": 2000,
+        "items": [
+            {"sku": "SKU001", "name": "有机蔬菜", "quantity": 500, "unit": "件", "barcode": "6901234567890"},
+            {"sku": "SKU002", "name": "新鲜水果", "quantity": 300, "unit": "件", "barcode": "6901234567891"},
+            {"sku": "SKU003", "name": "冷冻肉类", "quantity": 200, "unit": "件", "barcode": "6901234567892"}
+        ],
+        "status": "已到货",
+        "dock": "D1",
+        "zone": "冷藏区A"
+    }
+
+@router.post("/inbound/appointments")
+def create_appointment(data: dict):
+    """创建入库预约"""
+    return {"success": True, "id": f"INB{datetime.now().strftime('%Y%m%d')}{random.randint(100, 999)}"}
+
+@router.put("/inbound/appointments/{appointment_id}/checkin")
+def checkin_appointment(appointment_id: str):
+    """签到确认到货"""
+    return {"success": True, "message": f"预约 {appointment_id} 已签到"}
+
+
+# ========== 入库单 ==========
+@router.get("/inbound/orders")
+def get_inbound_orders():
+    """获取入库单列表"""
+    orders = []
+    for i in range(20):
+        order_id = f"IOR{datetime.now().strftime('%Y%m')}{i+1:04d}"
+        orders.append({
+            "id": order_id,
+            "appointment_id": f"INB{datetime.now().strftime('%Y%m')}{random.randint(1,15):04d}",
+            "owner": f"货主{random.randint(1, 15)}",
+            "inbound_date": (datetime.now() - timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d"),
+            "status": random.choice(["待收货", "收货中", "已入库", "已质检"]),
+            "total_items": random.randint(5, 50),
+            "total_quantity": random.randint(100, 5000),
+            "received_quantity": 0,
+            "qualified_quantity": 0,
+            "unqualified_quantity": 0,
+            "dock": f"D{random.randint(1, 10)}",
+            "receiver": f"收货员{random.randint(1, 5)}",
+            "created_at": (datetime.now() - timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d %H:%M")
+        })
+    return orders
+
+@router.get("/inbound/orders/{order_id}")
+def get_inbound_order_detail(order_id: str):
+    """获取入库单详情"""
+    return {
+        "id": order_id,
+        "appointment_id": "INB2026020001",
+        "owner": "货主A",
+        "inbound_date": datetime.now().strftime("%Y-%m-%d"),
+        "status": "收货中",
+        "total_items": 20,
+        "total_quantity": 2000,
+        "received_quantity": 1500,
+        "qualified_quantity": 1450,
+        "unqualified_quantity": 50,
+        "dock": "D1",
+        "receiver": "收货员张三",
+        "items": [
+            {"sku": "SKU001", "name": "有机蔬菜", "expected": 500, "received": 480, "qualified": 475, "unqualified": 5, "location": "A01-01-01"},
+            {"sku": "SKU002", "name": "新鲜水果", "expected": 300, "received": 300, "qualified": 295, "unqualified": 5, "location": "A01-01-02"},
+            {"sku": "SKU003", "name": "冷冻肉类", "expected": 200, "received": 200, "qualified": 200, "unqualified": 0, "location": "B02-03-05"}
+        ],
+        "quality_check": {"status": "已完成", "passed": True, "score": 92}
+    }
+
+
+# ========== 上架建议 ==========
+@router.get("/inbound/suggestions/{order_id}")
+def get_putaway_suggestions(order_id: str):
+    """获取智能上架建议"""
+    suggestions = []
+    zones = ["冷藏区A", "冷藏区B", "冷冻区A", "常温区A"]
+    for i in range(10):
+        suggestions.append({
+            "sku": f"SKU{str(i+1).zfill(3)}",
+            "name": f"商品{i+1}",
+            "quantity": random.randint(50, 200),
+            "suggested_location": f"{chr(65+i//10)}{i%10+1:02d}-{random.randint(1,20):02d}-{random.randint(1,30):02d}",
+            "zone": random.choice(zones),
+            "reason": random.choice(["温度匹配", "库存均衡", "靠近同类商品", "靠近出库口"]),
+            "distance_to_pick": random.randint(5, 50),
+            "confidence": round(random.uniform(0.7, 0.99), 2)
+        })
+    return suggestions
+
+
+# ========== 作业管理 ==========
+@router.get("/operation/tasks")
+def get_operation_tasks():
+    """获取作业任务列表"""
+    tasks = []
+    task_types = ["收货", "质检", "上架", "拣货", "复核", "打包", "发货", "补货", "移库", "盘点"]
+    for i in range(30):
+        task_id = f"TSK{i+1:05d}"
+        task_type = random.choice(task_types)
+        tasks.append({
+            "id": task_id,
+            "type": task_type,
+            "priority": random.choice(["紧急", "高", "普通", "低"]),
+            "status": random.choice(["待执行", "执行中", "已完成", "已取消"]),
+            "owner": f"货主{random.randint(1, 10)}",
+            "location": f"{chr(65+random.randint(0,5))}{random.randint(1,20):02d}-{random.randint(1,30):02d}",
+            "quantity": random.randint(10, 500),
+            "assigned_to": f"员工{random.randint(1, 20)}",
+            "assigned_at": (datetime.now() - timedelta(hours=random.randint(0, 24))).strftime("%Y-%m-%d %H:%M"),
+            "started_at": None,
+            "completed_at": None,
+            "barcode": f"BC{random.randint(100000, 999999)}"
+        })
+    return tasks
+
+@router.get("/operation/tasks/{task_id}")
+def get_task_detail(task_id: str):
+    """获取作业任务详情"""
+    return {
+        "id": task_id,
+        "type": "上架",
+        "priority": "高",
+        "status": "执行中",
+        "owner": "货主A",
+        "items": [
+            {"sku": "SKU001", "name": "有机蔬菜", "barcode": "6901234567890", "quantity": 100, "location": "A01-05-10"},
+            {"sku": "SKU002", "name": "新鲜水果", "barcode": "6901234567891", "quantity": 50, "location": "A01-05-11"}
+        ],
+        "target_location": "A01-06-15",
+        "assigned_to": "员工张三",
+        "assigned_at": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
+        "started_at": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M"),
+        "history": [
+            {"action": "任务分配", "operator": "系统", "time": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")},
+            {"action": "开始执行", "operator": "员工张三", "time": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M")},
+            {"action": "扫描商品", "operator": "员工张三", "time": (datetime.now() - timedelta(minutes=25)).strftime("%Y-%m-%d %H:%M"), "detail": "SKU001 x100"}
+        ]
+    }
+
+@router.post("/operation/tasks/{task_id}/start")
+def start_task(task_id: str, data: dict = {}):
+    """开始执行任务"""
+    return {"success": True, "message": f"任务 {task_id} 开始执行", "started_at": datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+@router.post("/operation/tasks/{task_id}/complete")
+def complete_task(task_id: str, data: dict = {}):
+    """完成任务"""
+    return {"success": True, "message": f"任务 {task_id} 已完成", "completed_at": datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+@router.post("/operation/tasks/{task_id}/scan")
+def scan_item(task_id: str, data: dict):
+    """扫描条码"""
+    barcode = data.get("barcode", "")
+    return {"success": True, "scanned": True, "item": {"sku": "SKU001", "name": "有机蔬菜", "quantity": 100, "location": "A01-05-10"}}
+
+
+# ========== 人员绩效 ==========
+@router.get("/operation/performance")
+def get_operator_performance():
+    """获取人员绩效数据"""
+    performances = []
+    for i in range(20):
+        performances.append({
+            "employee_id": f"EMP{str(i+1).zfill(4)}",
+            "name": f"员工{chr(65+i)}",
+            "department": random.choice(["收货组", "上架组", "拣货组", "复核组", "发货组"]),
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "tasks_completed": random.randint(10, 50),
+            "tasks_handled": random.randint(10, 50),
+            "error_count": random.randint(0, 5),
+            "accuracy_rate": round(random.uniform(0.85, 0.99), 3),
+            "avg_task_time": round(random.uniform(5, 30), 1),
+            "working_hours": round(random.uniform(6, 10), 1),
+            "score": random.randint(60, 100)
+        })
+    return performances
+
+
+# ========== 智能批次调度 ==========
+@router.get("/operation/batch/suggestions")
+def get_batch_suggestions():
+    """获取智能批次合并建议"""
+    return {
+        "suggestions": [
+            {
+                "id": "BATCH001",
+                "type": "智能合并",
+                "description": "将3个零散出库订单合并为一批次",
+                "orders": ["OUT20260215001", "OUT20260215002", "OUT20260215003"],
+                "total_items": 45,
+                "estimated_pick_time": 25,
+                "zone": "A区",
+                "priority": "高",
+                "time_window": "14:00-16:00",
+                "rules_applied": ["同区域", "同配送要求", "时间窗口匹配"]
+            },
+            {
+                "id": "BATCH002",
+                "type": "顺序优化",
+                "description": "优化拣货路径，预计节省30%时间",
+                "orders": ["OUT20260215004", "OUT20260215005"],
+                "total_items": 120,
+                "estimated_pick_time": 40,
+                "zone": "B区",
+                "priority": "普通",
+                "time_window": "10:00-12:00",
+                "rules_applied": ["路径优化", "重量平衡"]
+            }
+        ],
+        "stats": {
+            "pending_orders": 15,
+            "suggested_batches": 5,
+            "estimated_time_saved": "35%"
+        }
+    }
+
+@router.post("/operation/batch/create")
+def create_batch(data: dict):
+    """创建批次任务"""
+    return {"success": True, "batch_id": f"BATCH{datetime.now().strftime('%Y%m%d%H%M')}", "message": "批次创建成功"}

@@ -56,6 +56,26 @@
           <span>库存预警</span>
         </el-card>
       </el-col>
+      <el-col :span="6">
+        <el-card class="nav-card" @click="activeTab = 'owner'">
+          <el-icon><User /></el-icon>
+          <span>货主管理</span>
+        </el-card>
+      </el-col>
+    </el-row>
+    <el-row :gutter="10" class="quick-nav">
+      <el-col :span="6">
+        <el-card class="nav-card" @click="activeTab = 'inbound'">
+          <el-icon><Bottom /></el-icon>
+          <span>入库管理</span>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="nav-card" @click="activeTab = 'operation'">
+          <el-icon><Operation /></el-icon>
+          <span>作业管理</span>
+        </el-card>
+      </el-col>
     </el-row>
     
     <!-- 实时监控 -->
@@ -606,7 +626,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning } from '@element-plus/icons-vue'
+import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning, User, Bottom, Operation } from '@element-plus/icons-vue'
 
 const activeTab = ref('monitor')
 
@@ -668,6 +688,242 @@ const loadTransportData = async () => {
   } catch (e) { console.error('加载运输数据失败', e) }
 }
 
+    <!-- 货主管理 -->
+    <el-card v-if="activeTab === 'owner'" class="section-card">
+      <template #header>
+        <div class="card-header">
+          <span>🏢 货主管理</span>
+          <el-button type="primary" size="small" @click="loadOwnerData">🔄 刷新</el-button>
+        </div>
+      </template>
+      
+      <el-row :gutter="10" class="owner-stats">
+        <el-col :span="6">
+          <div class="stat-item">
+            <span class="num">{{ ownerStats.total }}</span>
+            <span class="label">货主总数</span>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="stat-item">
+            <span class="num" style="color: #67C23A;">{{ ownerStats.active }}</span>
+            <span class="label">正常运营</span>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="stat-item">
+            <span class="num" style="color: #409EFF;">{{ ownerStats.warehouses }}</span>
+            <span class="label">仓库数量</span>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="stat-item">
+            <span class="num" style="color: #E6A23C;">{{ ownerStats.zones }}</span>
+            <span class="label">温区数量</span>
+          </div>
+        </el-col>
+      </el-row>
+      
+      <el-table :data="ownerList" stripe style="width: 100%; margin-top: 15px;">
+        <el-table-column prop="code" label="货主编码" width="100" />
+        <el-table-column prop="name" label="货主名称" width="120" />
+        <el-table-column prop="contact" label="联系人" width="100" />
+        <el-table-column prop="phone" label="联系电话" width="130" />
+        <el-table-column prop="warehouse_count" label="仓库数" width="80" />
+        <el-table-column prop="zone_count" label="温区数" width="80" />
+        <el-table-column prop="total_stock" label="库存量" width="100" />
+        <el-table-column prop="status" label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.status === '正常' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default>
+            <el-button type="primary" size="small" link>详情</el-button>
+            <el-button type="primary" size="small" link>编辑</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 入库管理 -->
+    <el-card v-if="activeTab === 'inbound'" class="section-card">
+      <template #header>
+        <div class="card-header">
+          <span>📥 入库管理</span>
+          <el-radio-group v-model="inboundSubTab" size="small">
+            <el-radio-button label="appointments">预约管理</el-radio-button>
+            <el-radio-button label="orders">入库单</el-radio-button>
+            <el-radio-button label="suggestions">上架建议</el-radio-button>
+          </el-radio-group>
+        </div>
+      </template>
+      
+      <div v-if="inboundSubTab === 'appointments'">
+        <el-table :data="appointmentList" stripe>
+          <el-table-column prop="id" label="预约号" width="140" />
+          <el-table-column prop="owner" label="货主" width="100" />
+          <el-table-column prop="vehicle_no" label="车牌号" width="100" />
+          <el-table-column prop="driver" label="司机" width="80" />
+          <el-table-column prop="estimated_arrival" label="预计到达" width="150" />
+          <el-table-column prop="expected_quantity" label="预计数量" width="90" />
+          <el-table-column prop="dock" label="月台" width="60" />
+          <el-table-column prop="status" label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '已完成' ? 'success' : row.status === '收货中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150">
+            <template #default>
+              <el-button type="primary" size="small" link>详情</el-button>
+              <el-button type="success" size="small" link>签到</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <div v-if="inboundSubTab === 'orders'">
+        <el-table :data="inboundOrders" stripe>
+          <el-table-column prop="id" label="入库单号" width="150" />
+          <el-table-column prop="owner" label="货主" width="100" />
+          <el-table-column prop="inbound_date" label="入库日期" width="120" />
+          <el-table-column prop="total_items" label="SKU数" width="70" />
+          <el-table-column prop="total_quantity" label="总数量" width="90" />
+          <el-table-column prop="received_quantity" label="已收货" width="90" />
+          <el-table-column prop="qualified_quantity" label="合格数" width="90" />
+          <el-table-column prop="status" label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '已入库' ? 'success' : row.status === '收货中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default>
+              <el-button type="primary" size="small" link>详情</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <div v-if="inboundSubTab === 'suggestions'">
+        <el-alert title="智能上架建议基于商品温度要求、库存均衡、拣货路径优化等因素" type="info" :closable="false" style="margin-bottom: 15px;" />
+        <el-table :data="putawaySuggestions" stripe>
+          <el-table-column prop="sku" label="SKU" width="100" />
+          <el-table-column prop="name" label="商品名称" width="150" />
+          <el-table-column prop="quantity" label="数量" width="80" />
+          <el-table-column prop="suggested_location" label="推荐货位" width="120" />
+          <el-table-column prop="zone" label="温区" width="100" />
+          <el-table-column prop="reason" label="推荐原因" width="150" />
+          <el-table-column prop="confidence" label="置信度" width="80">
+            <template #default="{ row }">
+              <el-progress :percentage="row.confidence * 100" :color="row.confidence > 0.9 ? '#67C23A' : '#E6A23C'" />
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-card>
+
+    <!-- 作业管理 -->
+    <el-card v-if="activeTab === 'operation'" class="section-card">
+      <template #header>
+        <div class="card-header">
+          <span>⚙️ 作业管理</span>
+          <el-radio-group v-model="operationSubTab" size="small">
+            <el-radio-button label="tasks">任务列表</el-radio-button>
+            <el-radio-button label="performance">人员绩效</el-radio-button>
+            <el-radio-button label="batch">智能批次</el-radio-button>
+          </el-radio-group>
+        </div>
+      </template>
+      
+      <div v-if="operationSubTab === 'tasks'">
+        <el-table :data="operationTasks" stripe>
+          <el-table-column prop="id" label="任务编号" width="130" />
+          <el-table-column prop="type" label="作业类型" width="80" />
+          <el-table-column prop="priority" label="优先级" width="70">
+            <template #default="{ row }">
+              <el-tag :type="row.priority === '紧急' ? 'danger' : row.priority === '高' ? 'warning' : 'info'" size="small">{{ row.priority }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="owner" label="货主" width="80" />
+          <el-table-column prop="location" label="库位" width="100" />
+          <el-table-column prop="quantity" label="数量" width="70" />
+          <el-table-column prop="assigned_to" label="执行人" width="80" />
+          <el-table-column prop="status" label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '已完成' ? 'success' : row.status === '执行中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="barcode" label="条码" width="120" />
+        </el-table>
+      </div>
+      
+      <div v-if="operationSubTab === 'performance'">
+        <el-table :data="performanceData" stripe>
+          <el-table-column prop="employee_id" label="工号" width="100" />
+          <el-table-column prop="name" label="姓名" width="80" />
+          <el-table-column prop="department" label="部门" width="100" />
+          <el-table-column prop="tasks_completed" label="完成任务" width="90" />
+          <el-table-column prop="error_count" label="错误数" width="70" />
+          <el-table-column prop="accuracy_rate" label="准确率" width="80">
+            <template #default="{ row }">
+              {{ (row.accuracy_rate * 100).toFixed(1) }}%
+            </template>
+          </el-table-column>
+          <el-table-column prop="avg_task_time" label="平均耗时(分钟)" width="120" />
+          <el-table-column prop="score" label="绩效评分" width="80">
+            <template #default="{ row }">
+              <el-progress :percentage="row.score" :color="row.score >= 80 ? '#67C23A' : row.score >= 60 ? '#E6A23C' : '#F56C6C'" />
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <div v-if="operationSubTab === 'batch'">
+        <el-row :gutter="10" class="batch-stats">
+          <el-col :span="8">
+            <div class="stat-item">
+              <span class="num">{{ batchStats.pending_orders }}</span>
+              <span class="label">待处理订单</span>
+            </div>
+          </el-col>
+          <el-col :span="8">
+            <div class="stat-item">
+              <span class="num" style="color: #409EFF;">{{ batchStats.suggested_batches }}</span>
+              <span class="label">建议批次</span>
+            </div>
+          </el-col>
+          <el-col :span="8">
+            <div class="stat-item">
+              <span class="num" style="color: #67C23A;">{{ batchStats.estimated_time_saved }}</span>
+              <span class="label">预计节省时间</span>
+            </div>
+          </el-col>
+        </el-row>
+        <el-table :data="batchSuggestions" stripe style="margin-top: 15px;">
+          <el-table-column prop="id" label="批次号" width="120" />
+          <el-table-column prop="type" label="类型" width="100" />
+          <el-table-column prop="description" label="描述" width="250" />
+          <el-table-column prop="orders" label="包含订单" width="180">
+            <template #default="{ row }">
+              {{ row.orders.join(', ') }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="total_items" label="商品数" width="70" />
+          <el-table-column prop="estimated_pick_time" label="预计拣货时间" width="120" />
+          <el-table-column prop="priority" label="优先级" width="70">
+            <template #default="{ row }">
+              <el-tag :type="row.priority === '高' ? 'danger' : 'info'" size="small">{{ row.priority }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default>
+              <el-button type="primary" size="small">创建批次</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-card>
+
 // 监听标签页切换，加载对应数据
 watch(activeTab, (newTab) => {
   if (newTab === 'quality' && qualityInspections.value.length === 0) {
@@ -675,6 +931,15 @@ watch(activeTab, (newTab) => {
   }
   if (newTab === 'alert' && inventoryAlerts.value.length === 0) {
     loadAlertData()
+  }
+  if (newTab === 'owner' && ownerList.value.length === 0) {
+    loadOwnerData()
+  }
+  if (newTab === 'inbound' && appointmentList.value.length === 0) {
+    loadInboundData()
+  }
+  if (newTab === 'operation' && operationTasks.value.length === 0) {
+    loadOperationData()
   }
 })
 
@@ -759,6 +1024,74 @@ const resolveAlert = async (alertId: string) => {
     loadAlertData()
   } catch (e) {
     ElMessage.error('操作失败')
+  }
+}
+
+// 货主管理数据
+const ownerList = ref<any[]>([])
+const ownerStats = ref({ total: 0, active: 0, warehouses: 0, zones: 0 })
+const loadOwnerData = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/owner/list')
+    ownerList.value = res.data
+    ownerStats.value = {
+      total: res.data.length,
+      active: res.data.filter((o: any) => o.status === '正常').length,
+      warehouses: res.data.reduce((sum: number, o: any) => sum + o.warehouse_count, 0),
+      zones: res.data.reduce((sum: number, o: any) => sum + o.zone_count, 0)
+    }
+  } catch (e) {
+    console.error('加载货主数据失败', e)
+  }
+}
+
+// 入库管理数据
+const inboundSubTab = ref('appointments')
+const appointmentList = ref<any[]>([])
+const inboundOrders = ref<any[]>([])
+const putawaySuggestions = ref<any[]>([])
+const loadInboundData = async () => {
+  try {
+    const [apptRes, ordersRes] = await Promise.all([
+      axios.get('/api/cold-chain/inbound/appointments'),
+      axios.get('/api/cold-chain/inbound/orders')
+    ])
+    appointmentList.value = apptRes.data
+    inboundOrders.value = ordersRes.data
+    // 模拟上架建议数据
+    putawaySuggestions.value = Array.from({ length: 10 }, (_, i) => ({
+      sku: `SKU${String(i + 1).padStart(3, '0')}`,
+      name: `商品${i + 1}`,
+      quantity: Math.floor(Math.random() * 200) + 50,
+      suggested_location: `${String.fromCharCode(65 + Math.floor(i / 10))}${String(i % 10 + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
+      zone: ['冷藏区A', '冷藏区B', '冷冻区A', '常温区A'][Math.floor(Math.random() * 4)],
+      reason: ['温度匹配', '库存均衡', '靠近同类商品', '靠近出库口'][Math.floor(Math.random() * 4)],
+      confidence: Math.random() * 0.3 + 0.7
+    }))
+  } catch (e) {
+    console.error('加载入库数据失败', e)
+  }
+}
+
+// 作业管理数据
+const operationSubTab = ref('tasks')
+const operationTasks = ref<any[]>([])
+const performanceData = ref<any[]>([])
+const batchSuggestions = ref<any[]>([])
+const batchStats = ref({ pending_orders: 0, suggested_batches: 0, estimated_time_saved: '0%' })
+const loadOperationData = async () => {
+  try {
+    const [tasksRes, perfRes, batchRes] = await Promise.all([
+      axios.get('/api/cold-chain/operation/tasks'),
+      axios.get('/api/cold-chain/operation/performance'),
+      axios.get('/api/cold-chain/operation/batch/suggestions')
+    ])
+    operationTasks.value = tasksRes.data
+    performanceData.value = perfRes.data
+    batchSuggestions.value = batchRes.data.suggestions
+    batchStats.value = batchRes.data.stats
+  } catch (e) {
+    console.error('加载作业数据失败', e)
   }
 }
 
