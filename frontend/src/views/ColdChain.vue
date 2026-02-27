@@ -620,80 +620,16 @@
         <el-button type="primary" @click="saveVehicle" size="small">保存</el-button>
       </template>
     </el-dialog>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning, User, Bottom, Operation } from '@element-plus/icons-vue'
-
-const activeTab = ref('monitor')
-
-// 页面加载时获取数据
-onMounted(() => {
-  loadMonitorData()
-  loadWarehouseData()
-  loadVehicleData()
-  loadTransportData()
-})
-
-// 加载监控数据
-const loadMonitorData = async () => {
-  try {
-    const res = await axios.get('/api/cold-chain/monitoring/temperature')
-    temperatureData.value = res.data
-  } catch (e) { console.error('加载监控数据失败', e) }
-}
-
-// 加载仓库数据
-const loadWarehouseData = async () => {
-  try {
-    const res = await axios.get('/api/cold-chain/warehouse')
-    warehouses.value = res.data.map((w: any) => ({
-      id: w.id,
-      name: w.name,
-      address: w.address,
-      capacity: w.capacity,
-      area: Math.floor(w.capacity / 2),
-      temperature: w.temperature,
-      humidity: w.humidity,
-      inventory: w.products_count * 10,
-      status: w.alerts > 0 ? '预警' : '正常'
-    }))
-  } catch (e) { console.error('加载仓库数据失败', e) }
-}
-
-// 加载车辆数据
-const loadVehicleData = async () => {
-  try {
-    const res = await axios.get('/api/cold-chain/transport')
-    vehicles.value = res.data.slice(0, 6).map((v: any, i: number) => ({
-      id: i + 1,
-      plate: v.vehicle_no,
-      driver: v.driver,
-      phone: '138****' + Math.floor(Math.random() * 10000),
-      location: v.location,
-      temperature: v.temperature,
-      status: v.status === '运输中' ? '运输中' : '空闲'
-    }))
-  } catch (e) { console.error('加载车辆数据失败', e) }
-}
-
-// 加载运输数据
-const loadTransportData = async () => {
-  try {
-    const res = await axios.get('/api/cold-chain/transport')
-    transports.value = res.data
-  } catch (e) { console.error('加载运输数据失败', e) }
-}
 
     <!-- 货主管理 -->
     <el-card v-if="activeTab === 'owner'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>🏢 货主管理</span>
-          <el-button type="primary" size="small" @click="loadOwnerData">🔄 刷新</el-button>
+          <div>
+            <el-button type="primary" size="small" @click="showOwnerDialog()">+ 添加货主</el-button>
+            <el-button type="primary" size="small" @click="loadOwnerData">🔄 刷新</el-button>
+          </div>
         </div>
       </template>
       
@@ -726,25 +662,138 @@ const loadTransportData = async () => {
       
       <el-table :data="ownerList" stripe style="width: 100%; margin-top: 15px;">
         <el-table-column prop="code" label="货主编码" width="100" />
-        <el-table-column prop="name" label="货主名称" width="120" />
+        <el-table-column prop="name" label="货主名称" width="150" />
         <el-table-column prop="contact" label="联系人" width="100" />
         <el-table-column prop="phone" label="联系电话" width="130" />
-        <el-table-column prop="warehouse_count" label="仓库数" width="80" />
-        <el-table-column prop="zone_count" label="温区数" width="80" />
-        <el-table-column prop="total_stock" label="库存量" width="100" />
+        <el-table-column prop="email" label="邮箱" width="180" />
+        <el-table-column prop="address" label="地址" width="180" />
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="row.status === '正常' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default>
-            <el-button type="primary" size="small" link>详情</el-button>
-            <el-button type="primary" size="small" link>编辑</el-button>
+        <el-table-column label="操作" width="150">
+          <template #default="{ row }">
+            <el-button type="primary" size="small" link @click="editOwner(row)">编辑</el-button>
+            <el-button type="danger" size="small" link @click="deleteOwner(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 添加/编辑货主对话框 -->
+    <el-dialog v-model="ownerDialogVisible" :title="isEditOwner ? '编辑货主' : '添加货主'" width="500px">
+      <el-form :model="ownerForm" label-width="80px">
+        <el-form-item label="货主名称" required>
+          <el-input v-model="ownerForm.name" placeholder="请输入货主名称" />
+        </el-form-item>
+        <el-form-item label="联系人">
+          <el-input v-model="ownerForm.contact" placeholder="请输入联系人" />
+        </el-form-item>
+        <el-form-item label="联系电话">
+          <el-input v-model="ownerForm.phone" placeholder="请输入联系电话" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="ownerForm.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        <el-form-item label="地址">
+          <el-input v-model="ownerForm.address" placeholder="请输入地址" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="ownerForm.status" style="width: 100%">
+            <el-option label="正常" value="正常" />
+            <el-option label="暂停" value="暂停" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="ownerDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveOwner">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 预约详情对话框 -->
+    <el-dialog v-model="appointmentDetailVisible" title="预约详情" width="600px">
+      <el-descriptions :column="2" border v-if="currentAppointment">
+        <el-descriptions-item label="预约号">{{ currentAppointment.id }}</el-descriptions-item>
+        <el-descriptions-item label="货主">{{ currentAppointment.owner }}</el-descriptions-item>
+        <el-descriptions-item label="车牌号">{{ currentAppointment.vehicle_no }}</el-descriptions-item>
+        <el-descriptions-item label="司机">{{ currentAppointment.driver }}</el-descriptions-item>
+        <el-descriptions-item label="司机电话">{{ currentAppointment.driver_phone || '138****1234' }}</el-descriptions-item>
+        <el-descriptions-item label="预计到达">{{ currentAppointment.estimated_arrival }}</el-descriptions-item>
+        <el-descriptions-item label="预计数量">{{ currentAppointment.expected_quantity }}件</el-descriptions-item>
+        <el-descriptions-item label="月台">{{ currentAppointment.dock }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="currentAppointment.status === '已完成' ? 'success' : currentAppointment.status === '收货中' ? 'warning' : 'info'">{{ currentAppointment.status }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="货物类型">{{ currentAppointment.cargo_type || '普通货物' }}</el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="appointmentDetailVisible = false">关闭</el-button>
+        <el-button type="success" @click="signInAppointment(currentAppointment)" v-if="currentAppointment.status === '待签到'">签到</el-button>
+        <el-button type="warning" @click="startReceive(currentAppointment)" v-if="currentAppointment.status === '已签到'">开始收货</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 入库单详情对话框 -->
+    <el-dialog v-model="inboundDetailVisible" title="入库单详情" width="700px">
+      <el-descriptions :column="2" border v-if="currentInboundOrder">
+        <el-descriptions-item label="入库单号">{{ currentInboundOrder.id }}</el-descriptions-item>
+        <el-descriptions-item label="货主">{{ currentInboundOrder.owner }}</el-descriptions-item>
+        <el-descriptions-item label="入库日期">{{ currentInboundOrder.inbound_date }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="currentInboundOrder.status === '已入库' ? 'success' : currentInboundOrder.status === '收货中' ? 'warning' : 'info'">{{ currentInboundOrder.status }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="SKU数">{{ currentInboundOrder.total_items }}</el-descriptions-item>
+        <el-descriptions-item label="总数量">{{ currentInboundOrder.total_quantity }}</el-descriptions-item>
+        <el-descriptions-item label="已收货">{{ currentInboundOrder.received_quantity }}</el-descriptions-item>
+        <el-descriptions-item label="合格数">{{ currentInboundOrder.qualified_quantity }}</el-descriptions-item>
+      </el-descriptions>
+      <el-divider>货物明细</el-divider>
+      <el-table :data="currentInboundOrder.items || []" stripe size="small">
+        <el-table-column prop="sku" label="SKU" width="120" />
+        <el-table-column prop="name" label="商品名称" width="150" />
+        <el-table-column prop="expected_qty" label="预期数量" width="90" />
+        <el-table-column prop="received_qty" label="已收数量" width="90" />
+        <el-table-column prop="qualified_qty" label="合格数" width="90" />
+        <el-table-column prop="status" label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.status === '已完成' ? 'success' : row.status === '部分收货' ? 'warning' : 'info'">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="inboundDetailVisible = false">关闭</el-button>
+        <el-button type="primary" @click="receiveGoods(currentInboundOrder)" v-if="currentInboundOrder.status === '待收货' || currentInboundOrder.status === '收货中'">收货</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 收货对话框 -->
+    <el-dialog v-model="receiveDialogVisible" title="收货入库" width="500px">
+      <el-form :model="receiveForm" label-width="100px">
+        <el-form-item label="入库单号">
+          <el-input v-model="receiveForm.orderId" disabled />
+        </el-form-item>
+        <el-form-item label="SKU">
+          <el-select v-model="receiveForm.sku" placeholder="请选择SKU" style="width: 100%">
+            <el-option v-for="item in receiveForm.items" :key="item.sku" :label="`${item.sku} - ${item.name}`" :value="item.sku" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="收货数量">
+          <el-input-number v-model="receiveForm.quantity" :min="1" :max="receiveForm.maxQty" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="合格数量">
+          <el-input-number v-model="receiveForm.qualifiedQty" :min="0" :max="receiveForm.quantity" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="receiveForm.remark" type="textarea" rows="2" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="receiveDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitReceive">确认收货</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 入库管理 -->
     <el-card v-if="activeTab === 'inbound'" class="section-card">
@@ -773,10 +822,11 @@ const loadTransportData = async () => {
               <el-tag :type="row.status === '已完成' ? 'success' : row.status === '收货中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="150">
-            <template #default>
-              <el-button type="primary" size="small" link>详情</el-button>
-              <el-button type="success" size="small" link>签到</el-button>
+          <el-table-column label="操作" width="180">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" link @click="showAppointmentDetail(row)">详情</el-button>
+              <el-button type="success" size="small" link @click="signInAppointment(row)" v-if="row.status === '待签到'">签到</el-button>
+              <el-button type="warning" size="small" link @click="startReceive(row)" v-if="row.status === '已签到'">开始收货</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -793,12 +843,13 @@ const loadTransportData = async () => {
           <el-table-column prop="qualified_quantity" label="合格数" width="90" />
           <el-table-column prop="status" label="状态" width="80">
             <template #default="{ row }">
-              <el-tag :type="row.status === '已入库' ? 'success' : row.status === '收货中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
+              <el-tag :type="row.status === '已入库' ? 'success' : row.status === '收货中' ? 'warning' : row.status === '已完成' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="120">
-            <template #default>
-              <el-button type="primary" size="small" link>详情</el-button>
+          <el-table-column label="操作" width="150">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" link @click="showInboundDetail(row)">详情</el-button>
+              <el-button type="success" size="small" link @click="receiveGoods(row)" v-if="row.status === '待收货' || row.status === '收货中'">收货</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -812,10 +863,20 @@ const loadTransportData = async () => {
           <el-table-column prop="quantity" label="数量" width="80" />
           <el-table-column prop="suggested_location" label="推荐货位" width="120" />
           <el-table-column prop="zone" label="温区" width="100" />
-          <el-table-column prop="reason" label="推荐原因" width="150" />
-          <el-table-column prop="confidence" label="置信度" width="80">
+          <el-table-column prop="reason" label="推荐原因" width="180">
             <template #default="{ row }">
-              <el-progress :percentage="row.confidence * 100" :color="row.confidence > 0.9 ? '#67C23A' : '#E6A23C'" />
+              <el-tag size="small" :type="row.reason === '温度匹配' ? 'success' : row.reason === '库存均衡' ? 'warning' : 'info'">{{ row.reason }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="confidence" label="置信度" width="120">
+            <template #default="{ row }">
+              <span>{{ (row.confidence * 100).toFixed(2) }}%</span>
+              <el-progress :percentage="row.confidence * 100" :color="row.confidence > 0.9 ? '#67C23A' : row.confidence > 0.8 ? '#E6A23C' : '#F56C6C'" :show-text="false" style="margin-top: 4px;" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" link @click="confirmPutaway(row)">确认上架</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -923,6 +984,75 @@ const loadTransportData = async () => {
         </el-table>
       </div>
     </el-card>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning, User, Bottom, Operation } from '@element-plus/icons-vue'
+
+const activeTab = ref('monitor')
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadMonitorData()
+  loadWarehouseData()
+  loadVehicleData()
+  loadTransportData()
+  loadOwnerData()
+})
+
+// 加载监控数据
+const loadMonitorData = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/monitoring/temperature')
+    temperatureData.value = res.data
+  } catch (e) { console.error('加载监控数据失败', e) }
+}
+
+// 加载仓库数据
+const loadWarehouseData = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/warehouse')
+    warehouses.value = res.data.map((w: any) => ({
+      id: w.id,
+      name: w.name,
+      address: w.address,
+      capacity: w.capacity,
+      area: Math.floor(w.capacity / 2),
+      temperature: w.temperature,
+      humidity: w.humidity,
+      inventory: w.products_count * 10,
+      status: w.alerts > 0 ? '预警' : '正常'
+    }))
+  } catch (e) { console.error('加载仓库数据失败', e) }
+}
+
+// 加载车辆数据
+const loadVehicleData = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/transport')
+    vehicles.value = res.data.slice(0, 6).map((v: any, i: number) => ({
+      id: i + 1,
+      plate: v.vehicle_no,
+      driver: v.driver,
+      phone: '138****' + Math.floor(Math.random() * 10000),
+      location: v.location,
+      temperature: v.temperature,
+      status: v.status === '运输中' ? '运输中' : '空闲'
+    }))
+  } catch (e) { console.error('加载车辆数据失败', e) }
+}
+
+// 加载运输数据
+const loadTransportData = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/transport')
+    transports.value = res.data
+  } catch (e) { console.error('加载运输数据失败', e) }
+}
 
 // 监听标签页切换，加载对应数据
 watch(activeTab, (newTab) => {
@@ -1030,6 +1160,18 @@ const resolveAlert = async (alertId: string) => {
 // 货主管理数据
 const ownerList = ref<any[]>([])
 const ownerStats = ref({ total: 0, active: 0, warehouses: 0, zones: 0 })
+const ownerDialogVisible = ref(false)
+const isEditOwner = ref(false)
+const editingOwnerId = ref<number>()
+const ownerForm = reactive({
+  name: '',
+  contact: '',
+  phone: '',
+  email: '',
+  address: '',
+  status: '正常'
+})
+
 const loadOwnerData = async () => {
   try {
     const res = await axios.get('/api/cold-chain/owner/list')
@@ -1037,12 +1179,175 @@ const loadOwnerData = async () => {
     ownerStats.value = {
       total: res.data.length,
       active: res.data.filter((o: any) => o.status === '正常').length,
-      warehouses: res.data.reduce((sum: number, o: any) => sum + o.warehouse_count, 0),
-      zones: res.data.reduce((sum: number, o: any) => sum + o.zone_count, 0)
+      warehouses: res.data.reduce((sum: number, o: any) => sum + (o.warehouse_count || 0), 0),
+      zones: res.data.reduce((sum: number, o: any) => sum + (o.zone_count || 0), 0)
     }
   } catch (e) {
     console.error('加载货主数据失败', e)
   }
+}
+
+const showOwnerDialog = () => {
+  isEditOwner.value = false
+  Object.assign(ownerForm, { name: '', contact: '', phone: '', email: '', address: '', status: '正常' })
+  ownerDialogVisible.value = true
+}
+
+const editOwner = (row: any) => {
+  isEditOwner.value = true
+  editingOwnerId.value = row.id
+  Object.assign(ownerForm, {
+    name: row.name,
+    contact: row.contact || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    address: row.address || '',
+    status: row.status
+  })
+  ownerDialogVisible.value = true
+}
+
+const saveOwner = async () => {
+  if (!ownerForm.name) {
+    ElMessage.warning('请输入货主名称')
+    return
+  }
+  try {
+    if (isEditOwner.value && editingOwnerId.value) {
+      await axios.put(`/api/cold-chain/owner/${editingOwnerId.value}`, ownerForm)
+      ElMessage.success('货主更新成功')
+    } else {
+      await axios.post('/api/cold-chain/owner', ownerForm)
+      ElMessage.success('货主添加成功')
+    }
+    ownerDialogVisible.value = false
+    loadOwnerData()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '操作失败')
+  }
+}
+
+const deleteOwner = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定删除货主 "${row.name}" 吗？`, '提示', { type: 'warning' })
+    await axios.delete(`/api/cold-chain/owner/${row.id}`)
+    ElMessage.success('删除成功')
+    loadOwnerData()
+  } catch (e) {
+    // 用户取消或删除失败
+  }
+}
+
+// 预约详情
+const appointmentDetailVisible = ref(false)
+const currentAppointment = ref<any>(null)
+const showAppointmentDetail = (row: any) => {
+  currentAppointment.value = row
+  appointmentDetailVisible.value = true
+}
+
+// 签到
+const signInAppointment = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确认车辆 ${row.vehicle_no} 签到吗？`, '签到确认', { type: 'info' })
+    row.status = '已签到'
+    ElMessage.success('签到成功')
+    appointmentDetailVisible.value = false
+  } catch (e) {
+    // 用户取消
+  }
+}
+
+// 开始收货
+const startReceive = async (row: any) => {
+  row.status = '收货中'
+  ElMessage.success('已开始收货')
+  appointmentDetailVisible.value = false
+}
+
+// 入库单详情
+const inboundDetailVisible = ref(false)
+const currentInboundOrder = ref<any>(null)
+const showInboundDetail = (row: any) => {
+  // 模拟货物明细
+  row.items = Array.from({ length: row.total_items || 3 }, (_, i) => ({
+    sku: `SKU${String(i + 1).padStart(3, '0')}`,
+    name: `商品${i + 1}`,
+    expected_qty: Math.floor(row.total_quantity / (row.total_items || 3)),
+    received_qty: Math.floor(Math.random() * 50),
+    qualified_qty: 0,
+    status: '待收货'
+  }))
+  currentInboundOrder.value = row
+  inboundDetailVisible.value = true
+}
+
+// 收货
+const receiveDialogVisible = ref(false)
+const receiveForm = ref({
+  orderId: '',
+  sku: '',
+  quantity: 0,
+  qualifiedQty: 0,
+  remark: '',
+  items: [] as any[],
+  maxQty: 0
+})
+
+const receiveGoods = (row: any) => {
+  receiveForm.value = {
+    orderId: row.id,
+    sku: '',
+    quantity: 1,
+    qualifiedQty: 1,
+    remark: '',
+    items: row.items || [],
+    maxQty: row.total_quantity - row.received_quantity
+  }
+  receiveDialogVisible.value = true
+}
+
+const submitReceive = async () => {
+  if (!receiveForm.value.sku) {
+    ElMessage.warning('请选择SKU')
+    return
+  }
+  if (receiveForm.value.quantity <= 0) {
+    ElMessage.warning('请输入收货数量')
+    return
+  }
+  
+  // 更新订单状态
+  const order = currentInboundOrder.value
+  if (order) {
+    order.received_quantity = (order.received_quantity || 0) + receiveForm.value.quantity
+    order.qualified_quantity = (order.qualified_quantity || 0) + receiveForm.value.qualifiedQty
+    
+    // 更新货物明细
+    const item = order.items?.find((i: any) => i.sku === receiveForm.value.sku)
+    if (item) {
+      item.received_qty = (item.received_qty || 0) + receiveForm.value.quantity
+      item.qualified_qty = (item.qualified_qty || 0) + receiveForm.value.qualifiedQty
+      item.status = item.received_qty >= item.expected_qty ? '已完成' : '部分收货'
+    }
+    
+    // 判断订单是否完成
+    if (order.received_quantity >= order.total_quantity) {
+      order.status = '已完成'
+    } else {
+      order.status = '收货中'
+    }
+  }
+  
+  ElMessage.success('收货成功')
+  receiveDialogVisible.value = false
+  inboundDetailVisible.value = false
+}
+
+// 确认上架
+const confirmPutaway = (row: any) => {
+  ElMessage.success(`已确认上架到 ${row.suggested_location}`)
+  putawaySuggestions.value = putawaySuggestions.value.filter(item => item.sku !== row.sku)
 }
 
 // 入库管理数据
@@ -1058,16 +1363,59 @@ const loadInboundData = async () => {
     ])
     appointmentList.value = apptRes.data
     inboundOrders.value = ordersRes.data
-    // 模拟上架建议数据
-    putawaySuggestions.value = Array.from({ length: 10 }, (_, i) => ({
-      sku: `SKU${String(i + 1).padStart(3, '0')}`,
-      name: `商品${i + 1}`,
-      quantity: Math.floor(Math.random() * 200) + 50,
-      suggested_location: `${String.fromCharCode(65 + Math.floor(i / 10))}${String(i % 10 + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
-      zone: ['冷藏区A', '冷藏区B', '冷冻区A', '常温区A'][Math.floor(Math.random() * 4)],
-      reason: ['温度匹配', '库存均衡', '靠近同类商品', '靠近出库口'][Math.floor(Math.random() * 4)],
-      confidence: Math.random() * 0.3 + 0.7
-    }))
+    
+    // 模拟上架建议数据 - 带智能推荐逻辑
+    const tempZones = [
+      { name: '冷藏区A', temp: '0-5°C', suitable: ['蔬菜', '水果', '乳制品'] },
+      { name: '冷藏区B', temp: '0-5°C', suitable: ['蔬菜', '水果'] },
+      { name: '冷冻区A', temp: '-18°C', suitable: ['肉类', '冷冻食品', '海鲜'] },
+      { name: '常温区A', temp: '15-25°C', suitable: ['干果', '罐头', '饮料'] }
+    ]
+    
+    const products = [
+      { name: '新鲜草莓', temp: '冷藏', zone: 0 },
+      { name: '进口车厘子', temp: '冷藏', zone: 1 },
+      { name: '冷冻鸡胸肉', temp: '冷冻', zone: 2 },
+      { name: '冷冻海鲜', temp: '冷冻', zone: 2 },
+      { name: '纯牛奶', temp: '冷藏', zone: 0 },
+      { name: '新鲜蔬菜', temp: '冷藏', zone: 1 },
+      { name: '矿泉水', temp: '常温', zone: 3 },
+      { name: '薯片零食', temp: '常温', zone: 3 },
+      { name: '冷冻猪肉', temp: '冷冻', zone: 2 },
+      { name: '新鲜苹果', temp: '冷藏', zone: 0 }
+    ]
+    
+    putawaySuggestions.value = products.map((product, i) => {
+      const zone = tempZones[product.zone]
+      // 智能推荐逻辑：根据温度匹配度和库存情况计算置信度
+      const tempMatch = Math.random() * 0.15 + 0.85 // 温度匹配度
+      const inventoryBalance = Math.random() * 0.2 + 0.8 // 库存均衡度
+      const proximityScore = Math.random() * 0.15 + 0.85 // 靠近同类/出库口
+      
+      const confidence = (tempMatch * 0.5 + inventoryBalance * 0.3 + proximityScore * 0.2)
+      
+      // 推荐原因
+      let reason = '温度匹配'
+      if (confidence > 0.92) {
+        reason = Math.random() > 0.5 ? '温度匹配 + 库存均衡' : '温度匹配 + 靠近出库口'
+      } else if (tempMatch > 0.9) {
+        reason = '温度匹配'
+      } else if (inventoryBalance > 0.9) {
+        reason = '库存均衡'
+      } else {
+        reason = '靠近同类商品'
+      }
+      
+      return {
+        sku: `SKU${String(i + 1).padStart(3, '0')}`,
+        name: product.name,
+        quantity: Math.floor(Math.random() * 200) + 50,
+        suggested_location: `${zone.name}-${String(Math.floor(i / 3) + 1).padStart(2, '0')}-${String((i % 3) + 1).padStart(2, '0')}`,
+        zone: zone.name,
+        reason: reason,
+        confidence: confidence
+      }
+    })
   } catch (e) {
     console.error('加载入库数据失败', e)
   }

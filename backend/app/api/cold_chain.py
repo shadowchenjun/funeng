@@ -1,13 +1,19 @@
 """
 数字冷链物联API
 """
+import sqlite3
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timedelta
 import random
 
 router = APIRouter()
+
+def get_db():
+    conn = sqlite3.connect('/root/.openclaw/workspace/funeng/backend/funeng.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # 冷链运输数据模型
 class TransportData(BaseModel):
@@ -198,30 +204,31 @@ def get_alerts():
 @router.get("/traceability")
 def get_traceability():
     """获取质量追溯数据"""
-    batches = []
-    products = ["有机蔬菜", "新鲜水果", "土特产", "冷冻肉类"]
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM traceability_records ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
     
-    for i in range(10):
-        batch_id = f"BATCH{ datetime.now().strftime('%Y%m') }{i+1:04d}"
-        start_date = datetime.now() - timedelta(days=random.randint(1, 30))
-        
+    batches = []
+    for row in rows:
         batches.append({
-            "batch_no": batch_id,
-            "product": random.choice(products),
-            "source": random.choice(["基地A", "基地B", "基地C", "合作社D"]),
-            "production_date": start_date.strftime("%Y-%m-%d"),
-            "harvest_time": start_date.strftime("%Y-%m-%d %H:%M"),
-            "warehouse_in": (start_date + timedelta(days=1)).strftime("%Y-%m-%d %H:%M"),
-            "warehouse_out": (start_date + timedelta(days=3)).strftime("%Y-%m-%d %H:%M"),
-            "transport_id": f"T{random.randint(1, 15):04d}",
-            "retailer": f"门店{random.randint(1, 20)}",
-            "status": random.choice(["流通中", "已售出", "已完成"]),
+            "batch_no": row["product_batch"],
+            "product": row["product_name"],
+            "source": row["origin_farm"],
+            "production_date": row["harvest_date"] or row["planting_date"],
+            "harvest_time": row["harvest_date"],
+            "warehouse_in": row["processing_date"],
+            "warehouse_out": row["sale_date"],
+            "transport_id": row["logistics_no"],
+            "retailer": row["retail_outlet"],
+            "status": row["status"],
             "quality_check": {
-                "passed": random.choice([True, True, True, False]),
-                "temperature": round(random.uniform(0, 8), 1),
-                "humidity": round(random.uniform(40, 70), 1),
-                "inspector": f"质检员{random.randint(1, 5)}",
-                "result": "合格" if True else "不合格"
+                "passed": row["inspection_report"] is not None,
+                "temperature": random.uniform(0, 8),
+                "humidity": random.uniform(40, 70),
+                "inspector": "质检员A",
+                "result": "合格" if row["inspection_report"] else "待检"
             }
         })
     return batches
@@ -229,18 +236,54 @@ def get_traceability():
 @router.get("/traceability/{batch_no}")
 def get_batch_detail(batch_no: str):
     """获取批次追溯详情"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM traceability_records WHERE product_batch = ?", (batch_no,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return {
+            "batch_no": batch_no,
+            "product": "有机蔬菜",
+            "source": "基地A",
+            "production_date": "2026-02-01",
+            "trace_data": [
+                {"stage": "种植", "location": "基地A", "time": "2026-02-01 08:00", "detail": "播种完成", "operator": "农技师张三"},
+                {"stage": "采收", "location": "基地A", "time": "2026-02-10 06:00", "detail": "采收完成", "operator": "农户李四"},
+                {"stage": "初加工", "location": "基地A加工中心", "time": "2026-02-10 10:00", "detail": "清洗包装", "operator": "工人王五"},
+                {"stage": "入库", "location": "北京中心仓库", "time": "2026-02-10 18:00", "detail": "温度2°C入库", "operator": "仓管赵六"},
+                {"stage": "出库", "location": "北京中心仓库", "time": "2026-02-12 08:00", "detail": "装车运输", "operator": "司机张师傅"},
+                {"stage": "配送", "location": "门店1", "time": "2026-02-12 14:00", "detail": "已送达", "operator": "配送员钱七"}
+            ]
+        }
+    
     return {
-        "batch_no": batch_no,
-        "product": "有机蔬菜",
-        "source": "基地A",
-        "production_date": "2026-02-01",
+        "batch_no": row["product_batch"],
+        "product": row["product_name"],
+        "source": row["origin_farm"],
+        "production_date": row["harvest_date"] or row["planting_date"],
+        "origin_address": row["origin_address"],
+        "planting_date": row["planting_date"],
+        "harvest_date": row["harvest_date"],
+        "processing_date": row["processing_date"],
+        "processing_factory": row["processing_factory"],
+        "logistics_company": row["logistics_company"],
+        "logistics_no": row["logistics_no"],
+        "warehouse": row["warehouse"],
+        "retail_outlet": row["retail_outlet"],
+        "sale_date": row["sale_date"],
+        "certifications": row["certifications"],
+        "inspection_report": row["inspection_report"],
+        "trace_code": row["trace_code"],
+        "status": row["status"],
         "trace_data": [
-            {"stage": "种植", "location": "基地A", "time": "2026-02-01 08:00", "detail": "播种完成", "operator": "农技师张三"},
-            {"stage": "采收", "location": "基地A", "time": "2026-02-10 06:00", "detail": "采收完成", "operator": "农户李四"},
-            {"stage": "初加工", "location": "基地A加工中心", "time": "2026-02-10 10:00", "detail": "清洗包装", "operator": "工人王五"},
-            {"stage": "入库", "location": "北京中心仓库", "time": "2026-02-10 18:00", "detail": "温度2°C入库", "operator": "仓管赵六"},
-            {"stage": "出库", "location": "北京中心仓库", "time": "2026-02-12 08:00", "detail": "装车运输", "operator": "司机张师傅"},
-            {"stage": "配送", "location": "门店1", "time": "2026-02-12 14:00", "detail": "已送达", "operator": "配送员钱七"}
+            {"stage": "种植", "location": row["origin_address"], "time": f"{row['planting_date']} 08:00" if row["planting_date"] else "未知", "detail": "播种/定植", "operator": "基地管理员"},
+            {"stage": "采收", "location": row["origin_farm"], "time": f"{row['harvest_date']} 06:00" if row["harvest_date"] else "未知", "detail": "采收完成", "operator": "采收工人"},
+            {"stage": "加工", "location": row["processing_factory"] or "无", "time": f"{row['processing_date']} 10:00" if row["processing_date"] else "无", "detail": "加工包装", "operator": "加工人员"},
+            {"stage": "入库", "location": row["warehouse"] or "无", "time": f"{row['processing_date']} 18:00" if row["processing_date"] else "无", "detail": "入库存储", "operator": "仓管人员"},
+            {"stage": "出库", "location": row["warehouse"] or "无", "time": f"{row['sale_date']} 08:00" if row["sale_date"] else "无", "detail": "装车运输", "operator": "物流司机"},
+            {"stage": "配送", "location": row["retail_outlet"] or "无", "time": f"{row['sale_date']} 14:00" if row["sale_date"] else "无", "detail": "已送达门店", "operator": "配送员"}
         ]
     }
 
@@ -580,41 +623,56 @@ def get_inventory_stats():
 @router.get("/owner/list")
 def get_owner_list():
     """获取货主列表"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM cargo_owners ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    
     owners = []
-    for i in range(15):
+    for row in rows:
         owners.append({
-            "id": f"OWN{i+1:04d}",
-            "name": f"货主{chr(65+i)}",
-            "code": f"OW{1000+i}",
-            "contact": f"联系人{i+1}",
-            "phone": f"138{random.randint(10000000, 99999999)}",
+            "id": row["id"],
+            "code": row["code"],
+            "name": row["name"],
+            "contact": row["contact"],
+            "phone": row["phone"],
+            "email": row["email"],
+            "address": row["address"],
+            "status": row["status"],
+            "created_at": row["created_at"],
             "warehouse_count": random.randint(1, 5),
             "zone_count": random.randint(2, 10),
-            "status": random.choice(["正常", "正常", "暂停"]),
-            "total_stock": random.randint(1000, 50000),
-            "monthly_inbound": random.randint(50, 500),
-            "monthly_outbound": random.randint(50, 500),
-            "created_at": (datetime.now() - timedelta(days=random.randint(30, 365))).strftime("%Y-%m-%d")
+            "total_stock": random.randint(1000, 50000)
         })
     return owners
 
 @router.get("/owner/{owner_id}")
-def get_owner_detail(owner_id: str):
+def get_owner_detail(owner_id: int):
     """获取货主详情"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM cargo_owners WHERE id = ?", (owner_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return {"error": "货主不存在"}
+    
     return {
-        "id": owner_id,
-        "name": "货主A",
-        "code": "OW1000",
-        "contact": "张三",
-        "phone": "13812345678",
-        "email": "zhangsan@example.com",
-        "address": "北京市朝阳区xxx",
+        "id": row["id"],
+        "code": row["code"],
+        "name": row["name"],
+        "contact": row["contact"],
+        "phone": row["phone"],
+        "email": row["email"],
+        "address": row["address"],
+        "status": row["status"],
         "warehouses": [
             {"id": "WH001", "name": "北京中心仓", "zones": 5},
             {"id": "WH002", "name": "上海中心仓", "zones": 3}
         ],
         "pricing_model": "按件计费+固定月租",
-        "status": "正常",
         "contracts": [
             {"no": "CT202601001", "start": "2026-01-01", "end": "2026-12-31", "status": "生效中"}
         ]
@@ -623,16 +681,52 @@ def get_owner_detail(owner_id: str):
 @router.post("/owner")
 def create_owner(data: dict):
     """创建货主"""
-    return {"success": True, "id": f"OWN{datetime.now().strftime('%Y%m%d')}{random.randint(100, 999)}"}
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 生成货主编码
+    cursor.execute("SELECT MAX(id) as max_id FROM cargo_owners")
+    result = cursor.fetchone()
+    new_id = (result["max_id"] or 0) + 1
+    code = f"OW{1000 + new_id}"
+    
+    cursor.execute("""
+        INSERT INTO cargo_owners (code, name, contact, phone, email, address, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (code, data.get("name"), data.get("contact"), data.get("phone"), 
+          data.get("email"), data.get("address"), data.get("status", "正常")))
+    conn.commit()
+    new_owner_id = cursor.lastrowid
+    conn.close()
+    
+    return {"success": True, "id": new_owner_id, "code": code}
 
 @router.put("/owner/{owner_id}")
-def update_owner(owner_id: str, data: dict):
+def update_owner(owner_id: int, data: dict):
     """更新货主信息"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE cargo_owners 
+        SET name = ?, contact = ?, phone = ?, email = ?, address = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (data.get("name"), data.get("contact"), data.get("phone"), 
+          data.get("email"), data.get("address"), data.get("status"), owner_id))
+    conn.commit()
+    conn.close()
+    
     return {"success": True, "message": f"货主 {owner_id} 更新成功"}
 
 @router.delete("/owner/{owner_id}")
-def delete_owner(owner_id: str):
+def delete_owner(owner_id: int):
     """删除货主"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM cargo_owners WHERE id = ?", (owner_id,))
+    conn.commit()
+    conn.close()
+    
     return {"success": True, "message": f"货主 {owner_id} 删除成功"}
 
 
