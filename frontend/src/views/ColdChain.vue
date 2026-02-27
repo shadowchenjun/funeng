@@ -1295,13 +1295,25 @@ const receiveForm = ref({
 })
 
 const receiveGoods = (row: any) => {
+  // 确保有商品列表，如果没有则动态生成
+  let items = row.items
+  if (!items || items.length === 0) {
+    items = Array.from({ length: row.total_items || 3 }, (_, i) => ({
+      sku: `SKU${String(i + 1).padStart(3, '0')}`,
+      name: `商品${i + 1}`,
+      expected_qty: Math.floor(row.total_quantity / (row.total_items || 3)),
+      received_qty: Math.floor(Math.random() * 50),
+      qualified_qty: 0,
+      status: '待收货'
+    }))
+  }
   receiveForm.value = {
     orderId: row.id,
     sku: '',
     quantity: 1,
     qualifiedQty: 1,
     remark: '',
-    items: row.items || [],
+    items: items,
     maxQty: row.total_quantity - row.received_quantity
   }
   receiveDialogVisible.value = true
@@ -1615,9 +1627,11 @@ const traceProduct = () => {
 .header-mobile h2 { font-size: 16px; margin: 0 0 10px 0; }
 
 .quick-nav { margin-bottom: 10px; }
-.nav-card { text-align: center; padding: 10px 5px; cursor: pointer; }
+.nav-card { text-align: center; padding: 10px 5px; cursor: pointer; transition: all 0.3s ease; }
+.nav-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.nav-card:hover .el-icon { transform: scale(1.1); }
 .nav-card :deep(.el-card__body) { padding: 10px; }
-.nav-card .el-icon { font-size: 24px; color: #409eff; display: block; margin-bottom: 4px; }
+.nav-card .el-icon { font-size: 24px; color: #409eff; display: block; margin-bottom: 4px; transition: transform 0.3s ease; }
 .nav-card span { font-size: 11px; color: #606266; }
 
 .monitor-cards { margin-bottom: 10px; }
@@ -1626,6 +1640,12 @@ const traceProduct = () => {
 .monitor-info p { margin: 5px 0 0; font-size: 12px; color: #909399; }
 
 .section-card { margin-bottom: 10px; }
+.section-card { animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .card-header span { font-size: 14px; font-weight: 500; }
 

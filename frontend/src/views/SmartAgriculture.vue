@@ -53,7 +53,7 @@
     </el-row>
     
     <!-- 地块管理 -->
-    <el-card v-if="activeTab === 'land'" class="section-card">
+    <el-card v-show="activeTab === 'land'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>🗺️ 地块管理</span>
@@ -105,7 +105,7 @@
     </el-card>
     
     <!-- 作物管理 -->
-    <el-card v-if="activeTab === 'crop'" class="section-card">
+    <el-card v-show="activeTab === 'crop'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>🌾 作物管理</span>
@@ -138,7 +138,7 @@
     </el-card>
     
     <!-- 农场管理 -->
-    <el-card v-if="activeTab === 'farm'" class="section-card">
+    <el-card v-show="activeTab === 'farm'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>🏠 农场管理</span>
@@ -201,7 +201,7 @@
     </el-card>
     
     <!-- 物联网设备 -->
-    <el-card v-if="activeTab === 'device'" class="section-card">
+    <el-card v-show="activeTab === 'device'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>📡 物联网设备</span>
@@ -273,7 +273,7 @@
     </el-card>
     
     <!-- 环境监测 -->
-    <el-card v-if="activeTab === 'monitor'" class="section-card">
+    <el-card v-show="activeTab === 'monitor'" class="section-card">
       <template #header>
         <span>📊 环境监测数据</span>
       </template>
@@ -352,7 +352,7 @@
     </el-card>
 
     <!-- 智能决策系统 -->
-    <el-card v-if="activeTab === 'decision'" class="section-card">
+    <el-card v-show="activeTab === 'decision'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>🤖 智能决策系统</span>
@@ -418,7 +418,7 @@
     </el-card>
 
     <!-- 全产业链追溯系统 -->
-    <el-card v-if="activeTab === 'traceability'" class="section-card">
+    <el-card v-show="activeTab === 'traceability'" class="section-card">
       <template #header>
         <div class="card-header">
           <span>📋 全</span>
@@ -1136,7 +1136,14 @@ onMounted(() => {
 .nav-card .el-icon { font-size: 24px; color: #67c23a; display: block; margin-bottom: 4px; }
 .nav-card span { font-size: 11px; color: #606266; }
 
-.section-card { margin-bottom: 10px; }
+.section-card { margin-bottom: 10px; transition: all 0.3s ease; }
+.section-card[v-show] { animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .card-header span { font-size: 14px; font-weight: 500; }
 
@@ -1146,13 +1153,15 @@ onMounted(() => {
 .stat-box .label { font-size: 11px; color: #909399; }
 
 .land-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.land-card { padding: 10px; }
+.land-card { padding: 10px; transition: all 0.3s ease; }
+.land-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .land-card h4 { margin: 0 0 5px 0; font-size: 14px; }
 .land-card p { margin: 2px 0; font-size: 12px; color: #909399; }
 .land-actions { display: flex; gap: 5px; margin-top: 8px; }
 
 .crop-list { display: flex; flex-direction: column; gap: 10px; }
-.crop-card { padding: 10px; }
+.crop-card { padding: 10px; transition: all 0.3s ease; }
+.crop-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .crop-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .crop-info h4 { margin: 0; font-size: 14px; }
 .crop-info p { margin: 2px 0 0; font-size: 12px; color: #909399; }
@@ -1169,7 +1178,8 @@ onMounted(() => {
 .stat-item .label { font-size: 11px; color: #909399; }
 
 .device-list { display: flex; flex-direction: column; gap: 8px; }
-.device-card { display: flex; align-items: center; padding: 10px; }
+.device-card { display: flex; align-items: center; padding: 10px; transition: all 0.3s ease; }
+.device-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .device-icon .el-icon { font-size: 28px; }
 .device-icon .online { color: #67c23a; }
 .device-icon .warning { color: #e6a23c; }
@@ -1179,7 +1189,8 @@ onMounted(() => {
 .device-info p { margin: 2px 0; font-size: 11px; color: #909399; }
 
 .monitor-stats { display: flex; flex-wrap: wrap; }
-.monitor-item { text-align: center; padding: 10px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px; width: 33.33%; }
+.monitor-item { text-align: center; padding: 10px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px; width: 33.33%; transition: all 0.3s ease; }
+.monitor-item:hover { transform: scale(1.02); }
 .monitor-icon { margin-bottom: 5px; }
 .monitor-icon.temp { color: #e6a23c; }
 .monitor-icon.humidity { color: #409eff; }
@@ -1191,7 +1202,8 @@ onMounted(() => {
 .monitor-label { font-size: 11px; color: #909399; }
 
 .soil-data { display: flex; flex-direction: column; gap: 8px; }
-.soil-card { padding: 10px; }
+.soil-card { padding: 10px; transition: all 0.3s ease; }
+.soil-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .soil-card h4 { margin: 0 0 8px 0; font-size: 13px; }
 .soil-info { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #606266; }
 
@@ -1203,6 +1215,14 @@ onMounted(() => {
   .crop-list { flex-direction: row; flex-wrap: wrap; }
   .crop-card { width: calc(50% - 5px); }
 }
+
+/* 导航卡片悬停效果 */
+.nav-card { text-align: center; padding: 10px 5px; cursor: pointer; transition: all 0.3s ease; }
+.nav-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.nav-card:hover .el-icon { transform: scale(1.1); }
+.nav-card :deep(.el-card__body) { padding: 10px; }
+.nav-card .el-icon { font-size: 24px; color: #67c23a; display: block; margin-bottom: 4px; transition: transform 0.3s ease; }
+.nav-card span { font-size: 11px; color: #606266; }
 </style>
 
 .farm-lands { min-height: 40px; }
