@@ -19,7 +19,7 @@ router = APIRouter()
 # ============== 阿里云 OSS 配置 ==============
 # 环境变量配置
 OSS_ENABLED = os.getenv("OSS_ENABLED", "false").lower() == "true"
-OSS_ENDPOINT = os.getenv("OSS_ENDPOINT", "")  # 如: https://oss-cn-hangzhou.aliyuncs.com
+OSS_ENDPOINT = os.getenv("OSS_ENDPOINT", "")  # 如: https://oss-cn-beijing.aliyuncs.com
 OSS_ACCESS_KEY_ID = os.getenv("OSS_ACCESS_KEY_ID", "")
 OSS_ACCESS_KEY_SECRET = os.getenv("OSS_ACCESS_KEY_SECRET", "")
 OSS_BUCKET_NAME = os.getenv("OSS_BUCKET_NAME", "")
@@ -43,30 +43,15 @@ def generate_unique_filename(original_filename: str) -> str:
     file_extension = get_file_extension(original_filename)
     return f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}{file_extension}"
 
-# 阿里云 OSS 上传（如果启用）
+# 阿里云 OSS 客户端（延迟导入）
+oss2 = None
+bucket = None
+
 if OSS_ENABLED:
     try:
         import oss2
-        
         auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
         bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME)
-        
-        def upload_to_oss(file_content: bytes, filename: str) -> str:
-            """上传文件到阿里云 OSS"""
-            result = bucket.put_object(filename, file_content)
-            if result.status == 200:
-                # 返回公共访问 URL
-                return f"{OSS_PUBLIC_URL}/{filename}"
-            raise Exception("OSS upload failed")
-        
-        def delete_from_oss(filename: str) -> bool:
-            """从阿里云 OSS 删除文件"""
-            try:
-                bucket.delete_object(filename)
-                return True
-            except:
-                return False
-        
         print("✅ 阿里云 OSS 已启用")
     except ImportError:
         print("⚠️ 阿里云 OSS SDK 未安装，将使用本地存储")
@@ -74,6 +59,25 @@ if OSS_ENABLED:
     except Exception as e:
         print(f"⚠️ 阿里云 OSS 配置错误: {e}，将使用本地存储")
         OSS_ENABLED = False
+
+def upload_to_oss(file_content: bytes, filename: str) -> str:
+    """上传文件到阿里云 OSS"""
+    if bucket is None:
+        raise Exception("OSS not initialized")
+    result = bucket.put_object(filename, file_content)
+    if result.status == 200:
+        return f"{OSS_PUBLIC_URL}/{filename}"
+    raise Exception("OSS upload failed")
+
+def delete_from_oss(filename: str) -> bool:
+    """从阿里云 OSS 删除文件"""
+    if bucket is None:
+        return False
+    try:
+        bucket.delete_object(filename)
+        return True
+    except:
+        return False
 
 @router.post("/image")
 async def upload_image(
@@ -94,9 +98,16 @@ async def upload_image(
     # 读取文件内容
     content = await file.read()
     
-    if OSS_ENABLED:
+    if OSS_ENABLED and bucket:
         # 上传到阿里云 OSS
-        file_url = upload_to_oss(content, unique_filename)
+        try:
+            file_url = upload_to_oss(content, unique_filename)
+        except Exception as e:
+            # OSS 上传失败，回退到本地存储
+            file_path = os.path.join(UPLOAD_DIR, unique_filename)
+            with open(file_path, "wb") as f:
+                f.write(content)
+            file_url = f"/api/upload/files/{unique_filename}"
     else:
         # 本地存储
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
@@ -113,21 +124,20 @@ async def upload_image(
 @router.get("/files/{filename}")
 async def get_file(filename: str):
     """获取上传的文件"""
-    if OSS_ENABLED:
+    if OSS_ENABLED and bucket:
         # 从 OSS 获取签名 URL
         try:
             signed_url = bucket.sign_url('GET', filename, 3600)
-            # 重定向到签名 URL
             from fastapi.responses import RedirectResponse
             return RedirectResponse(url=signed_url)
         except:
-            raise HTTPException(status_code=404, detail="文件不存在")
-    else:
-        # 本地文件
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="文件不存在")
-        return FileResponse(file_path)
+            pass
+    
+    # 本地文件
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(file_path)
 
 @router.delete("/files/{filename}")
 async def delete_file(
@@ -138,10 +148,9 @@ async def delete_file(
     if OSS_ENABLED:
         if delete_from_oss(filename):
             return {"message": "文件删除成功"}
+    
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="文件不存在")
-    else:
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="文件不存在")
-        os.remove(file_path)
-        return {"message": "文件删除成功"}
+    os.remove(file_path)
+    return {"message": "文件删除成功"}
