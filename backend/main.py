@@ -1,16 +1,38 @@
 """
 现代农业赋能平台 - 后端入口
+支持 SQLite 本地开发和 Supabase 云端生产环境
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, products, categories, dashboard
-from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
+from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, users
+
+# 根据环境选择数据库配置
+USE_SUPABASE = os.getenv("SUPABASE_URL") or os.getenv("DATABASE_URL", "").startswith("postgres")
+
+if USE_SUPABASE:
+    from app.database_supabase import engine, get_db
+    print("🔗 连接到 Supabase 云数据库")
+else:
+    from app.database import engine, get_db
+    print("🔗 连接到 SQLite 本地数据库")
+
+# 根据环境选择上传模块
+USE_OSS = os.getenv("OSS_ENABLED", "false").lower() == "true"
+
+if USE_OSS:
+    from app.api.upload_oss import router as upload_router
+    print("☁️ 阿里云 OSS 已启用")
+else:
+    from app.api.upload import router as upload_router
+    print("💾 本地文件存储已启用")
+
 from app.models import base
 from app.models.user import User
 from app.models.smart_agriculture import FarmInfo, Land, Crop
 from app.models.product import Product
 from app.models.category import Category
-from app.database import engine, get_db
 import bcrypt
 
 # 创建数据库表
@@ -142,10 +164,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 配置CORS
+# 配置CORS - 支持更多生产环境域名
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://*.trycloudflare.com",
+    "https://*.loca.lt",
+    "https://*.vercel.app",
+]
+
+# 添加用户自定义域名
+CUSTOM_DOMAIN = os.getenv("CUSTOM_DOMAIN", "")
+if CUSTOM_DOMAIN:
+    ALLOWED_ORIGINS.append(f"https://{CUSTOM_DOMAIN}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://*.trycloudflare.com", "https://*.loca.lt"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -156,7 +191,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(products.router, prefix="/api/products", tags=["产品管理"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类管理"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["仪表盘"])
-app.include_router(upload.router, prefix="/api/upload", tags=["文件上传"])
+app.include_router(upload_router, prefix="/api/upload", tags=["文件上传"])
 app.include_router(users.router, prefix="/api/users", tags=["用户管理"])
 app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", tags=["智慧农业"])
 app.include_router(digital_marketing.router, prefix="/api/digital-marketing", tags=["数字营销"])
