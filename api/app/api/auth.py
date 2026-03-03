@@ -20,9 +20,16 @@ SECRET_KEY = "funeng-secret-key-2024"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, stored_password: str) -> bool:
+    """验证密码，兼容明文和哈希密码"""
+    if not stored_password:
+        return False
+    # 如果是明文密码（导入的数据），直接比较
+    if stored_password == plain_password:
+        return True
+    # 如果是哈希密码，用 bcrypt 验证
     try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        return bcrypt.checkpw(plain_password.encode('utf-8'), stored_password.encode('utf-8'))
     except Exception:
         return False
 
@@ -92,7 +99,10 @@ def register(user_data: dict):
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = supabase_client.get_user_by_username(form_data.username)
     
-    if not user or not verify_password(form_data.password, user.get('hashed_password', '')):
+    # 兼容 hashed_password 和 password 字段
+    stored_password = user.get('hashed_password') or user.get('password', '') if user else ''
+    
+    if not user or not verify_password(form_data.password, stored_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
