@@ -5,8 +5,12 @@
 import os
 import sys
 
+# 添加当前目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 print("="*50, file=sys.stderr)
 print("🚀 启动应用...", file=sys.stderr)
+print(f"Python path: {sys.path[:3]}", file=sys.stderr)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -170,6 +174,3 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-
-app = app
-# Vercel Serverless
