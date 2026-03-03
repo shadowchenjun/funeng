@@ -1,47 +1,37 @@
 """
-Supabase 数据库配置
-支持 SQLite 本地开发和 Supabase 云端生产环境
+Supabase 配置 - 使用 psycopg2 直接连接（通过 Supabase 的 Transaction Pooler）
 """
+import os
+
+# 使用 Supabase Transaction Pooler (端口 6543)
+SUPABASE_HOST = os.getenv("SUPABASE_HOST", "db.uzxmomyfgkqkbxxkzskc.supabase.co")
+SUPABASE_PORT = os.getenv("SUPABASE_PORT", "6543")  # 使用 Pooler 端口
+SUPABASE_USER = os.getenv("SUPABASE_USER", "postgres")
+SUPABASE_PASSWORD = os.getenv("SUPABASE_PASSWORD", "")  # 从 DATABASE_URL 解析
+SUPABASE_DB = os.getenv("SUPABASE_DB", "postgres")
+
+# 从 DATABASE_URL 解析
+def get_database_url():
+    url = os.getenv("DATABASE_URL", "")
+    if url:
+        # 替换端口为 6543 (Pooler)
+        if "5432" in url:
+            url = url.replace("5432", "6543")
+        return url
+    return f"postgresql://{SUPABASE_USER}:{SUPABASE_PASSWORD}@{SUPABASE_HOST}:{SUPABASE_PORT}/{SUPABASE_DB}"
+
+# SQLAlchemy 配置
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-import os
-
-# Supabase 连接从环境变量获取
-SUPABASE_POOL_URL = os.getenv("DATABASE_URL", "")  # Supabase 提供的连接字符串
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-
-# 根据环境选择数据库
-def get_database_url():
-    """获取数据库连接 URL"""
-    # 优先使用 Supabase
-    if SUPABASE_POOL_URL:
-        return SUPABASE_POOL_URL
-    if SUPABASE_URL and "postgresql" in SUPABASE_URL:
-        return SUPABASE_URL
-    
-    # 默认使用 SQLite（本地开发）
-    return os.getenv("DATABASE_URL", "sqlite:///./funeng.db")
 
 DATABASE_URL = get_database_url()
 
-# Supabase 使用 PostgreSQL，需要特殊配置
-if "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
-    # Supabase PostgreSQL 连接
-    engine = create_engine(
-        DATABASE_URL,
-        poolclass=NullPool,  # Serverless 环境不需要连接池
-        connect_args={
-            "connect_args": {"connect_timeout": 10}
-        }
-    )
-else:
-    # SQLite 本地开发
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-    )
+engine = create_engine(
+    DATABASE_URL,
+    poolclass=NullPool,
+    connect_args={"connect_timeout": 10}
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
