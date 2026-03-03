@@ -1,6 +1,16 @@
 {
   "buildCommand": "cd frontend && npm run build",
   "installCommand": "cd frontend && npm install",
-  "outputDirectory": "dist",
-  "framework": "vite"
+  "outputDirectory": "frontend/dist",
+  "framework": "vite",
+  "routes": [
+    {
+      "src": "/api/(.<>)",
+      "destination": "/api/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "destination": "/frontend/dist/$1"
+    }
+  ]
 }
