@@ -3,6 +3,11 @@
 使用 Supabase Python SDK
 """
 import os
+import sys
+
+# 添加当前目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
