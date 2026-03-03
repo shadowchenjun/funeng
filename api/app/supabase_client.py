@@ -3,7 +3,7 @@ import os
 import sys
 
 # 打印环境变量调试
-SUPABASE_URL = os.getenv("SUPABASE_API_URL") or os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL") or "https://uzxmomyfgkqkbxxkzskc.supabase.co"
+SUPABASE_URL = os.getenv("SUPABASE_API_URL") or os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL") or ""
 SUPABASE_KEY = os.getenv("SUPABASE_API_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY") or ""
 
 print(f"[Supabase] URL: {SUPABASE_URL}", file=sys.stderr)
