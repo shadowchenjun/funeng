@@ -1,16 +1,6 @@
 {
-  "buildCommand": "cd backend && pip install --break-system-packages -r requirements.txt",
-  "installCommand": "cd backend && pip install --break-system-packages -r requirements.txt",
+  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "cd frontend && npm install",
   "outputDirectory": "frontend/dist",
-  "framework": "vite",
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ]
+  "framework": "vite"
 }
