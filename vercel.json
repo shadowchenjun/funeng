@@ -3,14 +3,14 @@
   "installCommand": "cd frontend && npm install",
   "outputDirectory": "dist",
   "framework": "vite",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/main.py"
+      "source": "/api/(.*)",
+      "destination": "/api/main.py"
     },
     {
-      "src": "/(.*)",
-      "dest": "/dist/index.html"
+      "source": "/((?!api).*)",
+      "destination": "/dist/index.html"
     }
   ]
 }
