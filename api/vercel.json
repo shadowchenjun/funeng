@@ -1,0 +1,6 @@
+{
+  "runtime": "python3.11",
+  "handler": "main.py",
+  "buildCommand": "pip install -r requirements.txt --break-system-packages",
+  "installCommand": "pip install -r requirements.txt --break-system-packages"
+}
