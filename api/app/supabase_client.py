@@ -7,7 +7,7 @@ print(f"[Supabase] URL: {os.getenv('SUPABASE_URL', 'NOT SET')}", file=sys.stderr
 print(f"[Supabase] KEY: {os.getenv('SUPABASE_KEY', 'NOT SET')[:20]}...", file=sys.stderr)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://uzxmomyfgkqkbxxkzskc.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or ""
 
 if not SUPABASE_KEY:
     print("[Supabase] ⚠️ 未配置 SUPABASE_KEY", file=sys.stderr)
