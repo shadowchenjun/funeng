@@ -1,17 +1,14 @@
 """
-认证 API
+认证 API - 使用 Supabase
 """
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
 from typing import Optional
 import bcrypt
 
-from app.database import get_db
-from app.models.user import User
-from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token
+from app import supabase_client
 
 router = APIRouter()
 
@@ -21,7 +18,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # JWT 配置
 SECRET_KEY = "funeng-secret-key-2024"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 小时
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
@@ -42,7 +39,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="无效的认证凭据",
@@ -56,59 +53,53 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
     
-    user = db.query(User).filter(User.username == username).first()
+    user = supabase_client.get_user_by_username(username)
     if user is None:
         raise credentials_exception
     return user
 
 # 注册
-@router.post("/register", response_model=UserResponse)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+@router.post("/register")
+def register(user_data: dict):
+    username = user_data.get("username")
+    password = user_data.get("password")
+    email = user_data.get("email", "")
+    full_name = user_data.get("full_name", "")
+    
     # 检查用户名是否已存在
-    existing_user = db.query(User).filter(User.username == user_data.username).first()
+    existing_user = supabase_client.get_user_by_username(username)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="用户名已存在"
         )
     
-    # 检查邮箱是否已存在
-    if user_data.email:
-        existing_email = db.query(User).filter(User.email == user_data.email).first()
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被使用"
-            )
-    
     # 创建用户
-    hashed_password = get_password_hash(user_data.password)
-    new_user = User(
-        username=user_data.username,
-        email=user_data.email,
-        full_name=user_data.full_name,
-        hashed_password=hashed_password,
-        is_active=True,
-        is_admin=False
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    hashed_password = get_password_hash(password)
+    new_user = supabase_client.create_user({
+        "username": username,
+        "email": email,
+        "full_name": full_name,
+        "hashed_password": hashed_password,
+        "is_active": True,
+        "is_admin": False
+    })
+    
     return new_user
 
 # 登录
-@router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+@router.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = supabase_client.get_user_by_username(form_data.username)
     
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not verify_password(form_data.password, user.get('hashed_password', '')):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    if not user.is_active:
+    if not user.get('is_active', True):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="用户已被禁用"
@@ -117,7 +108,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     # 创建 token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user['username']}, expires_delta=access_token_expires
     )
     
     return {
@@ -127,6 +118,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     }
 
 # 获取当前用户信息
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_user)):
+@router.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
