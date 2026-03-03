@@ -9,7 +9,9 @@ from app.api import auth, products, categories, dashboard
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, users
 
 # 根据环境选择数据库配置
-USE_SUPABASE = os.getenv("SUPABASE_URL") or os.getenv("DATABASE_URL", "").startswith("postgres")
+# 支持 postgresql:// 和 postgres:// 两种格式
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+USE_SUPABASE = bool(DATABASE_URL and ("postgresql" in DATABASE_URL or "postgres" in DATABASE_URL))
 
 if USE_SUPABASE:
     from app.database_supabase import engine, get_db
