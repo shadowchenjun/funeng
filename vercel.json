@@ -5,12 +5,12 @@
   "framework": "vite",
   "routes": [
     {
-      "src": "/api/(.<>)",
-      "destination": "/api/main.py"
+      "src": "/api/(.*)",
+      "dest": "/api/main.py"
     },
     {
       "src": "/(.*)",
-      "destination": "/frontend/dist/$1"
+      "dest": "/frontend/dist/index.html"
     }
   ]
 }
