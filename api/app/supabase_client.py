@@ -38,12 +38,16 @@ def authenticate_user(username: str, password: str):
     if not users:
         return None
     user = users[0]
-    # 简单密码验证（实际项目应该用哈希）
     if user.get('password') == password:
         return user
     return None
 
 def get_user_by_id(user_id: int):
+    if not supabase:
+        return None
+    result = supabase.table('users').select('*').eq('id', user_id).execute()
+    users = get_data(result)
+    return users[0] if users else None
 
 def get_user_by_username(username: str):
     if not supabase:
@@ -51,11 +55,13 @@ def get_user_by_username(username: str):
     result = supabase.table('users').select('*').eq('username', username).execute()
     users = get_data(result)
     return users[0] if users else None
+
+def create_user(data: dict):
     if not supabase:
         return None
-    result = supabase.table('users').select('*').eq('id', user_id).execute()
-    users = get_data(result)
-    return users[0] if users else None
+    result = supabase.table('users').insert(data).execute()
+    items = get_data(result)
+    return items[0] if items else None
 
 # ==================== Categories 操作 ====================
 def get_categories():
@@ -100,7 +106,6 @@ def get_products(category_id=None):
         query = query.eq('category_id', category_id)
     result = query.execute()
     items = get_data(result)
-    # 格式化返回
     for item in items:
         if 'categories' in item and item['categories']:
             item['category_name'] = item['categories'].get('name')
