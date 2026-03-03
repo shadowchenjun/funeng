@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd frontend && npm run build",
+  "buildCommand": "cd frontend && npm run build && cp -r dist ../dist",
   "installCommand": "cd frontend && npm install",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "dist",
   "framework": "vite",
   "routes": [
     {
@@ -10,7 +10,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
+      "dest": "/dist/index.html"
     }
   ]
 }
