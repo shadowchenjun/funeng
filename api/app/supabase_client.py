@@ -44,6 +44,13 @@ def authenticate_user(username: str, password: str):
     return None
 
 def get_user_by_id(user_id: int):
+
+def get_user_by_username(username: str):
+    if not supabase:
+        return None
+    result = supabase.table('users').select('*').eq('username', username).execute()
+    users = get_data(result)
+    return users[0] if users else None
     if not supabase:
         return None
     result = supabase.table('users').select('*').eq('id', user_id).execute()
