@@ -1,52 +1,267 @@
 """
-数字营销API
+数字营销API - 连接真实数据库
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime, timedelta
-import random
+from typing import Optional, List
+from datetime import datetime
+from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer, String, DateTime, func
+
+from app.database import get_db, engine
+from app.models.base import Base
 
 router = APIRouter()
 
-# 电商订单模型
-class Order(BaseModel):
-    id: str
-    customer_name: str
-    product: str
-    quantity: int
-    price: float
-    status: str
-    channel: str  # 渠道: app/web/小程序/直播
-    created_at: str
+# ============ 数据模型 ============
+class MemberModel(Base):
+    __tablename__ = "members"
+    __table_args__ = {'extend_existing': True}
 
-# 会员数据模型
-class Member(BaseModel):
-    id: str
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False)
+    phone = Column(String(20))
+    level = Column(String(20), default='普通')
+    points = Column(Integer, default=0)
+    total_spent = Column(String(50), default='¥0')
+    gender = Column(String(10), default='男')
+    birthday = Column(String(20))
+    email = Column(String(100))
+    address = Column(String(200))
+    register_date = Column(String(20))
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class CampaignModel(Base):
+    __tablename__ = "campaigns"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    campaign_type = Column(String(50))
+    status = Column(String(20), default='未开始')
+    participants = Column(Integer, default=0)
+    sales = Column(String(50), default='¥0')
+    end_date = Column(String(20))
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+# ============ Pydantic Schemas ============
+class MemberCreate(BaseModel):
     name: str
-    level: str  # 普通/银卡/金卡/钻石
-    points: int
-    total_spent: float
-    join_date: str
+    phone: str = ""
+    level: str = "普通"
+    points: int = 0
+    total_spent: str = "¥0"
+    gender: str = "男"
+    birthday: str = ""
+    email: str = ""
+    address: str = ""
+    register_date: str = ""
 
-# 直播数据模型
-class LiveStream(BaseModel):
-    id: str
-    title: str
-    host: str
-    status: str  # planning/live/ended
-    viewers: int
-    likes: int
-    orders: int
-    revenue: float
 
+class MemberUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    level: Optional[str] = None
+    points: Optional[int] = None
+    total_spent: Optional[str] = None
+    gender: Optional[str] = None
+    birthday: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    register_date: Optional[str] = None
+
+
+class CampaignCreate(BaseModel):
+    name: str
+    campaign_type: str = "满减活动"
+    status: str = "未开始"
+    participants: int = 0
+    sales: str = "¥0"
+    end_date: str = ""
+
+
+class CampaignUpdate(BaseModel):
+    name: Optional[str] = None
+    campaign_type: Optional[str] = None
+    status: Optional[str] = None
+    participants: Optional[int] = None
+    sales: Optional[str] = None
+    end_date: Optional[str] = None
+
+
+# ============ 会员 API ============
+@router.get("/members")
+def get_members(db: Session = Depends(get_db)):
+    """获取会员列表"""
+    members = db.query(MemberModel).all()
+    return [{
+        "id": m.id,
+        "name": m.name,
+        "phone": m.phone,
+        "level": m.level,
+        "points": m.points,
+        "totalSpent": m.total_spent,
+        "gender": m.gender,
+        "birthday": m.birthday,
+        "email": m.email,
+        "address": m.address,
+        "registerDate": m.register_date,
+        "createdAt": m.created_at.isoformat() if m.created_at else None
+    } for m in members]
+
+
+@router.post("/members")
+def create_member(member: MemberCreate, db: Session = Depends(get_db)):
+    """创建会员"""
+    # 检查手机号是否已存在
+    if member.phone:
+        existing = db.query(MemberModel).filter(MemberModel.phone == member.phone).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="手机号已被注册")
+
+    new_member = MemberModel(
+        name=member.name,
+        phone=member.phone,
+        level=member.level,
+        points=member.points,
+        total_spent=member.total_spent,
+        gender=member.gender,
+        birthday=member.birthday,
+        email=member.email,
+        address=member.address,
+        register_date=member.register_date or datetime.now().strftime("%Y-%m-%d")
+    )
+    db.add(new_member)
+    db.commit()
+    db.refresh(new_member)
+    return {"id": new_member.id, "message": "会员创建成功"}
+
+
+@router.put("/members/{member_id}")
+def update_member(member_id: int, member: MemberUpdate, db: Session = Depends(get_db)):
+    """更新会员"""
+    db_member = db.query(MemberModel).filter(MemberModel.id == member_id).first()
+    if not db_member:
+        raise HTTPException(status_code=404, detail="会员不存在")
+
+    update_data = member.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_member, key, value)
+
+    db.commit()
+    return {"message": "会员更新成功"}
+
+
+@router.delete("/members/{member_id}")
+def delete_member(member_id: int, db: Session = Depends(get_db)):
+    """删除会员"""
+    db_member = db.query(MemberModel).filter(MemberModel.id == member_id).first()
+    if not db_member:
+        raise HTTPException(status_code=404, detail="会员不存在")
+
+    db.delete(db_member)
+    db.commit()
+    return {"message": "会员删除成功"}
+
+
+@router.get("/members/stats")
+def get_member_stats(db: Session = Depends(get_db)):
+    """获取会员统计"""
+    total = db.query(MemberModel).count()
+    by_level = db.query(
+        MemberModel.level,
+        func.count(MemberModel.id)
+    ).group_by(MemberModel.level).all()
+
+    return {
+        "total": total,
+        "byLevel": {level: count for level, count in by_level}
+    }
+
+
+# ============ 活动 API ============
+@router.get("/campaigns")
+def get_campaigns(db: Session = Depends(get_db)):
+    """获取活动列表"""
+    campaigns = db.query(CampaignModel).all()
+    return [{
+        "id": c.id,
+        "name": c.name,
+        "type": c.campaign_type,
+        "status": c.status,
+        "participants": c.participants,
+        "sales": c.sales,
+        "endDate": c.end_date,
+        "createdAt": c.created_at.isoformat() if c.created_at else None
+    } for c in campaigns]
+
+
+@router.post("/campaigns")
+def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
+    """创建活动"""
+    new_campaign = CampaignModel(
+        name=campaign.name,
+        campaign_type=campaign.campaign_type,
+        status=campaign.status,
+        participants=campaign.participants,
+        sales=campaign.sales,
+        end_date=campaign.end_date
+    )
+    db.add(new_campaign)
+    db.commit()
+    db.refresh(new_campaign)
+    return {"id": new_campaign.id, "message": "活动创建成功"}
+
+
+@router.put("/campaigns/{campaign_id}")
+def update_campaign(campaign_id: int, campaign: CampaignUpdate, db: Session = Depends(get_db)):
+    """更新活动"""
+    db_campaign = db.query(CampaignModel).filter(CampaignModel.id == campaign_id).first()
+    if not db_campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+
+    update_data = campaign.dict(exclude_unset=True)
+    # 映射前端字段名到数据库字段名
+    field_mapping = {
+        "type": "campaign_type",
+        "endDate": "end_date"
+    }
+
+    for key, value in update_data.items():
+        db_key = field_mapping.get(key, key)
+        setattr(db_campaign, db_key, value)
+
+    db.commit()
+    return {"message": "活动更新成功"}
+
+
+@router.delete("/campaigns/{campaign_id}")
+def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
+    """删除活动"""
+    db_campaign = db.query(CampaignModel).filter(CampaignModel.id == campaign_id).first()
+    if not db_campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+
+    db.delete(db_campaign)
+    db.commit()
+    return {"message": "活动删除成功"}
+
+
+# ============ 保留原有模拟数据接口（用于展示） ============
 @router.get("/orders")
 def get_orders():
-    """获取电商订单列表"""
+    """获取电商订单列表 - 模拟数据"""
+    from datetime import timedelta
+    import random
+
     statuses = ["待付款", "待发货", "配送中", "已完成", "已取消"]
     channels = ["APP", "小程序", "网页", "直播间"]
     products = ["有机大米", "新鲜蔬菜", "水果礼盒", "土特产", "有机水果"]
-    
+
     orders = []
     for i in range(20):
         date = datetime.now() - timedelta(hours=random.randint(0, 72))
@@ -62,181 +277,18 @@ def get_orders():
         })
     return orders
 
-@router.get("/orders/stats")
-def get_order_stats():
-    """获取订单统计数据"""
-    return {
-        "today": {
-            "orders": random.randint(50, 200),
-            "revenue": round(random.uniform(5000, 20000), 2),
-            "avg_price": round(random.uniform(80, 200), 2)
-        },
-        "yesterday": {
-            "orders": random.randint(50, 200),
-            "revenue": round(random.uniform(5000, 20000), 2),
-            "avg_price": round(random.uniform(80, 200), 2)
-        },
-        "week": {
-            "orders": random.randint(500, 1500),
-            "revenue": round(random.uniform(50000, 150000), 2),
-            "growth": round(random.uniform(-10, 30), 1)
-        },
-        "month": {
-            "orders": random.randint(2000, 6000),
-            "revenue": round(random.uniform(200000, 600000), 2),
-            "growth": round(random.uniform(-5, 25), 1)
-        }
-    }
-
-@router.get("/channel-stats")
-def get_channel_stats():
-    """获取销售渠道统计"""
-    channels = [
-        {"name": "APP", "orders": random.randint(100, 500), "revenue": random.randint(10000, 50000)},
-        {"name": "小程序", "orders": random.randint(100, 500), "revenue": random.randint(10000, 50000)},
-        {"name": "网页", "orders": random.randint(50, 300), "revenue": random.randint(5000, 30000)},
-        {"name": "直播间", "orders": random.randint(200, 800), "revenue": random.randint(20000, 100000)}
-    ]
-    return channels
-
-@router.get("/members")
-def get_members():
-    """获取会员列表"""
-    levels = ["普通会员", "银卡会员", "金卡会员", "钻石会员"]
-    members = []
-    
-    for i in range(30):
-        join_date = datetime.now() - timedelta(days=random.randint(30, 730))
-        level = random.choice(levels)
-        base_points = {"普通会员": 100, "银卡会员": 2000, "金卡会员": 10000, "钻石会员": 50000}
-        
-        members.append({
-            "id": f"M{i+1:05d}",
-            "name": f"会员{i+1}",
-            "level": level,
-            "points": random.randint(base_points[level], base_points[level] * 5),
-            "total_spent": round(random.uniform(100, 50000), 2),
-            "orders": random.randint(1, 200),
-            "join_date": join_date.strftime("%Y-%m-%d"),
-            "last_active": (datetime.now() - timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d")
-        })
-    return members
-
-@router.get("/members/stats")
-def get_member_stats():
-    """获取会员统计数据"""
-    return {
-        "total": random.randint(5000, 20000),
-        "new_today": random.randint(10, 100),
-        "active": random.randint(1000, 5000),
-        "by_level": {
-            "普通会员": random.randint(3000, 10000),
-            "银卡会员": random.randint(1000, 3000),
-            "金卡会员": random.randint(300, 1000),
-            "钻石会员": random.randint(50, 300)
-        },
-        "points_total": random.randint(1000000, 5000000),
-        "conversion_rate": round(random.uniform(2, 8), 1)
-    }
-
-@router.get("/members/levels")
-def get_member_levels():
-    """获取会员等级配置"""
-    return [
-        {"level": "普通会员", "threshold": 0, "discount": 1.0, "points_rate": 1.0, "color": "#909399"},
-        {"level": "银卡会员", "threshold": 2000, "discount": 0.95, "points_rate": 1.5, "color": "#C0C4CC"},
-        {"level": "金卡会员", "threshold": 10000, "discount": 0.9, "points_rate": 2.0, "color": "#E6A23C"},
-        {"level": "钻石会员", "threshold": 50000, "discount": 0.85, "points_rate": 3.0, "color": "#F56C6C"}
-    ]
-
-@router.get("/live")
-def get_live_streams():
-    """获取直播列表"""
-    hosts = ["李老师", "王主播", "小美", "农博士", "田野哥"]
-    titles = ["新鲜蔬果专场", "有机大米特惠", "家乡味道", "产地直供", "限时秒杀"]
-    statuses = ["planning", "live", "ended"]
-    
-    streams = []
-    for i in range(10):
-        status = random.choice(statuses)
-        streams.append({
-            "id": f"L{i+1:03d}",
-            "title": random.choice(titles),
-            "host": random.choice(hosts),
-            "status": status,
-            "viewers": random.randint(100, 10000) if status == "live" else random.randint(1000, 50000),
-            "likes": random.randint(500, 100000),
-            "orders": random.randint(10, 500),
-            "revenue": round(random.uniform(1000, 50000), 2),
-            "duration": random.randint(30, 180) if status == "ended" else random.randint(0, 120),
-            "scheduled_time": (datetime.now() + timedelta(hours=random.randint(1, 48))).strftime("%Y-%m-%d %H:%M"),
-            "cover_image": f"https://picsum.photos/seed/live{i}/400/225"
-        })
-    return streams
-
-@router.get("/live/{stream_id}")
-def get_live_stream(stream_id: str):
-    """获取直播详情"""
-    return {
-        "id": stream_id,
-        "title": "新鲜蔬果专场",
-        "host": "李老师",
-        "status": "live",
-        "viewers": random.randint(1000, 10000),
-        "likes": random.randint(5000, 50000),
-        "orders": random.randint(50, 500),
-        "revenue": round(random.uniform(5000, 50000), 2),
-        "comments": random.randint(100, 1000),
-        "products": [
-            {"name": "有机大米5kg", "price": 68, "sold": random.randint(50, 500), "stock": 1000},
-            {"name": "新鲜蔬菜礼盒", "price": 128, "sold": random.randint(20, 200), "stock": 500},
-            {"name": "土特产套装", "price": 258, "sold": random.randint(10, 100), "stock": 200}
-        ]
-    }
-
-@router.get("/marketing/campaigns")
-def get_marketing_campaigns():
-    """获取营销活动列表"""
-    campaigns = []
-    statuses = ["进行中", "待开始", "已结束"]
-    types = ["满减", "折扣", "秒杀", "拼团", "会员日"]
-    
-    for i in range(10):
-        start_date = datetime.now() - timedelta(days=random.randint(0, 30))
-        end_date = start_date + timedelta(days=random.randint(7, 30))
-        status = "进行中" if start_date <= datetime.now() <= end_date else ("待开始" if start_date > datetime.now() else "已结束")
-        
-        campaigns.append({
-            "id": f"C{i+1:03d}",
-            "name": f"{random.choice(types)}活动{i+1}",
-            "type": random.choice(types),
-            "status": status,
-            "start_date": start_date.strftime("%Y-%m-%d"),
-            "end_date": end_date.strftime("%Y-%m-%d"),
-            "participants": random.randint(100, 10000),
-            "orders": random.randint(50, 1000),
-            "revenue": round(random.uniform(5000, 100000), 2)
-        })
-    return campaigns
 
 @router.get("/analytics")
-def get_marketing_analytics():
+def get_marketing_analytics(db: Session = Depends(get_db)):
     """获取营销分析数据"""
+    member_total = db.query(MemberModel).count()
+    campaign_total = db.query(CampaignModel).count()
+
     return {
         "overview": {
-            "total_orders": random.randint(10000, 50000),
-            "total_revenue": round(random.uniform(1000000, 5000000), 2),
-            "avg_order_value": round(random.uniform(100, 300), 2),
-            "conversion_rate": round(random.uniform(2, 8), 1)
-        },
-        "growth": {
-            "orders_growth": round(random.uniform(-5, 30), 1),
-            "revenue_growth": round(random.uniform(-3, 35), 1),
-            "member_growth": round(random.uniform(5, 25), 1)
-        },
-        "top_products": [
-            {"name": "有机大米", "sales": random.randint(1000, 5000), "revenue": random.randint(50000, 300000)},
-            {"name": "新鲜蔬菜", "sales": random.randint(800, 4000), "revenue": random.randint(40000, 200000)},
-            {"name": "水果礼盒", "sales": random.randint(500, 3000), "revenue": random.randint(30000, 200000)}
-        ]
+            "total_members": member_total,
+            "total_campaigns": campaign_total,
+            "total_orders": 0,
+            "total_revenue": 0
+        }
     }

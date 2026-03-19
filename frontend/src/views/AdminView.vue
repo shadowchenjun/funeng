@@ -6,7 +6,34 @@
         刷新数据
       </el-button>
     </div>
-    
+
+    <!-- 功能模块入口 -->
+    <el-card class="section-card">
+      <template #header>
+        <h3>📦 功能模块</h3>
+      </template>
+      <div class="module-grid">
+        <div
+          v-for="module in modules"
+          :key="module.path"
+          class="module-card"
+          :style="{ '--accent': module.color }"
+          @click="goToModule(module.path)"
+        >
+          <div class="module-icon" :style="{ background: `${module.color}15` }">
+            <el-icon :size="28" :color="module.color">
+              <component :is="module.icon" />
+            </el-icon>
+          </div>
+          <div class="module-info">
+            <h4>{{ module.name }}</h4>
+            <p>{{ module.desc }}</p>
+          </div>
+          <el-icon class="module-arrow"><ArrowRight /></el-icon>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 统计概览 -->
     <el-row :gutter="20" class="stat-cards">
       <el-col :span="6" v-for="stat in stats" :key="stat.title">
@@ -86,7 +113,46 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowRight, DataAnalysis, TrendCharts, Van, Wallet } from '@element-plus/icons-vue'
+
+const router = useRouter()
+
+const modules = [
+  {
+    name: '智慧农业',
+    desc: '设备管理、地块管理、作物监控',
+    path: '/smart-agriculture',
+    icon: DataAnalysis,
+    color: '#10B981'
+  },
+  {
+    name: '数字营销',
+    desc: '会员管理、营销活动',
+    path: '/digital-marketing',
+    icon: TrendCharts,
+    color: '#8B5CF6'
+  },
+  {
+    name: '冷链物流',
+    desc: '车辆管理、仓库管理',
+    path: '/cold-chain',
+    icon: Van,
+    color: '#3B82F6'
+  },
+  {
+    name: '供应链金融',
+    desc: '金融服务管理',
+    path: '/supply-chain-finance',
+    icon: Wallet,
+    color: '#F59E0B'
+  }
+]
+
+const goToModule = (path: string) => {
+  router.push(path)
+}
 
 const stats = ref([
   { title: '总用户数', value: '1,028', color: '#409EFF' },
@@ -176,5 +242,67 @@ const saveSettings = () => {
   margin: 0;
   font-size: 16px;
   color: #303133;
+}
+
+/* 功能模块样式 */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.module-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.module-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.module-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.module-info {
+  flex: 1;
+}
+
+.module-info h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #303133;
+}
+
+.module-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #909399;
+}
+
+.module-arrow {
+  color: #c0c4cc;
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

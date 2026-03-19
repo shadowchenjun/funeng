@@ -64,6 +64,11 @@ const routes: RouteRecordRaw[] = [
     name: 'SupplyChainFinance',
     component: () => import('../views/SupplyChainFinance.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/claude-code',
+    name: 'ClaudeCodeAssistant',
+    component: () => import('../views/ClaudeCodeAssistant.vue')
   }
 ]
 
@@ -77,25 +82,25 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const userStr = localStorage.getItem('user')
   const user = userStr ? JSON.parse(userStr) : null
-  
+
   // 需要登录的页面
   if (to.meta.requiresAuth && !token) {
     next('/login')
     return
   }
-  
+
   // 需要管理员权限的页面
-  if (to.meta.requiresAdmin && user?.role !== 'admin') {
+  if (to.meta.requiresAdmin && !user?.is_admin) {
     next('/dashboard')
     return
   }
-  
+
   // 已登录用户访问登录/注册页，跳转到仪表盘
   if ((to.path === '/login' || to.path === '/register') && token) {
     next('/dashboard')
     return
   }
-  
+
   next()
 })
 

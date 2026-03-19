@@ -1,56 +1,33 @@
 <template>
   <div class="smart-agri-container">
-    <div class="header-mobile">
-      <h2>🌱 智慧农业</h2>
-    </div>
-    
+    <!-- 页面头部 -->
+    <header class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">🌱 智慧农业</h1>
+        <p class="page-subtitle">智能监测 · 科学管理 · 精准决策</p>
+      </div>
+    </header>
+
     <!-- 快捷入口 -->
-    <el-row :gutter="10" class="quick-nav">
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'land'">
-          <el-icon><MapLocation /></el-icon>
-          <span>地块管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'farm'">
-          <el-icon><OfficeBuilding /></el-icon>
-          <span>农场信息</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'crop'">
-          <el-icon><Grape /></el-icon>
-          <span>作物管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'device'">
-          <el-icon><Cpu /></el-icon>
-          <span>物联网设备</span>
-        </el-card>
-      </el-col>
-    </el-row>
-    <el-row :gutter="10" class="quick-nav">
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'monitor'">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>环境监测</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'decision'">
-          <el-icon><TrendCharts /></el-icon>
-          <span>智能决策</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'traceability'">
-          <el-icon><Link /></el-icon>
-          <span>追溯系统</span>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="quick-nav-grid">
+      <div
+        v-for="(item, index) in navItems"
+        :key="item.key"
+        class="nav-card"
+        :style="{ '--accent': item.color, '--delay': `${index * 0.05}s` }"
+        @click="setActiveTab(item.key)"
+      >
+        <div class="nav-card-glow"></div>
+        <div class="nav-card-content">
+          <div class="nav-icon-wrapper">
+            <el-icon :size="28" :color="item.color">
+              <component :is="item.icon" />
+            </el-icon>
+          </div>
+          <span class="nav-label">{{ item.label }}</span>
+        </div>
+      </div>
+    </div>
     
     <!-- 地块管理 -->
     <el-card v-show="activeTab === 'land'" class="section-card">
@@ -466,27 +443,74 @@
     
     <!-- 地块对话框 -->
     <el-dialog v-model="landDialogVisible" :title="isEditLand ? '编辑地块' : '添加地块'" width="90%">
-      <el-form :model="landForm" label-width="70px" size="small">
-        <el-form-item label="所属农场">
-          <el-select v-model="landForm.farm_id" placeholder="选择农场" style="width: 100%">
-            <el-option v-for="f in farms" :key="f.id" :label="f.name" :value="f.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="名称">
-          <el-input v-model="landForm.name" placeholder="地块名称" />
-        </el-form-item>
-        <el-form-item label="面积">
-          <el-input-number v-model="landForm.area" :min="1" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="作物">
-          <el-input v-model="landForm.crop" placeholder="种植作物" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="landForm.status" style="width: 100%">
-            <el-option label="正常" value="normal" />
-            <el-option label="预警" value="warning" />
-          </el-select>
-        </el-form-item>
+      <el-form :model="landForm" label-width="80px" size="small">
+        <div class="form-section-title">基本信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="所属农场">
+              <el-select v-model="landForm.farm_id" placeholder="选择农场" style="width: 100%">
+                <el-option v-for="f in farms" :key="f.id" :label="f.name" :value="f.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="名称">
+              <el-input v-model="landForm.name" placeholder="地块名称" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="面积(亩)">
+              <el-input-number v-model="landForm.area" :min="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="作物">
+              <el-input v-model="landForm.crop" placeholder="种植作物" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="form-section-title">土地属性</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="土壤类型">
+              <el-select v-model="landForm.soilType" style="width: 100%">
+                <el-option label="沙土" value="沙土" />
+                <el-option label="壤土" value="壤土" />
+                <el-option label="粘土" value="粘土" />
+                <el-option label="沙壤土" value="沙壤土" />
+                <el-option label="粘壤土" value="粘壤土" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="灌溉方式">
+              <el-select v-model="landForm.irrigationType" style="width: 100%">
+                <el-option label="滴灌" value="滴灌" />
+                <el-option label="喷灌" value="喷灌" />
+                <el-option label="漫灌" value="漫灌" />
+                <el-option label="沟灌" value="沟灌" />
+                <el-option label="微喷" value="微喷" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="海拔(米)">
+              <el-input-number v-model="landForm.altitude" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态">
+              <el-select v-model="landForm.status" style="width: 100%">
+                <el-option label="正常" value="normal" />
+                <el-option label="预警" value="warning" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="landDialogVisible = false" size="small">取消</el-button>
@@ -496,13 +520,23 @@
     
     <!-- 作物对话框 -->
     <el-dialog v-model="cropDialogVisible" :title="isEditCrop ? '编辑作物' : '添加作物'" width="90%">
-      <el-form :model="cropForm" label-width="70px" size="small">
-        <el-form-item label="作物名称" required>
-          <el-input v-model="cropForm.name" placeholder="如: 水稻、小麦、西红柿" />
-        </el-form-item>
+      <el-form :model="cropForm" label-width="80px" size="small">
+        <div class="form-section-title">基本信息</div>
         <el-row :gutter="10">
           <el-col :span="12">
-            <el-form-item label="分类" style="margin-bottom: 10px;">
+            <el-form-item label="作物名称" required>
+              <el-input v-model="cropForm.name" placeholder="如: 水稻、小麦、西红柿" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="品种">
+              <el-input v-model="cropForm.variety" placeholder="如: 优系一号" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="分类">
               <el-select v-model="cropForm.category" style="width: 100%">
                 <el-option label="粮食" value="粮食" />
                 <el-option label="蔬菜" value="蔬菜" />
@@ -512,7 +546,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="种植季节" style="margin-bottom: 10px;">
+            <el-form-item label="种植季节">
               <el-select v-model="cropForm.planting_season" style="width: 100%">
                 <el-option label="春季" value="春季" />
                 <el-option label="夏季" value="夏季" />
@@ -522,14 +556,27 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <div class="form-section-title">种植信息</div>
         <el-row :gutter="10">
           <el-col :span="12">
-            <el-form-item label="生长周期" style="margin-bottom: 10px;">
+            <el-form-item label="种植日期">
+              <el-date-picker v-model="cropForm.plantingDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="预计收获">
+              <el-date-picker v-model="cropForm.expectedHarvest" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="生长周期">
               <el-input-number v-model="cropForm.growth_days" :min="1" :max="365" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="亩产量(斤)" style="margin-bottom: 10px;">
+            <el-form-item label="亩产量(斤)">
               <el-input-number v-model="cropForm.yield_per_mu" :min="1" style="width: 100%" />
             </el-form-item>
           </el-col>
@@ -543,26 +590,73 @@
     
     <!-- 设备对话框 -->
     <el-dialog v-model="deviceDialogVisible" title="添加设备" width="90%">
-      <el-form :model="deviceForm" label-width="70px" size="small">
-        <el-form-item label="设备名">
-          <el-input v-model="deviceForm.name" placeholder="设备名称" />
-        </el-form-item>
-        <el-form-item label="设备类型">
-          <el-select v-model="deviceForm.type" style="width: 100%">
-            <el-option label="温度传感器" value="temp" />
-            <el-option label="湿度传感器" value="humidity" />
-            <el-option label="土壤传感器" value="soil" />
-            <el-option label="气象站" value="weather" />
-            <el-option label="摄像头" value="camera" />
-            <el-option label="杀虫灯" value="pest_lamp" />
-            <el-option label="叶片传感器" value="leaf_sensor" />
-            <el-option label="水肥设备" value="water_fertilizer" />
-            <el-option label="控制阀" value="control_valve" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="位置">
-          <el-input v-model="deviceForm.location" placeholder="安装位置" />
-        </el-form-item>
+      <el-form :model="deviceForm" label-width="80px" size="small">
+        <div class="form-section-title">基本信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="设备名" required>
+              <el-input v-model="deviceForm.name" placeholder="设备名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="序列号">
+              <el-input v-model="deviceForm.serialNumber" placeholder="设备序列号" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="设备类型">
+              <el-select v-model="deviceForm.type" style="width: 100%">
+                <el-option label="温度传感器" value="temp" />
+                <el-option label="湿度传感器" value="humidity" />
+                <el-option label="土壤传感器" value="soil" />
+                <el-option label="气象站" value="weather" />
+                <el-option label="摄像头" value="camera" />
+                <el-option label="杀虫灯" value="pest_lamp" />
+                <el-option label="叶片传感器" value="leaf_sensor" />
+                <el-option label="水肥设备" value="water_fertilizer" />
+                <el-option label="控制阀" value="control_valve" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="设备状态">
+              <el-select v-model="deviceForm.status" style="width: 100%">
+                <el-option label="在线" value="online" />
+                <el-option label="离线" value="offline" />
+                <el-option label="维护中" value="maintenance" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="form-section-title">安装信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="所属地块">
+              <el-select v-model="deviceForm.landId" style="width: 100%" placeholder="选择地块">
+                <el-option v-for="l in lands" :key="l.id" :label="l.name" :value="l.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="安装位置">
+              <el-input v-model="deviceForm.location" placeholder="安装位置" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="安装日期">
+              <el-date-picker v-model="deviceForm.installDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最后维护">
+              <el-date-picker v-model="deviceForm.lastMaintenance" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="deviceDialogVisible = false" size="small">取消</el-button>
@@ -699,6 +793,17 @@ import 'leaflet/dist/leaflet.css'
 const API_BASE = '/api/smart-agriculture'
 
 const activeTab = ref('land')
+const setActiveTab = (tab: string) => { activeTab.value = tab }
+
+const navItems = [
+  { key: 'land', label: '地块管理', icon: MapLocation, color: '#10B981' },
+  { key: 'farm', label: '农场信息', icon: OfficeBuilding, color: '#3B82F6' },
+  { key: 'crop', label: '作物管理', icon: Grape, color: '#F59E0B' },
+  { key: 'device', label: '物联网设备', icon: Cpu, color: '#8B5CF6' },
+  { key: 'monitor', label: '环境监测', icon: DataAnalysis, color: '#EC4899' },
+  { key: 'decision', label: '智能决策', icon: TrendCharts, color: '#06B6D4' },
+  { key: 'traceability', label: '追溯系统', icon: Link, color: '#EF4444' }
+]
 
 // 农场数据
 const farms = ref<any[]>([])
@@ -749,16 +854,64 @@ const loadCrops = async () => {
   }
 }
 
+// 土壤数据
+const soilData = ref<any[]>([])
+const loadSoilData = async () => {
+  try {
+    const res = await axios.get('/api/smart-agriculture/soil')
+    soilData.value = res.data
+  } catch (e) {
+    console.error('加载土壤数据失败', e)
+  }
+}
+
+// 气象数据
+const weatherData = ref<any[]>([])
+const loadWeatherData = async () => {
+  try {
+    const res = await axios.get('/api/smart-agriculture/weather')
+    weatherData.value = res.data
+  } catch (e) {
+    console.error('加载气象数据失败', e)
+  }
+}
+
+// 灌溉数据
+const irrigationData = ref<any[]>([])
+const loadIrrigationData = async () => {
+  try {
+    const res = await axios.get('/api/smart-agriculture/irrigation')
+    irrigationData.value = res.data
+  } catch (e) {
+    console.error('加载灌溉数据失败', e)
+  }
+}
+
+// 分析数据
+const analyticsData = ref<any>({})
+const loadAnalytics = async () => {
+  try {
+    const res = await axios.get('/api/smart-agriculture/analytics')
+    analyticsData.value = res.data
+  } catch (e) {
+    console.error('加载分析数据失败', e)
+  }
+}
+
 const cropDialogVisible = ref(false)
 const isEditCrop = ref(false)
 const editingCropId = ref<number>()
 const cropForm = reactive({
-  name: '', category: '蔬菜', planting_season: '春季', growth_days: 90, yield_per_mu: 1000
+  name: '', category: '蔬菜', planting_season: '春季', growth_days: 90, yield_per_mu: 1000,
+  variety: '', plantingDate: '', expectedHarvest: ''
 })
 
 const showCropDialog = () => {
   isEditCrop.value = false
-  Object.assign(cropForm, { name: '', category: '蔬菜', planting_season: '春季', growth_days: 90, yield_per_mu: 1000 })
+  Object.assign(cropForm, {
+    name: '', category: '蔬菜', planting_season: '春季', growth_days: 90, yield_per_mu: 1000,
+    variety: '', plantingDate: '', expectedHarvest: ''
+  })
   cropDialogVisible.value = true
 }
 
@@ -815,15 +968,8 @@ const monitorData = reactive({
   temperature: 25, humidity: 65, soilMoisture: 72, light: 8500, co2: 420, rainfall: 0
 })
 
-// 土壤数据
-const soilData = ref([
-  { location: '东区1号田', temperature: 22.5, humidity: 68, ph: 6.8, nitrogen: 135 },
-  { location: '西区1号田', temperature: 21.8, humidity: 72, ph: 6.5, nitrogen: 128 },
-  { location: '东区2号田', temperature: 23.1, humidity: 65, ph: 7.0, nitrogen: 142 },
-  { location: '西区2号田', temperature: 22.0, humidity: 70, ph: 6.6, nitrogen: 130 }
-])
-
 onMounted(() => {
+  window.scrollTo(0, 0)
   fetchFarms()
   fetchLands()
   fetchDevices()
@@ -833,11 +979,17 @@ onMounted(() => {
 const landDialogVisible = ref(false)
 const isEditLand = ref(false)
 const editingLandId = ref<number>()
-const landForm = reactive({ name: '', area: 0, crop: '', status: 'normal', farm_id: undefined as number | undefined })
+const landForm = reactive({
+  name: '', area: 0, crop: '', status: 'normal', farm_id: undefined as number | undefined,
+  soilType: '壤土', irrigationType: '滴灌', altitude: 0
+})
 
 const showLandDialog = () => {
   isEditLand.value = false
-  Object.assign(landForm, { name: '', area: 0, crop: '', status: 'normal', farm_id: currentFarmId.value })
+  Object.assign(landForm, {
+    name: '', area: 0, crop: '', status: 'normal', farm_id: currentFarmId.value,
+    soilType: '壤土', irrigationType: '滴灌', altitude: 0
+  })
   landDialogVisible.value = true
 }
 
@@ -1024,16 +1176,33 @@ const deleteFarm = async (farm: any) => {
 }
 
 const deviceDialogVisible = ref(false)
-const deviceForm = reactive({ name: '', type: '', location: '' })
+const deviceForm = reactive({
+  name: '', type: '', location: '',
+  serialNumber: '', status: 'online', landId: '', installDate: '', lastMaintenance: ''
+})
 
 const showDeviceDialog = () => {
-  Object.assign(deviceForm, { name: '', type: '', location: '' })
+  Object.assign(deviceForm, {
+    name: '', type: '', location: '',
+    serialNumber: '', status: 'online', landId: '', installDate: '', lastMaintenance: ''
+  })
   deviceDialogVisible.value = true
 }
 
 const saveDevice = async () => {
   try {
-    await axios.post(`${API_BASE}/devices`, deviceForm)
+    // 映射字段名到后端期望的格式
+    const payload = {
+      name: deviceForm.name,
+      device_type: deviceForm.type,
+      location: deviceForm.location,
+      land_id: deviceForm.landId || null,
+      status: deviceForm.status,
+      serial_number: deviceForm.serialNumber,
+      install_date: deviceForm.installDate,
+      last_maintenance: deviceForm.lastMaintenance
+    }
+    await axios.post(`${API_BASE}/devices`, payload)
     ElMessage.success('设备添加成功')
     deviceDialogVisible.value = false
     fetchDevices()
@@ -1127,17 +1296,38 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.smart-agri-container { padding: 10px; }
-.header-mobile h2 { font-size: 16px; margin: 0 0 10px 0; }
+.smart-agri-container {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: var(--bg-secondary, #F8FAFC);
+  min-height: calc(100vh - 64px);
+}
 
-.quick-nav { margin-bottom: 10px; }
-.nav-card { text-align: center; padding: 10px 5px; cursor: pointer; }
-.nav-card :deep(.el-card__body) { padding: 10px; }
-.nav-card .el-icon { font-size: 24px; color: #67c23a; display: block; margin-bottom: 4px; }
-.nav-card span { font-size: 11px; color: #606266; }
+@media (max-width: 768px) {
+  .smart-agri-container {
+    padding: 20px;
+  }
+}
 
-.section-card { margin-bottom: 10px; transition: all 0.3s ease; }
-.section-card[v-show] { animation: fadeIn 0.3s ease; }
+.section-card {
+  background: var(--bg-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.section-card :deep(.el-card__header) {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color, #E2E8F0);
+  background: var(--bg-secondary, #F8FAFC);
+}
+
+.section-card :deep(.el-card__body) {
+  padding: 20px 24px;
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -1216,13 +1406,147 @@ onMounted(() => {
   .crop-card { width: calc(50% - 5px); }
 }
 
-/* 导航卡片悬停效果 */
-.nav-card { text-align: center; padding: 10px 5px; cursor: pointer; transition: all 0.3s ease; }
-.nav-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.nav-card:hover .el-icon { transform: scale(1.1); }
-.nav-card :deep(.el-card__body) { padding: 10px; }
-.nav-card .el-icon { font-size: 24px; color: #67c23a; display: block; margin-bottom: 4px; transition: transform 0.3s ease; }
-.nav-card span { font-size: 11px; color: #606266; }
+/* ========== 页面头部 ========== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #0F172A);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary, #475569);
+  margin: 0;
+}
+
+/* ========== 快捷入口导航 ========== */
+.quick-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.nav-card {
+  position: relative;
+  background: var(--bg-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 14px;
+  padding: 20px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  animation: fadeInUp 0.4s ease forwards;
+  animation-delay: var(--delay);
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+}
+
+.nav-card-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.nav-card:hover .nav-card-glow {
+  transform: scaleX(1);
+}
+
+.nav-card-content {
+  position: relative;
+}
+
+.nav-icon-wrapper {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #F8FAFC);
+  border-radius: 12px;
+  margin: 0 auto 12px;
+  transition: all 0.3s ease;
+}
+
+.nav-card:hover .nav-icon-wrapper {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.nav-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #0F172A);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1024px) {
+  .quick-nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .quick-nav-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .nav-card {
+    padding: 16px 8px;
+  }
+
+  .nav-icon-wrapper {
+    width: 44px;
+    height: 44px;
+  }
+
+  .nav-label {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 </style>
 
 .farm-lands { min-height: 40px; }

@@ -180,8 +180,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+
+onMounted(() => {
+  window.scrollTo(0, 0)
+})
 
 const financeStats = ref([
   { title: '总融资额', value: '¥256万', color: '#409EFF' },

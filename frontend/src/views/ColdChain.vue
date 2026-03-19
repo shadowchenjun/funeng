@@ -1,83 +1,34 @@
 <template>
   <div class="cold-chain-container">
-    <div class="header-mobile">
-      <h2>❄️ 数字冷链</h2>
-    </div>
-    
+    <!-- 页面头部 -->
+    <header class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">❄️ 数字冷链</h1>
+        <p class="page-subtitle">全程温控 · 实时追踪 · 安全保障</p>
+      </div>
+    </header>
+
     <!-- 快捷入口 -->
-    <el-row :gutter="10" class="quick-nav">
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'monitor'">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>实时监控</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'warehouse'">
-          <el-icon><OfficeBuilding /></el-icon>
-          <span>仓库管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'vehicle'">
-          <el-icon><Van /></el-icon>
-          <span>车辆管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'transport'">
-          <el-icon><Location /></el-icon>
-          <span>运输追踪</span>
-        </el-card>
-      </el-col>
-    </el-row>
-    <el-row :gutter="10" class="quick-nav">
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'inventory'">
-          <el-icon><Box /></el-icon>
-          <span>库存管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'analytics'">
-          <el-icon><TrendCharts /></el-icon>
-          <span>数据分析</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'quality'">
-          <el-icon><CircleCheck /></el-icon>
-          <span>品控管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'alert'">
-          <el-icon><Warning /></el-icon>
-          <span>库存预警</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'owner'">
-          <el-icon><User /></el-icon>
-          <span>货主管理</span>
-        </el-card>
-      </el-col>
-    </el-row>
-    <el-row :gutter="10" class="quick-nav">
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'inbound'">
-          <el-icon><Bottom /></el-icon>
-          <span>入库管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'operation'">
-          <el-icon><Operation /></el-icon>
-          <span>作业管理</span>
-        </el-card>
-      </el-col>
-    </el-row>
-    
+    <div class="quick-nav-grid">
+      <div
+        v-for="(item, index) in navItems"
+        :key="item.key"
+        class="nav-card"
+        :style="{ '--accent': item.color, '--delay': `${index * 0.05}s` }"
+        @click="setActiveTab(item.key)"
+      >
+        <div class="nav-card-glow"></div>
+        <div class="nav-card-content">
+          <div class="nav-icon-wrapper">
+            <el-icon :size="28" :color="item.color">
+              <component :is="item.icon" />
+            </el-icon>
+          </div>
+          <span class="nav-label">{{ item.label }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 实时监控 -->
     <div v-if="activeTab === 'monitor'">
       <el-row :gutter="10" class="monitor-cards">
@@ -597,16 +548,63 @@
     
     <!-- 添加/编辑车辆对话框 -->
     <el-dialog v-model="vehicleDialogVisible" :title="isEditVehicle ? '编辑车辆' : '添加车辆'" width="95%">
-      <el-form :model="vehicleForm" label-width="70px" size="small">
-        <el-form-item label="车牌号" required>
-          <el-input v-model="vehicleForm.plate" placeholder="如: 京A12345" />
-        </el-form-item>
-        <el-form-item label="司机" required>
-          <el-input v-model="vehicleForm.driver" placeholder="司机姓名" />
-        </el-form-item>
-        <el-form-item label="电话">
-          <el-input v-model="vehicleForm.phone" placeholder="联系电话" />
-        </el-form-item>
+      <el-form :model="vehicleForm" label-width="80px" size="small">
+        <div class="form-section-title">基本信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="车牌号" required>
+              <el-input v-model="vehicleForm.plate" placeholder="如: 京A12345" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="车型">
+              <el-select v-model="vehicleForm.vehicleType" style="width: 100%">
+                <el-option label="冷藏车" value="冷藏车" />
+                <el-option label="厢式货车" value="厢式货车" />
+                <el-option label="保温车" value="保温车" />
+                <el-option label="冷冻车" value="冷冻车" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="载重(吨)">
+              <el-input-number v-model="vehicleForm.loadCapacity" :min="0.1" :precision="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="车厢容积">
+              <el-input v-model="vehicleForm.volume" placeholder="如: 50立方米" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="form-section-title">司机信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="司机" required>
+              <el-input v-model="vehicleForm.driver" placeholder="司机姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="电话">
+              <el-input v-model="vehicleForm.phone" placeholder="联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="form-section-title">设备信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="GPS设备">
+              <el-input v-model="vehicleForm.gpsDevice" placeholder="GPS设备编号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="温度范围">
+              <el-input v-model="vehicleForm.tempRange" placeholder="如: -25°C~5°C" />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="状态">
           <el-select v-model="vehicleForm.status" style="width: 100%">
             <el-option label="空闲" value="空闲" />
@@ -994,12 +992,28 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning, User, Bottom, Operation } from '@element-plus/icons-vue'
 
 const activeTab = ref('monitor')
+const setActiveTab = (tab: string) => { activeTab.value = tab }
+
+const navItems = [
+  { key: 'monitor', label: '实时监控', icon: DataAnalysis, color: '#3B82F6' },
+  { key: 'warehouse', label: '仓库管理', icon: OfficeBuilding, color: '#10B981' },
+  { key: 'vehicle', label: '车辆管理', icon: Van, color: '#F59E0B' },
+  { key: 'transport', label: '运输追踪', icon: Location, color: '#8B5CF6' },
+  { key: 'inventory', label: '库存管理', icon: Box, color: '#EC4899' },
+  { key: 'analytics', label: '数据分析', icon: TrendCharts, color: '#06B6D4' },
+  { key: 'quality', label: '品控管理', icon: CircleCheck, color: '#10B981' },
+  { key: 'alert', label: '库存预警', icon: Warning, color: '#EF4444' },
+  { key: 'owner', label: '货主管理', icon: User, color: '#F97316' },
+  { key: 'inbound', label: '入库管理', icon: Bottom, color: '#6366F1' },
+  { key: 'operation', label: '作业管理', icon: Operation, color: '#14B8A6' }
+]
 
 // 页面加载时获取数据
 onMounted(() => {
+  window.scrollTo(0, 0)
   loadMonitorData()
-  loadWarehouseData()
-  loadVehicleData()
+  loadWarehouses()
+  loadVehicles()
   loadTransportData()
   loadOwnerData()
 })
@@ -1010,40 +1024,6 @@ const loadMonitorData = async () => {
     const res = await axios.get('/api/cold-chain/monitoring/temperature')
     temperatureData.value = res.data
   } catch (e) { console.error('加载监控数据失败', e) }
-}
-
-// 加载仓库数据
-const loadWarehouseData = async () => {
-  try {
-    const res = await axios.get('/api/cold-chain/warehouse')
-    warehouses.value = res.data.map((w: any) => ({
-      id: w.id,
-      name: w.name,
-      address: w.address,
-      capacity: w.capacity,
-      area: Math.floor(w.capacity / 2),
-      temperature: w.temperature,
-      humidity: w.humidity,
-      inventory: w.products_count * 10,
-      status: w.alerts > 0 ? '预警' : '正常'
-    }))
-  } catch (e) { console.error('加载仓库数据失败', e) }
-}
-
-// 加载车辆数据
-const loadVehicleData = async () => {
-  try {
-    const res = await axios.get('/api/cold-chain/transport')
-    vehicles.value = res.data.slice(0, 6).map((v: any, i: number) => ({
-      id: i + 1,
-      plate: v.vehicle_no,
-      driver: v.driver,
-      phone: '138****' + Math.floor(Math.random() * 10000),
-      location: v.location,
-      temperature: v.temperature,
-      status: v.status === '运输中' ? '运输中' : '空闲'
-    }))
-  } catch (e) { console.error('加载车辆数据失败', e) }
 }
 
 // 加载运输数据
@@ -1089,12 +1069,27 @@ const temperatureData = ref([
 ])
 
 // 仓库数据
-const warehouses = ref([
-  { id: 1, name: '北京冷库', address: '北京市朝阳区', capacity: 5000, area: 2000, temperature: -18, humidity: 45, inventory: 3500, status: '正常' },
-  { id: 2, name: '上海冷库', address: '上海市浦东新区', capacity: 8000, area: 3000, temperature: -20, humidity: 42, inventory: 6200, status: '正常' },
-  { id: 3, name: '济南中心库', address: '山东省济南市', capacity: 12000, area: 5000, temperature: -18, humidity: 48, inventory: 9800, status: '正常' },
-  { id: 4, name: '南京配送库', address: '江苏省南京市', capacity: 3000, area: 1500, temperature: -16, humidity: 50, inventory: 2100, status: '正常' }
-])
+const warehouses = ref<any[]>([])
+
+// 加载仓库数据
+const loadWarehouses = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/warehouses/list')
+    warehouses.value = res.data.map((w: any) => ({
+      id: w.id,
+      name: w.name,
+      address: w.address,
+      capacity: w.capacity,
+      area: w.area,
+      temperature: w.temperature,
+      humidity: w.humidity,
+      inventory: w.inventory,
+      status: w.status
+    }))
+  } catch (e) {
+    console.error('加载仓库数据失败', e)
+  }
+}
 
 const totalCapacity = computed(() => warehouses.value.reduce((sum, w) => sum + w.capacity, 0))
 
@@ -1475,37 +1470,65 @@ const editWarehouse = (wh: any) => {
   warehouseDialogVisible.value = true
 }
 
-const saveWarehouse = () => {
+const saveWarehouse = async () => {
   if (!warehouseForm.name || !warehouseForm.address) {
     ElMessage.warning('请填写仓库名称和地址')
     return
   }
-  if (isEditWarehouse.value && editingWarehouseId.value) {
-    const index = warehouses.value.findIndex(w => w.id === editingWarehouseId.value)
-    if (index !== -1) warehouses.value[index] = { ...warehouseForm, id: editingWarehouseId.value }
-    ElMessage.success('仓库更新成功')
-  } else {
-    warehouses.value.push({ id: Date.now(), ...warehouseForm, inventory: 0 })
-    ElMessage.success('仓库添加成功')
+  try {
+    if (isEditWarehouse.value && editingWarehouseId.value) {
+      await axios.put(`/api/cold-chain/warehouses/${editingWarehouseId.value}`, warehouseForm)
+      ElMessage.success('仓库更新成功')
+    } else {
+      await axios.post('/api/cold-chain/warehouses', { ...warehouseForm, inventory: 0 })
+      ElMessage.success('仓库添加成功')
+    }
+    warehouseDialogVisible.value = false
+    await loadWarehouses()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '操作失败')
   }
-  warehouseDialogVisible.value = false
 }
 
 const deleteWarehouse = async (wh: any) => {
   try {
     await ElMessageBox.confirm(`确定删除仓库 "${wh.name}" 吗？`, '提示', { type: 'warning' })
-    warehouses.value = warehouses.value.filter(w => w.id !== wh.id)
+    await axios.delete(`/api/cold-chain/warehouses/${wh.id}`)
     ElMessage.success('删除成功')
-  } catch {}
+    await loadWarehouses()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.detail || '删除失败')
+    }
+  }
 }
 
 // 车辆数据
-const vehicles = ref([
-  { id: 1, plate: '京A12345', driver: '张三', phone: '138****8888', status: '运输中', location: '京沪高速-南京段', temperature: -18, battery: 85 },
-  { id: 2, plate: '京B67890', driver: '李四', phone: '139****9999', status: '空闲', location: '北京仓库', temperature: -18, battery: 100 },
-  { id: 3, plate: '鲁A11111', driver: '王五', phone: '137****7777', status: '运输中', location: '京港澳高速-石家庄段', temperature: -17, battery: 72 },
-  { id: 4, plate: '沪A22222', driver: '赵六', phone: '136****6666', status: '维修中', location: '维修厂', temperature: 0, battery: 45 }
-])
+const vehicles = ref<any[]>([])
+
+// 加载车辆数据
+const loadVehicles = async () => {
+  try {
+    const res = await axios.get('/api/cold-chain/vehicles/list')
+    vehicles.value = res.data.map((v: any) => ({
+      id: v.id,
+      plate: v.plate,
+      vehicleType: v.vehicleType,
+      driver: v.driver,
+      phone: v.phone,
+      loadCapacity: v.loadCapacity,
+      volume: v.volume,
+      gpsDevice: v.gpsDevice,
+      tempRange: v.tempRange,
+      status: v.status,
+      location: v.location,
+      temperature: v.temperature,
+      battery: v.battery
+    }))
+  } catch (e) {
+    console.error('加载车辆数据失败', e)
+  }
+}
 
 // 运输数据
 const transports = ref<any[]>([])
@@ -1514,12 +1537,13 @@ const vehicleDialogVisible = ref(false)
 const isEditVehicle = ref(false)
 const editingVehicleId = ref<number>()
 const vehicleForm = reactive({
-  plate: '', driver: '', phone: '', status: '空闲', location: '', temperature: -18, battery: 100
+  plate: '', driver: '', phone: '', status: '空闲', location: '', temperature: -18, battery: 100,
+  vehicleType: '冷藏车', loadCapacity: 5, volume: '', gpsDevice: '', tempRange: '-25°C~5°C'
 })
 
 const showVehicleDialog = () => {
   isEditVehicle.value = false
-  Object.assign(vehicleForm, { plate: '', driver: '', phone: '', status: '空闲', location: '', temperature: -18, battery: 100 })
+  Object.assign(vehicleForm, { plate: '', driver: '', phone: '', status: '空闲', location: '', temperature: -18, battery: 100, vehicleType: '冷藏车', loadCapacity: 5, volume: '', gpsDevice: '', tempRange: '-25°C~5°C' })
   vehicleDialogVisible.value = true
 }
 
@@ -1530,28 +1554,37 @@ const editVehicle = (v: any) => {
   vehicleDialogVisible.value = true
 }
 
-const saveVehicle = () => {
+const saveVehicle = async () => {
   if (!vehicleForm.plate || !vehicleForm.driver) {
     ElMessage.warning('请填写车牌号和司机')
     return
   }
-  if (isEditVehicle.value && editingVehicleId.value) {
-    const index = vehicles.value.findIndex(v => v.id === editingVehicleId.value)
-    if (index !== -1) vehicles.value[index] = { ...vehicleForm, id: editingVehicleId.value }
-    ElMessage.success('车辆更新成功')
-  } else {
-    vehicles.value.push({ id: Date.now(), ...vehicleForm })
-    ElMessage.success('车辆添加成功')
+  try {
+    if (isEditVehicle.value && editingVehicleId.value) {
+      await axios.put(`/api/cold-chain/vehicles/${editingVehicleId.value}`, vehicleForm)
+      ElMessage.success('车辆更新成功')
+    } else {
+      await axios.post('/api/cold-chain/vehicles', vehicleForm)
+      ElMessage.success('车辆添加成功')
+    }
+    vehicleDialogVisible.value = false
+    await loadVehicles()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '操作失败')
   }
-  vehicleDialogVisible.value = false
 }
 
 const deleteVehicle = async (v: any) => {
   try {
     await ElMessageBox.confirm(`确定删除车辆 "${v.plate}" 吗？`, '提示', { type: 'warning' })
-    vehicles.value = vehicles.value.filter(ve => ve.id !== v.id)
+    await axios.delete(`/api/cold-chain/vehicles/${v.id}`)
     ElMessage.success('删除成功')
-  } catch {}
+    await loadVehicles()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.detail || '删除失败')
+    }
+  }
 }
 
 const trackVehicle = (v: any) => {
@@ -1623,17 +1656,159 @@ const traceProduct = () => {
 </script>
 
 <style scoped>
-.cold-chain-container { padding: 10px; }
-.header-mobile h2 { font-size: 16px; margin: 0 0 10px 0; }
+.cold-chain-container {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: var(--bg-secondary, #F8FAFC);
+  min-height: calc(100vh - 64px);
+}
 
-.quick-nav { margin-bottom: 10px; }
-.nav-card { text-align: center; padding: 10px 5px; cursor: pointer; transition: all 0.3s ease; }
-.nav-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.nav-card:hover .el-icon { transform: scale(1.1); }
-.nav-card :deep(.el-card__body) { padding: 10px; }
-.nav-card .el-icon { font-size: 24px; color: #409eff; display: block; margin-bottom: 4px; transition: transform 0.3s ease; }
-.nav-card span { font-size: 11px; color: #606266; }
+/* ========== 页面头部 ========== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
 
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #0F172A);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary, #475569);
+  margin: 0;
+}
+
+/* ========== 快捷入口导航 ========== */
+.quick-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.nav-card {
+  position: relative;
+  background: var(--bg-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 14px;
+  padding: 20px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  animation: fadeInUp 0.4s ease forwards;
+  animation-delay: var(--delay);
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+}
+
+.nav-card-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.nav-card:hover .nav-card-glow {
+  transform: scaleX(1);
+}
+
+.nav-card-content {
+  position: relative;
+}
+
+.nav-icon-wrapper {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #F8FAFC);
+  border-radius: 12px;
+  margin: 0 auto 12px;
+  transition: all 0.3s ease;
+}
+
+.nav-card:hover .nav-icon-wrapper {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.nav-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #0F172A);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1200px) {
+  .quick-nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .cold-chain-container {
+    padding: 20px;
+  }
+
+  .quick-nav-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .nav-card {
+    padding: 16px 8px;
+  }
+
+  .nav-icon-wrapper {
+    width: 44px;
+    height: 44px;
+  }
+
+  .nav-label {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .monitor-cards { margin-bottom: 10px; }
 .monitor-card { margin-bottom: 10px; }
 .monitor-info h3 { font-size: 24px; margin: 0; }
@@ -1653,17 +1828,23 @@ const traceProduct = () => {
 .stat-item .num { display: block; font-size: 20px; font-weight: bold; color: #409eff; }
 .stat-item .label { font-size: 11px; color: #909399; }
 
-.warehouse-list, .vehicle-list, .inventory-list { display: flex; flex-direction: column; gap: 10px; }
-.warehouse-card, .vehicle-card, .inventory-card { padding: 10px; }
+.warehouse-list, .inventory-list { display: flex; flex-direction: column; gap: 10px; }
+.vehicle-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 768px) {
+  .vehicle-list { grid-template-columns: 1fr; }
+}
+.warehouse-card, .vehicle-card, .inventory-card { padding: 12px; }
 
-.warehouse-header, .vehicle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.warehouse-header, .vehicle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .warehouse-title { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; }
-.warehouse-info p, .vehicle-detail { margin: 3px 0; font-size: 12px; color: #606266; }
-.warehouse-actions, .vehicle-actions { display: flex; gap: 5px; margin-top: 8px; }
+.warehouse-info p { margin: 2px 0; font-size: 12px; color: #606266; }
+.warehouse-actions, .vehicle-actions { display: flex; gap: 5px; margin-top: 6px; }
 
+.vehicle-info { flex: 1; margin: 0 10px; }
 .vehicle-info h4 { margin: 0; font-size: 14px; }
 .vehicle-info p { margin: 2px 0 0; font-size: 11px; color: #909399; }
-.vehicle-detail { display: flex; flex-wrap: wrap; gap: 8px; }
+.vehicle-detail { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+.vehicle-detail span { background: #f5f7fa; padding: 2px 6px; border-radius: 4px; }
 
 .inventory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
 .product-name { font-weight: 500; font-size: 14px; }

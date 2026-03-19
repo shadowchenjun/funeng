@@ -10,6 +10,7 @@ class CategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
+    color: Optional[str] = None
     parent_id: Optional[int] = None
 
 # 分类更新
@@ -17,6 +18,7 @@ class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     icon: Optional[str] = None
+    color: Optional[str] = None
     parent_id: Optional[int] = None
 
 # 分类响应
@@ -25,9 +27,10 @@ class CategoryResponse(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
+    color: Optional[str] = None
     parent_id: Optional[int] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

@@ -55,14 +55,17 @@ class FarmInfo(Base):
 class IoTDevice(Base):
     """物联网设备模型"""
     __tablename__ = "iot_devices"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, comment="设备名称")
     # 设备类型: temp/humidity/soil/weather/camera/pest_lamp/leaf_sensor/water_fertilizer/control_valve
     device_type = Column(String(50), comment="设备类型")
     location = Column(String(100), comment="安装位置")
-    land_id = Column(Integer, nullable=True, comment="关联地块ID")  # 新增：关联地块
+    land_id = Column(Integer, nullable=True, comment="关联地块ID")
     status = Column(String(20), default="online", comment="状态: online/offline/warning")
+    serial_number = Column(String(100), comment="设备序列号")
+    install_date = Column(String(20), comment="安装日期")
+    last_maintenance = Column(String(20), comment="最后维护日期")
     last_update = Column(DateTime, comment="最后更新时间")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

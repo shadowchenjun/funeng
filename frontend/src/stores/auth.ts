@@ -99,6 +99,10 @@ export const useAuthStore = defineStore('auth', () => {
   function init() {
     if (token.value) {
       updateAxiosConfig()
+      // 如果本地存储的用户信息存在，先设置 userInfo
+      if (user.value && user.value.is_admin !== undefined) {
+        userInfo.value = user.value
+      }
       fetchUserInfo()
     }
   }

@@ -1,37 +1,34 @@
 <template>
   <div class="digital-marketing-container">
-    <div class="header-mobile">
-      <h2>📱 数字营销</h2>
-    </div>
-    
+    <!-- 页面头部 -->
+    <header class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">📱 数字营销</h1>
+        <p class="page-subtitle">数据驱动 · 精准触达 · 高效转化</p>
+      </div>
+    </header>
+
     <!-- 快捷入口 -->
-    <el-row :gutter="10" class="quick-nav">
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'stats'">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>数据概览</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'member'">
-          <el-icon><User /></el-icon>
-          <span>会员管理</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'campaign'">
-          <el-icon><Present /></el-icon>
-          <span>营销活动</span>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="nav-card" @click="activeTab = 'channel'">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>营销渠道</span>
-        </el-card>
-      </el-col>
-    </el-row>
-    
+    <div class="quick-nav-grid">
+      <div
+        v-for="(item, index) in navItems"
+        :key="item.key"
+        class="nav-card"
+        :style="{ '--accent': item.color, '--delay': `${index * 0.05}s` }"
+        @click="setActiveTab(item.key)"
+      >
+        <div class="nav-card-glow"></div>
+        <div class="nav-card-content">
+          <div class="nav-icon-wrapper">
+            <el-icon :size="28" :color="item.color">
+              <component :is="item.icon" />
+            </el-icon>
+          </div>
+          <span class="nav-label">{{ item.label }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 数据概览 -->
     <div v-if="activeTab === 'stats'">
       <el-row :gutter="10" class="stat-cards">
@@ -203,27 +200,77 @@
     
     <!-- 添加/编辑会员对话框 -->
     <el-dialog v-model="memberDialogVisible" :title="isEditMember ? '编辑会员' : '添加会员'" width="95%">
-      <el-form :model="memberForm" label-width="70px" size="small">
-        <el-form-item label="姓名" required>
-          <el-input v-model="memberForm.name" placeholder="会员姓名" />
-        </el-form-item>
-        <el-form-item label="电话" required>
-          <el-input v-model="memberForm.phone" placeholder="手机号码" />
-        </el-form-item>
-        <el-form-item label="等级">
-          <el-select v-model="memberForm.level" style="width: 100%">
-            <el-option label="普通会员" value="普通" />
-            <el-option label="银牌会员" value="银牌" />
-            <el-option label="金牌会员" value="金牌" />
-            <el-option label="VIP会员" value="VIP" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="积分">
-          <el-input-number v-model="memberForm.points" :min="0" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="消费额">
-          <el-input v-model="memberForm.totalSpent" placeholder="如: ¥10,000" />
-        </el-form-item>
+      <el-form :model="memberForm" label-width="80px" size="small">
+        <div class="form-section-title">基本信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="姓名" required>
+              <el-input v-model="memberForm.name" placeholder="会员姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="性别">
+              <el-select v-model="memberForm.gender" style="width: 100%">
+                <el-option label="男" value="男" />
+                <el-option label="女" value="女" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="电话" required>
+              <el-input v-model="memberForm.phone" placeholder="手机号码" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="生日">
+              <el-date-picker v-model="memberForm.birthday" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="邮箱">
+              <el-input v-model="memberForm.email" placeholder="邮箱地址" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="地址">
+              <el-input v-model="memberForm.address" placeholder="联系地址" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="form-section-title">会员信息</div>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="等级">
+              <el-select v-model="memberForm.level" style="width: 100%">
+                <el-option label="普通会员" value="普通" />
+                <el-option label="银牌会员" value="银牌" />
+                <el-option label="金牌会员" value="金牌" />
+                <el-option label="VIP会员" value="VIP" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="注册日期">
+              <el-date-picker v-model="memberForm.registerDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-form-item label="积分">
+              <el-input-number v-model="memberForm.points" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="消费额">
+              <el-input v-model="memberForm.totalSpent" placeholder="如: ¥10,000" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="memberDialogVisible = false" size="small">取消</el-button>
@@ -272,11 +319,68 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, User, Present, ChatDotRound, VideoCamera, ShoppingCart, Message } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 const activeTab = ref('stats')
+const setActiveTab = (tab: string) => { activeTab.value = tab }
+
+const navItems = [
+  { key: 'stats', label: '数据概览', icon: DataAnalysis, color: '#3B82F6' },
+  { key: 'member', label: '会员管理', icon: User, color: '#10B981' },
+  { key: 'campaign', label: '营销活动', icon: Present, color: '#F59E0B' },
+  { key: 'channel', label: '营销渠道', icon: ChatDotRound, color: '#8B5CF6' }
+]
+
+// 会员数据
+const members = ref<any[]>([])
+
+// 加载会员数据
+const loadMembers = async () => {
+  try {
+    const res = await axios.get('/api/digital-marketing/members')
+    members.value = res.data.map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      phone: m.phone || '未填写',
+      level: m.level || '普通',
+      points: m.points || 0,
+      totalSpent: m.totalSpent || '¥0',
+      gender: m.gender,
+      birthday: m.birthday,
+      email: m.email,
+      address: m.address,
+      registerDate: m.registerDate
+    }))
+  } catch (e) {
+    console.error('加载会员失败', e)
+    ElMessage.error('加载会员数据失败')
+  }
+}
+
+// 活动数据
+const campaigns = ref<any[]>([])
+
+// 加载活动数据
+const loadCampaigns = async () => {
+  try {
+    const res = await axios.get('/api/digital-marketing/campaigns')
+    campaigns.value = res.data.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type || '满减活动',
+      status: c.status || '未开始',
+      participants: c.participants || 0,
+      sales: c.sales || '¥0',
+      endDate: c.endDate || ''
+    }))
+  } catch (e) {
+    console.error('加载活动失败', e)
+    ElMessage.error('加载活动数据失败')
+  }
+}
 
 // 营销数据
 const marketingStats = ref([
@@ -286,38 +390,21 @@ const marketingStats = ref([
   { title: '新增会员', value: '128', color: '#F56C6C', trend: 15.3 }
 ])
 
-// 会员数据
-const members = ref([
-  { id: 1, name: '张先生', phone: '138****8888', level: 'VIP', points: 12580, totalSpent: '¥25,680' },
-  { id: 2, name: '李女士', phone: '139****9999', level: '金牌', points: 8560, totalSpent: '¥18,560' },
-  { id: 3, name: '王先生', phone: '137****7777', level: '银牌', points: 4280, totalSpent: '¥8,960' },
-  { id: 4, name: '赵女士', phone: '136****6666', level: '普通', points: 1280, totalSpent: '¥2,580' },
-  { id: 5, name: '刘先生', phone: '135****5555', level: '金牌', points: 15680, totalSpent: '¥32,800' }
-])
-
-// 活动数据
-const campaigns = ref([
-  { id: 1, name: '新春大促', type: '满减活动', status: '进行中', participants: 856, sales: '¥125,680', endDate: '2026-02-28' },
-  { id: 2, name: '会员专享', type: '折扣活动', status: '进行中', participants: 456, sales: '¥68,900', endDate: '2026-03-15' },
-  { id: 3, name: '新品试用', type: '试用活动', status: '已结束', participants: 280, sales: '¥12,500', endDate: '2026-02-10' },
-  { id: 4, name: '五一特惠', type: '秒杀活动', status: '未开始', participants: 0, sales: '¥0', endDate: '2026-05-01' }
-])
-
 // 会员对话框
 const memberDialogVisible = ref(false)
 const isEditMember = ref(false)
 const editingMemberId = ref<number>()
 const memberForm = reactive({
-  name: '',
-  phone: '',
-  level: '普通',
-  points: 0,
-  totalSpent: '¥0'
+  name: '', phone: '', level: '普通', points: 0, totalSpent: '¥0',
+  gender: '男', birthday: '', email: '', address: '', registerDate: ''
 })
 
 const showMemberDialog = () => {
   isEditMember.value = false
-  Object.assign(memberForm, { name: '', phone: '', level: '普通', points: 0, totalSpent: '¥0' })
+  Object.assign(memberForm, {
+    name: '', phone: '', level: '普通', points: 0, totalSpent: '¥0',
+    gender: '男', birthday: '', email: '', address: '', registerDate: ''
+  })
   memberDialogVisible.value = true
 }
 
@@ -328,26 +415,47 @@ const editMember = (member: any) => {
   memberDialogVisible.value = true
 }
 
-const saveMember = () => {
+const saveMember = async () => {
   if (!memberForm.name || !memberForm.phone) {
     ElMessage.warning('请填写姓名和电话')
     return
   }
-  
-  if (isEditMember.value && editingMemberId.value) {
-    const index = members.value.findIndex(m => m.id === editingMemberId.value)
-    if (index !== -1) {
-      members.value[index] = { ...memberForm, id: editingMemberId.value }
+
+  try {
+    if (isEditMember.value && editingMemberId.value) {
+      await axios.put(`/api/digital-marketing/members/${editingMemberId.value}`, {
+        name: memberForm.name,
+        phone: memberForm.phone,
+        level: memberForm.level,
+        points: memberForm.points,
+        total_spent: memberForm.totalSpent,
+        gender: memberForm.gender,
+        birthday: memberForm.birthday,
+        email: memberForm.email,
+        address: memberForm.address,
+        register_date: memberForm.registerDate
+      })
+      ElMessage.success('会员更新成功')
+    } else {
+      await axios.post('/api/digital-marketing/members', {
+        name: memberForm.name,
+        phone: memberForm.phone,
+        level: memberForm.level,
+        points: memberForm.points,
+        total_spent: memberForm.totalSpent,
+        gender: memberForm.gender,
+        birthday: memberForm.birthday,
+        email: memberForm.email,
+        address: memberForm.address,
+        register_date: memberForm.registerDate
+      })
+      ElMessage.success('会员添加成功')
     }
-    ElMessage.success('会员更新成功')
-  } else {
-    members.value.push({
-      id: Date.now(),
-      ...memberForm
-    })
-    ElMessage.success('会员添加成功')
+    memberDialogVisible.value = false
+    await loadMembers()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '操作失败')
   }
-  memberDialogVisible.value = false
 }
 
 const deleteMember = async (member: any) => {
@@ -357,9 +465,14 @@ const deleteMember = async (member: any) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    members.value = members.value.filter(m => m.id !== member.id)
+    await axios.delete(`/api/digital-marketing/members/${member.id}`)
     ElMessage.success('删除成功')
-  } catch {}
+    await loadMembers()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.detail || '删除失败')
+    }
+  }
 }
 
 // 活动对话框
@@ -388,26 +501,39 @@ const editCampaign = (campaign: any) => {
   campaignDialogVisible.value = true
 }
 
-const saveCampaign = () => {
+const saveCampaign = async () => {
   if (!campaignForm.name) {
     ElMessage.warning('请填写活动名称')
     return
   }
-  
-  if (isEditCampaign.value && editingCampaignId.value) {
-    const index = campaigns.value.findIndex(c => c.id === editingCampaignId.value)
-    if (index !== -1) {
-      campaigns.value[index] = { ...campaignForm, id: editingCampaignId.value }
+
+  try {
+    if (isEditCampaign.value && editingCampaignId.value) {
+      await axios.put(`/api/digital-marketing/campaigns/${editingCampaignId.value}`, {
+        name: campaignForm.name,
+        campaign_type: campaignForm.type,
+        status: campaignForm.status,
+        participants: campaignForm.participants,
+        sales: campaignForm.sales,
+        end_date: campaignForm.endDate
+      })
+      ElMessage.success('活动更新成功')
+    } else {
+      await axios.post('/api/digital-marketing/campaigns', {
+        name: campaignForm.name,
+        campaign_type: campaignForm.type,
+        status: campaignForm.status,
+        participants: campaignForm.participants,
+        sales: campaignForm.sales,
+        end_date: campaignForm.endDate
+      })
+      ElMessage.success('活动创建成功')
     }
-    ElMessage.success('活动更新成功')
-  } else {
-    campaigns.value.push({
-      id: Date.now(),
-      ...campaignForm
-    })
-    ElMessage.success('活动创建成功')
+    campaignDialogVisible.value = false
+    await loadCampaigns()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '操作失败')
   }
-  campaignDialogVisible.value = false
 }
 
 const deleteCampaign = async (campaign: any) => {
@@ -417,9 +543,14 @@ const deleteCampaign = async (campaign: any) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    campaigns.value = campaigns.value.filter(c => c.id !== campaign.id)
+    await axios.delete(`/api/digital-marketing/campaigns/${campaign.id}`)
     ElMessage.success('删除成功')
-  } catch {}
+    await loadCampaigns()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.detail || '删除失败')
+    }
+  }
 }
 
 // 工具函数
@@ -432,42 +563,156 @@ const getLevelColor = (level: string) => {
   const colors: any = { 'VIP': '#F56C6C', '金牌': '#E6A23C', '银牌': '#909399', '普通': '#67C23A' }
   return colors[level] || '#67C23A'
 }
+
+// 页面加载时获取数据
+onMounted(() => {
+  window.scrollTo(0, 0)
+  loadMembers()
+  loadCampaigns()
+})
 </script>
 
 <style scoped>
 .digital-marketing-container {
-  padding: 10px;
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: var(--bg-secondary, #F8FAFC);
+  min-height: calc(100vh - 64px);
 }
 
-.header-mobile h2 {
-  font-size: 16px;
-  margin: 0 0 10px 0;
+/* ========== 页面头部 ========== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
 }
 
-.quick-nav {
-  margin-bottom: 10px;
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #0F172A);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary, #475569);
+  margin: 0;
+}
+
+/* ========== 快捷入口导航 ========== */
+.quick-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
 }
 
 .nav-card {
+  position: relative;
+  background: var(--bg-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 14px;
+  padding: 24px 16px;
   text-align: center;
-  padding: 10px 5px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  animation: fadeInUp 0.4s ease forwards;
+  animation-delay: var(--delay);
+  opacity: 0;
 }
 
-.nav-card :deep(.el-card__body) {
-  padding: 10px;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.nav-card .el-icon {
-  font-size: 24px;
-  color: #409eff;
+.nav-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+}
+
+.nav-card-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.nav-card:hover .nav-card-glow {
+  transform: scaleX(1);
+}
+
+.nav-card-content {
+  position: relative;
+}
+
+.nav-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #F8FAFC);
+  border-radius: 14px;
+  margin: 0 auto 14px;
+  transition: all 0.3s ease;
+}
+
+.nav-card:hover .nav-icon-wrapper {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.nav-label {
   display: block;
-  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #0F172A);
 }
 
-.nav-card span {
-  font-size: 11px;
-  color: #606266;
+/* ========== 响应式 ========== */
+@media (max-width: 768px) {
+  .digital-marketing-container {
+    padding: 20px;
+  }
+
+  .quick-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .nav-card {
+    padding: 20px 12px;
+  }
+
+  .nav-icon-wrapper {
+    width: 48px;
+    height: 48px;
+  }
+
+  .nav-label {
+    font-size: 13px;
+  }
 }
 
 .stat-cards {

@@ -2,36 +2,41 @@
   <el-config-provider :locale="locale">
     <div class="app-container">
       <!-- 顶部导航栏 -->
-      <el-header class="app-header" v-if="showHeader">
+      <header class="app-header" v-if="showHeader">
         <div class="header-content">
           <div class="logo" @click="goToHome">
             <span class="logo-icon">🌾</span>
-            <span class="logo-text">现代农业赋能平台</span>
+            <span class="logo-text">FunEng</span>
           </div>
-          
-          <el-menu 
-            mode="horizontal" 
-            :router="true" 
-            :default-active="activeMenu"
-            class="nav-menu"
-            background-color="transparent"
-            text-color="#fff"
-            active-text-color="#ffd04b"
-          >
-            <el-menu-item index="/">首页</el-menu-item>
-            <el-menu-item index="/dashboard">数据仪表盘</el-menu-item>
-            <el-menu-item index="/products">产品管理</el-menu-item>
-            <el-menu-item index="/categories">分类管理</el-menu-item>
-            <el-menu-item index="/admin" v-if="authStore.isAdmin">管理后台</el-menu-item>
-          </el-menu>
-          
+
+          <nav class="nav-menu">
+            <router-link
+              v-for="item in navItems"
+              :key="item.path"
+              :to="item.path"
+              class="nav-item"
+              :class="{ active: isActive(item.path) }"
+            >
+              {{ item.label }}
+            </router-link>
+            <router-link
+              v-if="authStore.isAdmin"
+              to="/admin"
+              class="nav-item"
+              :class="{ active: isActive('/admin') }"
+            >
+              管理后台
+            </router-link>
+          </nav>
+
           <div class="user-section">
             <template v-if="authStore.isLoggedIn">
-              <el-dropdown @command="handleUserCommand">
-                <span class="user-info">
+              <el-dropdown @command="handleUserCommand" trigger="click">
+                <button class="user-btn">
                   <el-avatar :size="32" :icon="User" />
                   <span class="username">{{ authStore.userInfo?.username || authStore.user?.username }}</span>
-                </span>
+                  <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
+                </button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item disabled>
@@ -47,16 +52,16 @@
               </el-dropdown>
             </template>
             <template v-else>
-              <el-button type="primary" @click="goToLogin">登录</el-button>
+              <el-button type="primary" @click="goToLogin" class="login-btn">登录</el-button>
             </template>
           </div>
         </div>
-      </el-header>
-      
+      </header>
+
       <!-- 主内容区域 -->
-      <el-main class="app-main" :class="{ 'no-header': !showHeader }">
+      <main class="app-main" :class="{ 'no-header': !showHeader }">
         <router-view />
-      </el-main>
+      </main>
     </div>
   </el-config-provider>
 </template>
@@ -64,7 +69,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { User, SwitchButton } from '@element-plus/icons-vue'
+import { User, SwitchButton, ArrowDown } from '@element-plus/icons-vue'
 import { useAuthStore } from './stores/auth'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 
@@ -73,10 +78,22 @@ const router = useRouter()
 const authStore = useAuthStore()
 const locale = ref(zhCn)
 
+const navItems = [
+  { path: '/', label: '首页' },
+  { path: '/products', label: '产品' },
+  { path: '/categories', label: '分类' }
+]
+
 // 不需要显示 header 的页面
-const noHeaderRoutes = ['Login', 'Register']
+const noHeaderRoutes = ['Login', 'Register', 'ClaudeCodeAssistant']
 const showHeader = computed(() => !noHeaderRoutes.includes(route.name as string))
-const activeMenu = computed(() => route.path)
+
+const isActive = (path: string) => {
+  if (path === '/') {
+    return route.path === '/'
+  }
+  return route.path.startsWith(path)
+}
 
 onMounted(() => {
   authStore.init()
@@ -99,20 +116,80 @@ const handleUserCommand = (command: string) => {
 </script>
 
 <style>
+/* 全局 CSS 变量 */
+:root {
+  --primary: #165DFF;
+  --primary-light: rgba(22, 93, 255, 0.08);
+  --primary-dark: #0F4AE6;
+  --accent-green: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-blue: #3B82F6;
+  --accent-red: #EF4444;
+
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8FAFC;
+  --bg-tertiary: #F1F5F9;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #94A3B8;
+
+  --border-color: #E2E8F0;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
-  min-height: 100vh;
+  font-family: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   min-height: 100vh;
+}
+
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* 全局选中样式 */
+::selection {
+  background: var(--primary-light);
+  color: var(--primary);
 }
 </style>
 
@@ -124,16 +201,17 @@ body {
 }
 
 .app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 0 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 24px;
 }
 
 .header-content {
-  height: 60px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -145,36 +223,48 @@ body {
 .logo {
   display: flex;
   align-items: center;
+  gap: 10px;
   cursor: pointer;
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
+  text-decoration: none;
 }
 
 .logo-icon {
-  font-size: 28px;
-  margin-right: 10px;
+  font-size: 26px;
 }
 
 .logo-text {
-  white-space: nowrap;
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .nav-menu {
-  flex: 1;
-  margin: 0 40px;
-  border: none;
-  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.nav-menu :deep(.el-menu-item) {
-  border: none;
-  font-size: 15px;
+.nav-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
 }
 
-.nav-menu :deep(.el-menu-item:hover),
-.nav-menu :deep(.el-menu-item.is-active) {
-  background: rgba(255, 255, 255, 0.1);
+.nav-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.nav-item.active {
+  color: var(--primary);
+  background: var(--primary-light);
 }
 
 .user-section {
@@ -182,23 +272,38 @@ body {
   align-items: center;
 }
 
-.user-info {
+.user-btn {
   display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
   cursor: pointer;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
 }
 
-.user-info:hover {
-  background: rgba(255, 255, 255, 0.1);
+.user-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--text-tertiary);
 }
 
 .username {
-  margin-left: 8px;
   font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dropdown-arrow {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.login-btn {
+  padding: 10px 20px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
 }
 
 .app-main {
@@ -214,41 +319,31 @@ body {
 /* 移动端适配 */
 @media (max-width: 768px) {
   .app-header {
-    padding: 0 10px;
+    padding: 0 16px;
   }
-  
+
   .header-content {
-    height: 50px;
+    height: 56px;
   }
-  
+
   .logo-text {
-    font-size: 14px;
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
   }
-  
-  .logo-icon {
-    font-size: 22px;
-    margin-right: 5px;
-  }
-  
+
   .nav-menu {
     display: none;
   }
-  
-  .user-section .el-button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  
+
   .username {
     display: none;
   }
-  
-  .user-info {
-    padding: 4px;
+
+  .user-btn {
+    padding: 6px;
+  }
+
+  .dropdown-arrow {
+    display: none;
   }
 }
-
 </style>

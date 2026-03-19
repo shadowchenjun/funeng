@@ -1,195 +1,203 @@
 <template>
   <div class="products-container">
-    <!-- 移动端：紧凑表头 -->
-    <div class="header-mobile">
-      <h2>📦 产品</h2>
-      <el-button type="primary" size="small" @click="showAddDialog">+</el-button>
-    </div>
-    
-    <!-- 移动端：紧凑筛选 -->
-    <div class="filter-mobile">
-      <el-input 
-        v-model="searchQuery" 
-        placeholder="搜索..." 
-        size="small" 
-        clearable 
-        @input="fetchProducts" 
-        style="width: 60%;"
-      />
-      <el-select 
-        v-model="categoryFilter" 
-        placeholder="分类" 
-        size="small" 
-        clearable 
+    <!-- 页面头部 -->
+    <header class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">📦 产品管理</h1>
+        <p class="page-subtitle">管理您的农产品库存与销售</p>
+      </div>
+      <div class="header-right" v-if="isAdmin">
+        <button class="btn-primary" @click="showAddDialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          添加产品
+        </button>
+      </div>
+    </header>
+
+    <!-- 搜索和筛选 -->
+    <div class="filters-bar">
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="搜索产品名称..."
+          @input="fetchProducts"
+        />
+      </div>
+      <el-select
+        v-model="categoryFilter"
+        placeholder="全部分类"
+        clearable
         @change="fetchProducts"
-        style="width: 38%;"
+        class="category-select"
       >
         <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
       </el-select>
     </div>
-    
-    <!-- 移动端：卡片列表 -->
-    <div class="product-cards-mobile">
-      <el-card 
-        v-for="product in products" 
-        :key="product.id" 
-        class="product-card-mobile"
-        @click="editProduct(product)"
-      >
-        <div class="card-content">
-          <el-image 
-            :src="product.image_url" 
-            fit="cover"
-            class="product-thumb"
+
+    <!-- 产品列表 -->
+    <div class="products-content">
+      <!-- 桌面端：表格视图 -->
+      <div class="products-table-desktop">
+        <el-table :data="products" stripe style="width: 100%" v-loading="loading">
+          <el-table-column prop="name" label="产品名称" min-width="150">
+            <template #default="{ row }">
+              <div class="product-name-cell">
+                <el-image :src="row.image_url" fit="cover" class="product-thumb" />
+                <span class="product-name">{{ row.name }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="category_name" label="分类" width="120">
+            <template #default="{ row }">
+              <span class="category-tag">{{ row.category_name || '未分类' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="price" label="价格" width="140">
+            <template #default="{ row }">
+              <span class="price-value">¥{{ row.price }}/{{ row.unit }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="stock" label="库存" width="100" />
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <span :class="['status-badge', row.is_active === 1 ? 'active' : 'inactive']">
+                {{ row.is_active === 1 ? '在售' : '停售' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="140" fixed="right">
+            <template #default="{ row }">
+              <div class="action-buttons" v-if="isAdmin">
+                <button class="action-btn edit" @click="editProduct(row)">编辑</button>
+                <button class="action-btn delete" @click="deleteProduct(row)">删除</button>
+              </div>
+              <span v-else class="no-permission">-</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="pagination-wrapper">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="total"
+            layout="total, prev, pager, next"
+            @current-change="fetchProducts"
           />
-          <div class="product-info">
-            <div class="product-name">{{ product.name }}</div>
-            <div class="product-meta">
-              <el-tag size="small" type="success">{{ product.category_name || '未分类' }}</el-tag>
-              <span class="price">¥{{ product.price }}/{{ product.unit }}</span>
+        </div>
+      </div>
+
+      <!-- 移动端：卡片视图 -->
+      <div class="products-cards-mobile">
+        <div
+          v-for="product in products"
+          :key="product.id"
+          class="product-card"
+          :class="{ 'clickable': isAdmin }"
+          @click="isAdmin && editProduct(product)"
+        >
+          <el-image :src="product.image_url" fit="cover" class="card-thumb" />
+          <div class="card-info">
+            <h3 class="card-name">{{ product.name }}</h3>
+            <div class="card-meta">
+              <span class="category-tag">{{ product.category_name || '未分类' }}</span>
+              <span class="price-value">¥{{ product.price }}/{{ product.unit }}</span>
             </div>
-            <div class="product-stock">
-              库存: {{ product.stock }}
-              <el-tag size="small" :type="product.is_active === 1 ? 'success' : 'info'" style="margin-left: 8px;">
+            <div class="card-footer">
+              <span class="stock-info">库存: {{ product.stock }}</span>
+              <span :class="['status-badge', product.is_active === 1 ? 'active' : 'inactive']">
                 {{ product.is_active === 1 ? '在售' : '停售' }}
-              </el-tag>
+              </span>
             </div>
-          </div>
-          <div class="card-actions" @click.stop>
-            <el-button type="primary" link size="small">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteProduct(product)">删</el-button>
           </div>
         </div>
-      </el-card>
-    </div>
-    
-    <!-- 桌面端：表格视图 -->
-    <div class="products-table-desktop">
-      <!-- 桌面端：搜索和筛选工具栏 -->
-      <div class="desktop-toolbar">
-        <el-input 
-          v-model="searchQuery" 
-          placeholder="搜索产品名称..." 
-          size="default" 
-          clearable 
-          @input="fetchProducts" 
-          style="width: 300px;"
-        >
-          <template #prefix>🔍</template>
-        </el-input>
-        <el-select 
-          v-model="categoryFilter" 
-          placeholder="全部分类" 
-          size="default" 
-          clearable 
-          @change="fetchProducts"
-          style="width: 180px; margin-left: 10px;"
-        >
-          <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
-        </el-select>
-        <el-button type="primary" style="margin-left: 10px;" @click="showAddDialog">+ 添加产品</el-button>
+
+        <div class="pagination-mobile">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="total"
+            layout="prev, pager, next"
+            small
+            @current-change="fetchProducts"
+          />
+        </div>
       </div>
-      
-      <el-table :data="products" stripe style="width: 100%; margin-top: 15px;">
-        <el-table-column prop="name" label="产品名称" min-width="150" />
-        <el-table-column label="图片" width="80">
-          <template #default="{ row }">
-            <el-image 
-              :src="row.image_url" 
-              fit="cover"
-              style="width: 50px; height: 50px; border-radius: 4px;"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="category_name" label="分类" width="100" />
-        <el-table-column prop="price" label="价格" width="100">
-          <template #default="{ row }">
-            ¥{{ row.price }}/{{ row.unit }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="stock" label="库存" width="80" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.is_active === 1 ? 'success' : 'info'">
-              {{ row.is_active === 1 ? '上架' : '下架' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="editProduct(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteProduct(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <el-pagination
-        v-model:current-page="currentPage"
-        :page-size="pageSize"
-        :total="total"
-        layout="total, prev, pager, next"
-        @current-change="fetchProducts"
-        style="margin-top: 20px; justify-content: center;"
-      />
     </div>
-    
-    <div class="pagination">
-      <el-pagination
-        v-model:current-page="currentPage"
-        :page-size="pageSize"
-        :total="total"
-        layout="total, prev, pager, next"
-        @current-change="fetchProducts"
-        small
-      />
-    </div>
-    
+
     <!-- 添加/编辑产品对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑产品' : '添加产品'" width="95%" class="mobile-dialog">
-      <el-form :model="productForm" label-width="70px" size="small">
-        <el-form-item label="名称" required>
-          <el-input v-model="productForm.name" placeholder="产品名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑产品' : '添加产品'"
+      width="90%"
+      class="product-dialog"
+    >
+      <el-form :model="productForm" label-width="80px" size="default">
+        <el-form-item label="产品名称" required>
+          <el-input v-model="productForm.name" placeholder="请输入产品名称" />
         </el-form-item>
-        <el-form-item label="分类">
+        <el-form-item label="产品分类">
           <el-select v-model="productForm.category_id" placeholder="选择分类" style="width: 100%">
             <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
           </el-select>
         </el-form-item>
-        <el-row :gutter="10">
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="价格" required style="margin-bottom: 10px;">
+            <el-form-item label="价格">
               <el-input-number v-model="productForm.price" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="单位" style="margin-bottom: 10px;">
+            <el-form-item label="单位">
               <el-input v-model="productForm.unit" placeholder="斤/箱" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="库存" style="margin-bottom: 10px;">
+        <el-form-item label="库存">
           <el-input-number v-model="productForm.stock" :min="0" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="图片">
+        <el-form-item label="产品图片">
           <ImageUpload v-model="productForm.image_url" />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-switch v-model="productForm.is_active" :active-value="1" :inactive-value="0" active-text="在售" inactive-text="停售" />
+        <el-form-item label="产品状态">
+          <el-switch
+            v-model="productForm.is_active"
+            :active-value="1"
+            :inactive-value="0"
+            active-text="在售"
+            inactive-text="停售"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false" size="small">取消</el-button>
-        <el-button type="primary" @click="saveProduct" :loading="saving" size="small">保存</el-button>
+        <div class="dialog-footer">
+          <button class="btn-cancel" @click="dialogVisible = false">取消</button>
+          <button class="btn-primary" @click="saveProduct" :disabled="saving">
+            {{ saving ? '保存中...' : '保存' }}
+          </button>
+        </div>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import ImageUpload from '../components/ImageUpload.vue'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.isAdmin)
 
 interface Product {
   id: number
@@ -221,7 +229,7 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingId = ref<number>()
 const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(10)
 const total = ref(0)
 
 const productForm = reactive({
@@ -240,6 +248,7 @@ const productForm = reactive({
 const API_BASE = '/api'
 
 onMounted(() => {
+  window.scrollTo(0, 0)
   fetchProducts()
   fetchCategories()
 })
@@ -257,10 +266,10 @@ const fetchProducts = async () => {
     if (categoryFilter.value !== undefined && categoryFilter.value !== null) {
       params.category_id = categoryFilter.value
     }
-    
+
     const response = await axios.get(`${API_BASE}/products/`, { params })
-    products.value = response.data
-    total.value = response.data.length
+    products.value = response.data.items
+    total.value = response.data.total
   } catch (error) {
     console.error('获取产品列表失败:', error)
   } finally {
@@ -317,7 +326,7 @@ const saveProduct = async () => {
     ElMessage.warning('请填写产品名称和价格')
     return
   }
-  
+
   saving.value = true
   try {
     if (isEdit.value && editingId.value) {
@@ -343,7 +352,7 @@ const deleteProduct = async (product: Product) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await axios.delete(`${API_BASE}/products/${product.id}`)
     ElMessage.success('删除成功')
     fetchProducts()
@@ -355,144 +364,369 @@ const deleteProduct = async (product: Product) => {
 
 <style scoped>
 .products-container {
-  padding: 8px;
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: var(--bg-secondary, #F8FAFC);
+  min-height: calc(100vh - 64px);
 }
 
-/* 移动端表头 */
-.header-mobile {
+/* ========== 页面头部 ========== */
+.page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  margin-bottom: 24px;
 }
 
-.header-mobile h2 {
-  font-size: 16px;
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #0F172A);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary, #475569);
   margin: 0;
 }
 
-/* 移动端筛选 */
-.filter-mobile {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-/* 移动端卡片列表 */
-.product-cards-mobile {
-  display: flex;
-  flex-direction: column;
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  padding: 12px 24px;
+  background: var(--primary, #165DFF);
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.product-card-mobile {
-  margin-bottom: 0;
-  border-radius: 8px;
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-dark, #0F4AE6);
+  transform: translateY(-1px);
 }
 
-.product-card-mobile :deep(.el-card__body) {
-  padding: 10px;
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.card-content {
+.btn-primary svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ========== 搜索筛选 ========== */
+.filters-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.search-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--text-tertiary, #94A3B8);
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 14px 12px 44px;
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--bg-primary, #FFFFFF);
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary, #165DFF);
+  box-shadow: 0 0 0 3px var(--primary-light, rgba(22, 93, 255, 0.08));
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary, #94A3B8);
+}
+
+.category-select {
+  width: 180px;
+}
+
+/* ========== 产品内容区 ========== */
+.products-content {
+  background: var(--bg-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.products-table-desktop {
+  display: block;
+}
+
+.products-cards-mobile {
+  display: none;
+}
+
+/* ========== 表格样式 ========== */
+.product-name-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .product-thumb {
-  width: 50px;
-  height: 50px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
-.product-info {
-  flex: 1;
-  min-width: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .product-name {
-  font-size: 14px;
   font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-primary, #0F172A);
 }
 
-.product-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.product-meta .price {
-  color: #f56c6c;
-  font-weight: bold;
-  font-size: 13px;
-}
-
-.product-stock {
+.category-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--bg-secondary, #F8FAFC);
+  border-radius: 6px;
   font-size: 12px;
-  color: #909399;
-  margin-top: 2px;
+  color: var(--text-secondary, #475569);
 }
 
-.card-actions {
+.price-value {
+  font-weight: 600;
+  color: #EF4444;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+}
+
+.status-badge.inactive {
+  background: rgba(148, 163, 184, 0.15);
+  color: #64748B;
+}
+
+.action-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
+  gap: 8px;
 }
 
-.pagination {
-  margin-top: 10px;
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn.edit {
+  background: var(--primary-light, rgba(22, 93, 255, 0.08));
+  color: var(--primary, #165DFF);
+}
+
+.action-btn.edit:hover {
+  background: var(--primary, #165DFF);
+  color: white;
+}
+
+.action-btn.delete {
+  background: rgba(239, 68, 68, 0.08);
+  color: #EF4444;
+}
+
+.action-btn.delete:hover {
+  background: #EF4444;
+  color: white;
+}
+
+.pagination-wrapper {
   display: flex;
   justify-content: center;
+  padding: 20px;
+  border-top: 1px solid var(--border-color, #E2E8F0);
 }
 
-/* 默认隐藏桌面表格 */
-.products-table-desktop {
-  display: none;
-}
-
-/* 桌面端工具栏 */
-.desktop-toolbar {
-  display: none;
-  align-items: center;
-  padding: 15px 0;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-@media (min-width: 769px) {
-  /* 桌面端使用表格 */
-  .header-mobile,
-  .filter-mobile,
-  .product-cards-mobile {
-    display: none;
-  }
-  
+/* ========== 移动端卡片 ========== */
+@media (max-width: 768px) {
   .products-container {
     padding: 20px;
   }
-  
+
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+  }
+
+  .search-wrapper {
+    max-width: none;
+  }
+
+  .category-select {
+    width: 100%;
+  }
+
   .products-table-desktop {
-    display: block;
-  }
-  
-  .desktop-toolbar {
-    display: flex;
-  }
-  
-  .pagination {
     display: none;
+  }
+
+  .products-cards-mobile {
+    display: block;
+    padding: 16px;
+  }
+
+  .product-card {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-primary, #FFFFFF);
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .product-card:hover {
+    border-color: var(--primary, #165DFF);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .card-thumb {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .card-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary, #0F172A);
+    margin: 0 0 8px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stock-info {
+    font-size: 13px;
+    color: var(--text-secondary, #475569);
+  }
+
+  .pagination-mobile {
+    display: flex;
+    justify-content: center;
+    padding-top: 16px;
   }
 }
 
-/* 对话框移动端 */
-.mobile-dialog :deep(.el-dialog__body) {
-  padding: 10px;
+/* ========== 对话框 ========== */
+:deep(.product-dialog) {
+  border-radius: 16px;
+}
+
+:deep(.product-dialog .el-dialog__header) {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #E2E8F0);
+}
+
+:deep(.product-dialog .el-dialog__title) {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:deep(.product-dialog .el-dialog__body) {
+  padding: 24px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-cancel {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: var(--bg-secondary, #F8FAFC);
 }
 </style>

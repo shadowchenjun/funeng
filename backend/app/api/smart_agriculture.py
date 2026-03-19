@@ -348,22 +348,17 @@ def update_land_crops(
 def get_devices(db: Session = Depends(get_db)):
     """获取所有设备"""
     devices = db.query(IoTDevice).all()
-    if not devices:
-        # 返回默认设备
-        return [
-            {"id": 1, "name": "温度传感器-01", "type": "temp", "location": "A区大棚1", "status": "online", "lastUpdate": "刚刚"},
-            {"id": 2, "name": "湿度传感器-01", "type": "humidity", "location": "A区大棚1", "status": "online", "lastUpdate": "刚刚"},
-            {"id": 3, "name": "土壤传感器-01", "type": "soil", "location": "B区大棚2", "status": "warning", "lastUpdate": "刚刚"},
-            {"id": 4, "name": "气象站-01", "type": "weather", "location": "园区中心", "status": "online", "lastUpdate": "刚刚"},
-            {"id": 5, "name": "摄像头-01", "type": "camera", "location": "C区露天", "status": "offline", "lastUpdate": "1小时前"}
-        ]
     return [
         {
             "id": d.id,
             "name": d.name,
             "type": d.device_type,
             "location": d.location,
+            "landId": d.land_id,
             "status": d.status,
+            "serialNumber": getattr(d, 'serial_number', None),
+            "installDate": getattr(d, 'install_date', None),
+            "lastMaintenance": getattr(d, 'last_maintenance', None),
             "lastUpdate": d.last_update.strftime("%Y-%m-%d %H:%M") if d.last_update else "刚刚"
         }
         for d in devices
@@ -371,23 +366,72 @@ def get_devices(db: Session = Depends(get_db)):
 
 @router.post("/devices")
 def create_device(
-    name: str,
-    device_type: str,
-    location: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    name: str = Body(...),
+    device_type: str = Body(...),
+    location: str = Body(""),
+    land_id: int = Body(None),
+    status: str = Body("online"),
+    serial_number: str = Body(""),
+    install_date: str = Body(""),
+    last_maintenance: str = Body("")
 ):
     """添加设备"""
     device = IoTDevice(
         name=name,
         device_type=device_type,
         location=location,
-        status="online",
+        land_id=land_id,
+        status=status,
+        serial_number=serial_number,
+        install_date=install_date,
+        last_maintenance=last_maintenance,
         last_update=datetime.now()
     )
+
     db.add(device)
     db.commit()
     db.refresh(device)
     return {"id": device.id, "message": "设备添加成功"}
+
+@router.put("/devices/{device_id}")
+def update_device(
+    device_id: int,
+    name: str = None,
+    device_type: str = None,
+    location: str = None,
+    land_id: int = None,
+    status: str = None,
+    serial_number: str = None,
+    install_date: str = None,
+    last_maintenance: str = None,
+    db: Session = Depends(get_db)
+):
+    """更新设备"""
+    device = db.query(IoTDevice).filter(IoTDevice.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
+
+    if name is not None:
+        device.name = name
+    if device_type is not None:
+        device.device_type = device_type
+    if location is not None:
+        device.location = location
+    if land_id is not None:
+        device.land_id = land_id
+    if status is not None:
+        device.status = status
+    if serial_number is not None and hasattr(device, 'serial_number'):
+        device.serial_number = serial_number
+    if install_date is not None and hasattr(device, 'install_date'):
+        device.install_date = install_date
+    if last_maintenance is not None and hasattr(device, 'last_maintenance'):
+        device.last_maintenance = last_maintenance
+
+    device.last_update = datetime.now()
+    db.commit()
+    return {"message": "设备更新成功"}
 
 @router.delete("/devices/{device_id}")
 def delete_device(device_id: int, db: Session = Depends(get_db)):

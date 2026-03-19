@@ -11,7 +11,10 @@ import random
 router = APIRouter()
 
 def get_db():
-    conn = sqlite3.connect('/root/.openclaw/workspace/funeng/backend/funeng.db')
+    import os
+    # 使用相对路径，与其他模块保持一致
+    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'funeng.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -1011,3 +1014,150 @@ def get_batch_suggestions():
 def create_batch(data: dict):
     """创建批次任务"""
     return {"success": True, "batch_id": f"BATCH{datetime.now().strftime('%Y%m%d%H%M')}", "message": "批次创建成功"}
+
+
+# ========== 仓库管理（真实数据库） ==========
+@router.get("/warehouses/list")
+def get_warehouses_list():
+    """获取仓库列表 - 从数据库"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM warehouses ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    warehouses = []
+    for row in rows:
+        warehouses.append({
+            "id": row["id"],
+            "name": row["name"],
+            "address": row["address"],
+            "capacity": row["capacity"],
+            "area": row["area"],
+            "temperature": row["temperature"],
+            "humidity": row["humidity"],
+            "inventory": row["inventory"],
+            "status": row["status"],
+            "manager": row["manager"] if "manager" in row.keys() else None,
+            "phone": row["phone"] if "phone" in row.keys() else None,
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"]
+        })
+    return warehouses
+
+@router.post("/warehouses")
+def create_warehouse(data: dict):
+    """创建仓库"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO warehouses (name, address, capacity, area, temperature, humidity, inventory, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (data.get("name"), data.get("address"), data.get("capacity"), data.get("area"),
+          data.get("temperature"), data.get("humidity"), data.get("inventory", 0), data.get("status", "正常")))
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return {"success": True, "id": new_id, "message": "仓库创建成功"}
+
+@router.put("/warehouses/{warehouse_id}")
+def update_warehouse(warehouse_id: int, data: dict):
+    """更新仓库"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE warehouses
+        SET name = ?, address = ?, capacity = ?, area = ?, temperature = ?, humidity = ?,
+            inventory = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (data.get("name"), data.get("address"), data.get("capacity"), data.get("area"),
+          data.get("temperature"), data.get("humidity"), data.get("inventory"), data.get("status"), warehouse_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "仓库更新成功"}
+
+@router.delete("/warehouses/{warehouse_id}")
+def delete_warehouse(warehouse_id: int):
+    """删除仓库"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM warehouses WHERE id = ?", (warehouse_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "仓库删除成功"}
+
+
+# ========== 车辆管理（真实数据库） ==========
+@router.get("/vehicles/list")
+def get_vehicles_list():
+    """获取车辆列表 - 从数据库"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM vehicles ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    vehicles = []
+    for row in rows:
+        vehicles.append({
+            "id": row["id"],
+            "plate": row["plate"],
+            "vehicleType": row["vehicle_type"] if "vehicle_type" in row.keys() else "冷藏车",
+            "driver": row["driver"],
+            "phone": row["phone"],
+            "loadCapacity": row["load_capacity"] if "load_capacity" in row.keys() else 5,
+            "volume": row["volume"] if "volume" in row.keys() else None,
+            "gpsDevice": row["gps_device"] if "gps_device" in row.keys() else None,
+            "tempRange": row["temp_range"] if "temp_range" in row.keys() else "-25°C~5°C",
+            "status": row["status"],
+            "location": row["location"],
+            "temperature": row["temperature"],
+            "battery": row["battery"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"]
+        })
+    return vehicles
+
+@router.post("/vehicles")
+def create_vehicle(data: dict):
+    """创建车辆"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO vehicles (plate, vehicle_type, driver, phone, load_capacity, volume, gps_device, temp_range, status, location, temperature, battery)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (data.get("plate"), data.get("vehicleType", "冷藏车"), data.get("driver"), data.get("phone"),
+          data.get("loadCapacity", 5), data.get("volume"), data.get("gpsDevice"), data.get("tempRange", "-25°C~5°C"),
+          data.get("status", "空闲"), data.get("location", ""), data.get("temperature", -18), data.get("battery", 100)))
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return {"success": True, "id": new_id, "message": "车辆创建成功"}
+
+@router.put("/vehicles/{vehicle_id}")
+def update_vehicle(vehicle_id: int, data: dict):
+    """更新车辆"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE vehicles
+        SET plate = ?, vehicle_type = ?, driver = ?, phone = ?, load_capacity = ?,
+            volume = ?, gps_device = ?, temp_range = ?, status = ?, location = ?,
+            temperature = ?, battery = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (data.get("plate"), data.get("vehicleType"), data.get("driver"), data.get("phone"),
+          data.get("loadCapacity"), data.get("volume"), data.get("gpsDevice"), data.get("tempRange"),
+          data.get("status"), data.get("location"), data.get("temperature"), data.get("battery"), vehicle_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "车辆更新成功"}
+
+@router.delete("/vehicles/{vehicle_id}")
+def delete_vehicle(vehicle_id: int):
+    """删除车辆"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM vehicles WHERE id = ?", (vehicle_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "车辆删除成功"}

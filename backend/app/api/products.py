@@ -14,24 +14,27 @@ from app.api.auth import get_current_user
 router = APIRouter()
 
 # 获取产品列表
-@router.get("/", response_model=List[ProductResponse])
+@router.get("/")
 def get_products(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=1000),
     category_id: int = None,
     search: str = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(Product)
-    
+
     if category_id:
         query = query.filter(Product.category_id == category_id)
-    
+
     if search:
         query = query.filter(Product.name.contains(search))
-    
+
+    # 获取总数
+    total = query.filter(Product.is_active == 1).count()
+
     products = query.filter(Product.is_active == 1).order_by(Product.created_at.desc()).offset(skip).limit(limit).all()
-    
+
     # 添加分类名称
     from app.models.category import Category
     result = []
@@ -57,8 +60,8 @@ def get_products(
             if cat:
                 p_dict['category_name'] = cat.name
         result.append(p_dict)
-    
-    return result
+
+    return {"items": result, "total": total}
 
 # 获取单个产品
 @router.get("/{product_id}", response_model=ProductResponse)
