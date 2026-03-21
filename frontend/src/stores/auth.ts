@@ -12,6 +12,12 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
   const userInfo = ref(null)
 
+  // 修复：如果 localStorage 存的是 "undefined" 字符串
+  if (!user.value || user.value === 'undefined') {
+    user.value = null
+    localStorage.removeItem('user')
+  }
+
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => userInfo.value?.is_admin || false)
 
@@ -100,7 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (token.value) {
       updateAxiosConfig()
       // 如果本地存储的用户信息存在，先设置 userInfo
-      if (user.value && user.value.is_admin !== undefined) {
+      if (user.value && typeof user.value === 'object' && user.value.is_admin !== undefined) {
         userInfo.value = user.value
       }
       fetchUserInfo()

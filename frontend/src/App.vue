@@ -331,7 +331,13 @@ body {
   }
 
   .nav-menu {
-    display: none;
+    display: flex;
+    gap: 2px;
+  }
+
+  .nav-item {
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
   .username {

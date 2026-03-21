@@ -5,11 +5,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, products, categories, dashboard
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
-from app.models import base
+from app.api.admin import router as admin_router
+from app.models import base, admin
 from app.models.user import User
 from app.models.smart_agriculture import FarmInfo, Land, Crop
 from app.models.product import Product
 from app.models.category import Category
+from app.models.admin import AdminUser, AdminRole
 from app.database import engine, get_db
 import bcrypt
 
@@ -127,7 +129,35 @@ def seed_default_data():
             
             db.commit()
             print("✅ 默认农场和作物已创建")
-            
+
+        # 5. 创建默认管理员角色
+        if not db.query(AdminRole).first():
+            admin_role = AdminRole(
+                name="超级管理员",
+                code="super_admin",
+                description="系统超级管理员，拥有所有权限",
+                permissions='["*"]'
+            )
+            db.add(admin_role)
+            db.commit()
+            print("✅ 默认管理员角色已创建")
+
+        # 6. 创建默认管理员账号
+        if not db.query(AdminUser).first():
+            role = db.query(AdminRole).filter(AdminRole.code == "super_admin").first()
+            hashed = bcrypt.hashpw("admin123456".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            default_admin = AdminUser(
+                username="admin",
+                email="admin@funeng.com",
+                hashed_password=hashed,
+                full_name="系统管理员",
+                is_active=True,
+                role_id=role.id if role else None
+            )
+            db.add(default_admin)
+            db.commit()
+            print("✅ 默认管理员账号已创建: admin / admin123456")
+
     except Exception as e:
         print(f"⚠️ 初始化数据时出错: {e}")
     finally:
@@ -162,6 +192,7 @@ app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", ta
 app.include_router(digital_marketing.router, prefix="/api/digital-marketing", tags=["数字营销"])
 app.include_router(cold_chain.router, prefix="/api/cold-chain", tags=["数字冷链物联"])
 app.include_router(supply_chain_finance.router, prefix="/api/supply-chain-finance", tags=["供应链金融"])
+app.include_router(admin_router)
 
 @app.get("/")
 async def root():

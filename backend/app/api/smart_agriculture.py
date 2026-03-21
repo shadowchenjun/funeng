@@ -9,7 +9,7 @@ from datetime import datetime
 import random
 
 from app.database import get_db
-from app.models.smart_agriculture import Land, FarmInfo, IoTDevice, Warehouse, Member, Campaign, Crop, CropGrowthModel, DecisionRecord, TraceabilityRecord, TraceabilityNode
+from app.models.smart_agriculture import Land, FarmInfo, IoTDevice, Warehouse, Member, Campaign, Crop, CropGrowthModel, DecisionRecord, TraceabilityRecord, TraceabilityChainNode
 from app.models.base import Base
 from app.database import engine
 
@@ -764,7 +764,7 @@ def get_traceability_record(record_id: int, db: Session = Depends(get_db)):
     record = db.query(TraceabilityRecord).filter(TraceabilityRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="追溯记录不存在")
-    nodes = db.query(TraceabilityNode).filter(TraceabilityNode.trace_record_id == record_id).order_by(TraceabilityNode.created_at).all()
+    nodes = db.query(TraceabilityChainNode).filter(TraceabilityChainNode.trace_record_id == record_id).order_by(TraceabilityChainNode.created_at).all()
     return {
         "id": record.id,
         "productName": record.product_name,
@@ -784,7 +784,7 @@ def get_traceability_by_code(trace_code: str, db: Session = Depends(get_db)):
     record = db.query(TraceabilityRecord).filter(TraceabilityRecord.trace_code == trace_code).first()
     if not record:
         raise HTTPException(status_code=404, detail="追溯码不存在")
-    nodes = db.query(TraceabilityNode).filter(TraceabilityNode.trace_record_id == record.id).order_by(TraceabilityNode.created_at).all()
+    nodes = db.query(TraceabilityChainNode).filter(TraceabilityChainNode.trace_record_id == record.id).order_by(TraceabilityChainNode.created_at).all()
     return {"productName": record.product_name, "productBatch": record.product_batch, "originFarm": record.origin_farm, "traceCode": record.trace_code, "status": record.status, "nodes": [{"nodeType": n.node_type, "nodeName": n.node_name, "timestamp": n.timestamp} for n in nodes]}
 
 @router.post("/traceability/records/{record_id}/nodes")
@@ -793,7 +793,7 @@ def add_traceability_node(record_id: int, data: dict = Body(...), db: Session = 
     record = db.query(TraceabilityRecord).filter(TraceabilityRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="追溯记录不存在")
-    node = TraceabilityNode(
+    node = TraceabilityChainNode(
         trace_record_id=record_id,
         node_type=data.get("nodeType"),
         node_name=data.get("nodeName"),

@@ -182,10 +182,10 @@ class TraceabilityRecord(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-class TraceabilityNode(Base):
-    """追溯节点 - 记录每个环节"""
-    __tablename__ = "traceability_nodes"
-    
+class TraceabilityChainNode(Base):
+    """追溯链节点 - 记录每个环节"""
+    __tablename__ = "traceability_chain_nodes"
+
     id = Column(Integer, primary_key=True, index=True)
     trace_record_id = Column(Integer, nullable=False, comment="追溯记录ID")
     node_type = Column(String(50), nullable=False, comment="节点类型: 播种/施肥/灌溉/采收/加工/物流/仓储/销售")
