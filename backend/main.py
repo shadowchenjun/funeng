@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, products, categories, dashboard
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
 from app.api.admin import router as admin_router
+from app.api.analytics_platform import router as analytics_platform_router  # Sprint 2 性能优化
 from app.models import base, admin
 from app.models.user import User
 from app.models.smart_agriculture import FarmInfo, Land, Crop
@@ -193,6 +194,7 @@ app.include_router(digital_marketing.router, prefix="/api/digital-marketing", ta
 app.include_router(cold_chain.router, prefix="/api/cold-chain", tags=["数字冷链物联"])
 app.include_router(supply_chain_finance.router, prefix="/api/supply-chain-finance", tags=["供应链金融"])
 app.include_router(admin_router)
+app.include_router(analytics_platform_router, prefix="/api", tags=["平台分析(优化)"])  # Sprint 2
 
 @app.get("/")
 async def root():

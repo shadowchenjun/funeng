@@ -1,0 +1,1 @@
+import{_ as t}from"./index-CrJPMRne.js";import{o,c as a,a as s}from"./vue-4r7176jx.js";import"./icons-BWStWhmy.js";import"./axios-C0Zqfgkc.js";const r={},c={class:"claude-assistant"};function n(d,e){return o(),a("div",c,[...e[0]||(e[0]=[s("h1",null,"AI 助手",-1),s("p",null,"功能开发中...",-1)])])}const m=t(r,[["render",n],["__scopeId","data-v-ee77ace0"]]);export{m as default};

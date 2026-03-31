@@ -1,14 +1,68 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>现代农业赋能平台</title>
-    <script type="module" crossorigin src="/assets/index-e5v9Qq9T.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CxFCeSBW.css">
-  </head>
-  <body>
-    <div id="app"></div>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- 主题色 -->
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>汤原农文旅云认养平台</title>
+
+  <!-- DNS 预解析（生产环境替换为实际 CDN 域名） -->
+  <link rel="dns-prefetch" href="//picsum.photos">
+
+  <!-- 关键资源预加载 -->
+  <link rel="preload" href="data:video/mp2t;base64,aW1wb3J0IHsgY3JlYXRlQXBwIH0gZnJvbSAndnVlJwppbXBvcnQgeyBjcmVhdGVQaW5pYSB9IGZyb20gJ3BpbmlhJwppbXBvcnQgQXBwIGZyb20gJy4vQXBwLnZ1ZScKaW1wb3J0IHJvdXRlciBmcm9tICcuL3JvdXRlcicKCi8vIEdsb2JhbCBzdHlsZXMKaW1wb3J0ICcuL2Fzc2V0cy9yZXNwb25zaXZlLmNzcycKCi8vIENyZWF0ZSBhcHAKY29uc3QgYXBwID0gY3JlYXRlQXBwKEFwcCkKCi8vIFJlZ2lzdGVyIEVsZW1lbnQgUGx1cyBpY29ucyBnbG9iYWxseSAodXNlZCBhcyA8ZWwtaWNvbj48Y29tcG9uZW50IDppcz0iaWNvbk5hbWUiIC8+PC9lbC1pY29uPikKaW1wb3J0ICogYXMgRWxlbWVudFBsdXNJY29uc1Z1ZSBmcm9tICdAZWxlbWVudC1wbHVzL2ljb25zLXZ1ZScKZm9yIChjb25zdCBba2V5LCBjb21wb25lbnRdIG9mIE9iamVjdC5lbnRyaWVzKEVsZW1lbnRQbHVzSWNvbnNWdWUpKSB7CiAgYXBwLmNvbXBvbmVudChrZXksIGNvbXBvbmVudCkKfQoKLy8gVXNlIHBsdWdpbnMKYXBwLnVzZShjcmVhdGVQaW5pYSgpKQphcHAudXNlKHJvdXRlcikKCi8vIE1vdW50CmFwcC5tb3VudCgnI2FwcCcpCg==" as="script">
+  <link rel="preload" href="/assets/vue/App-CvPqN7TT.vue" as="document">
+
+  <!-- 字体预加载（生产环境使用实际字体） -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+
+  <!-- 关键 CSS（内联首屏样式） -->
+  <style>
+    /* 消除白屏的最小样式 */
+    body { margin: 0; background: #f5f7fa; }
+    #app { min-height: 100vh; }
+    /* Loading 初始状态 */
+    .app-init-loading {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 99999;
+    }
+    .app-init-loading .logo {
+      font-size: 48px; margin-bottom: 16px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .app-init-loading .text {
+      color: rgba(255,255,255,0.9); font-size: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      letter-spacing: 2px;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/js/index-CrJPMRne.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/js/vue-4r7176jx.js">
+  <link rel="modulepreload" crossorigin href="/assets/js/icons-BWStWhmy.js">
+  <link rel="modulepreload" crossorigin href="/assets/js/axios-C0Zqfgkc.js">
+  <link rel="stylesheet" crossorigin href="/assets/css/index-DJI8KRhA.css">
+</head>
+<body>
+  <!-- 首屏最小化 Loading（CSS 实现，避免 JS 阻塞白屏） -->
+  <div id="app">
+    <div class="app-init-loading">
+      <div class="logo">🌾</div>
+      <div class="text">汤原云认养</div>
+    </div>
+  </div>
+</body>
 </html>
