@@ -15,8 +15,7 @@
         <header class="app-header" v-if="showHeader">
           <div class="header-content">
             <div class="logo" @click="goToHome">
-              <span class="logo-icon">🌾</span>
-              <span class="logo-text">FunEng</span>
+              <img class="logo-icon" src="/logo-new.png" alt="FunEng Logo" />
             </div>
 
             <nav class="nav-menu">
@@ -137,6 +136,19 @@ onMounted(() => {
   setTimeout(() => {
     showPageSkeleton.value = false
   }, 300)
+
+  // 调试：监控 logo src 变化
+  const logoImg = document.querySelector('.logo-icon')
+  if (logoImg) {
+    console.log('[Logo Debug] 初始 src:', logoImg.src)
+    let lastSrc = logoImg.src
+    setInterval(() => {
+      if (logoImg.src !== lastSrc) {
+        console.log('[Logo Debug] src 发生变化:', { from: lastSrc, to: logoImg.src })
+        lastSrc = logoImg.src
+      }
+    }, 1000)
+  }
 })
 
 const goToHome = () => {
@@ -273,7 +285,6 @@ body {
 }
 
 .header-content {
-  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -291,7 +302,9 @@ body {
 }
 
 .logo-icon {
-  font-size: 26px;
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
 }
 
 .logo-text {

@@ -3,8 +3,8 @@
     <!-- 导航栏 -->
     <header class="main-nav">
       <div class="nav-brand">
-        <span class="brand-icon">🌾</span>
-        <span class="brand-text">FunEng</span>
+        <img src="/logo-new.png" class="brand-icon" alt=" Logo" />
+        <span class="brand-text"></span>
       </div>
       <nav class="nav-links">
         <a href="/" class="nav-link active">首页</a>
@@ -152,8 +152,8 @@
     <footer class="home-footer">
       <div class="footer-content">
         <div class="footer-brand">
-          <span class="footer-icon">🌾</span>
-          <span class="footer-text">FunEng</span>
+          <img src="/logo-new.png" class="footer-icon" alt=" Logo" />
+          <span class="footer-text"></span>
         </div>
         <p class="footer-slogan">智慧农业赋能农业现代化发展</p>
         <div class="footer-links">
@@ -163,7 +163,7 @@
           <span class="footer-divider">|</span>
           <a href="#">联系我们</a>
         </div>
-        <p class="footer-copyright">© 2024 FunEng. All rights reserved.</p>
+        <p class="footer-copyright">© 2024 🌾. All rights reserved.</p>
       </div>
     </footer>
   </div>
@@ -359,7 +359,10 @@ const handleHeroAction = () => {
 }
 
 .brand-icon {
-  font-size: 28px;
+  font-size: 0;  /* 隐藏 emoji */
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .brand-text {
@@ -852,7 +855,9 @@ const handleHeroAction = () => {
 }
 
 .footer-icon {
-  font-size: 28px;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .footer-text {
