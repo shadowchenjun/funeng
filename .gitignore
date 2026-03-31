@@ -1,1 +1,40 @@
 frontend/node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# npm cache
+.npm-cache/
+
+# macOS
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build output (if tracked)
+# dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database (local)
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads (local)
+uploads/

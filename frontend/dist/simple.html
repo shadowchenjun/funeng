@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .product { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { color: #52c41a; }
+        .error { color: #ff4d4f; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌾 农业赋能平台 - 产品展示</h1>
+        <div id="loading">正在加载产品数据...</div>
+        <div id="products"></div>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function loadProducts() {
+            const loading = document.getElementById('loading');
+            const productsDiv = document.getElementById('products');
+            const status = document.getElementById('status');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                loading.style.display = 'none';
+                
+                // 显示产品
+                data.products.forEach(product => {
+                    const productDiv = document.createElement('div');
+                    productDiv.className = 'product';
+                    productDiv.innerHTML = `
+                        <h2>${product.name}</h2>
+                        <p><strong>价格:</strong> ¥${product.price}</p>
+                        <p><strong>描述:</strong> ${product.description}</p>
+                        <p><strong>库存:</strong> ${product.stock_quantity}</p>
+                        <p><strong>状态:</strong> ${product.status}</p>
+                        ${product.images && product.images.length > 0 ? 
+                            `<img src="${product.images[0].file_path}" alt="${product.name}" style="max-width: 200px; border-radius: 5px;">` : ''}
+                        <p><strong>分类:</strong> ${product.category ? product.category.name : '未分类'}</p>
+                    `;
+                    productsDiv.appendChild(productDiv);
+                });
+                
+                status.innerHTML = `<p class="success">✅ 成功加载 ${data.total} 个产品</p>`;
+                
+            } catch (error) {
+                loading.style.display = 'none';
+                status.innerHTML = `<p class="error">❌ 加载失败: ${error.message}</p>`;
+                console.error('Error:', error);
+            }
+        }
+        
+        // 页面加载时执行
+        window.addEventListener('load', loadProducts);
+        
+        // 测试后端连接
+        fetch('http://localhost:8000/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('后端健康检查:', data);
+            })
+            .catch(error => {
+                console.error('后端连接失败:', error);
+            });
+    </script>
+</body>
+</html>
