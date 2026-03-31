@@ -18,3 +18,8 @@ __pycache__/
 # 日志、数据
 *.log
 .DS_Store
+
+# 构建产物
+dist/
+build/
+*.egg-info/
