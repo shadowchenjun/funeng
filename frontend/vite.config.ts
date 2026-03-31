@@ -2,25 +2,68 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+const allowedHosts = process.env.ALLOWED_HOSTS
+  ? process.env.ALLOWED_HOSTS.split(',')
+  : ['localhost', '127.0.0.1']
+
 export default defineConfig({
   plugins: [vue()],
+  base: '/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
     }
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    // 启用 CSS 代码分割
+    cssCodeSplit: true,
+    // 开启 rollup 高级拆分选项
+    rollupOptions: {
+      output: {
+        // 手动分包策略
+        manualChunks: {
+          // Vue 核心库（独立 chunk）
+          vue: ['vue', 'vue-router'],
+          // Element Plus（独立 chunk，按需 import 会自动 tree-shaking）
+          element: ['element-plus'],
+          // 图标库
+          icons: ['@element-plus/icons-vue'],
+          // axios（独立 chunk）
+          axios: ['axios']
+        },
+        // 分 chunk 文件名模板
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+      }
+    },
+    // 启用 gzip 压缩（需要 vite-plugin-compression 或类似插件）
+    // chunkSizeWarningLimit: 500 // KB
+  },
+  // 开发服务器优化
   server: {
-    port: 5173,
-    allowedHosts: ['amber-asp-expertise-est.trycloudflare.com', 'played-pot-kai-barbie.trycloudflare.com', 'dom-concerning-evaluated-initial.trycloudflare.com', 'captain-oriental-recruiting-massage.trycloudflare.com', 'political-representative-rug-ser.trycloudflare.com', 'solar-kruger-sample-albums.trycloudflare.com', 'particle-track-incorporate-reducing.trycloudflare.com', 'driven-chargers-serial-dos.trycloudflare.com', 'governor-essays-top-gym.trycloudflare.com', 'advisors-banner-investigators-survey.trycloudflare.com', 'specs-uncertainty-prospective-vampire.trycloudflare.com', 'accomplish-diploma-referral-dice.trycloudflare.com', 'giant-feature-guns-inclusive.trycloudflare.com', 'alternate-guam-interpreted-rebecca.trycloudflare.com', 'patch-flex-feb-duplicate.trycloudflare.com', 'hayes-prizes-men-decade.trycloudflare.com', 'disks-humor-higher-drainage.trycloudflare.com', 'caps-stomach-coverage-ceremony.trycloudflare.com', 'jose-sitting-javascript-instruction.trycloudflare.com', 'angle-occurred-december-importantly.trycloudflare.com', 'treatment-pens-clip-arctic.trycloudflare.com', 'funeng-agri.loca.lt', 'electro-suitable-seekers-retail.trycloudflare.com', 'especially-lows-hardcover-cat.trycloudflare.com', 'yet-pupils-quantities-elegant.trycloudflare.com', 'heroes-lemon-waterproof-surf.trycloudflare.com', 'scripts-anchor-sign-dont.trycloudflare.com', 'constraint-painted-camping-bailey.trycloudflare.com', 'morgan-kelkoo-suse-pos.trycloudflare.com', 'britney-heights-pac-able.trycloudflare.com', 'settled-port-output-organization.trycloudflare.com', 'repository-gamecube-thinkpad-informational.trycloudflare.com', 'nation-antenna-php-ash.trycloudflare.com', 'gps-moving-query-boulder.trycloudflare.com', 'edt-findlaw-commodities-capture.trycloudflare.com', 'warming-cedar-pharmaceuticals-aviation.trycloudflare.com', 'width-tops-considerable-franchise.trycloudflare.com', 'haven-sys-maternity-highland.trycloudflare.com', 'gained-accuracy-was-instructors.trycloudflare.com', 'feelings-kate-spirit-trailer.trycloudflare.com', 'their-wait-rebates-burst.trycloudflare.com', 'spiritual-leaf-appears-penalties.trycloudflare.com', 'replied-vintage-till-creator.trycloudflare.com', 'stylus-bedrooms-leasing-hostel.trycloudflare.com', 'catherine-wayne-perry-addressed.trycloudflare.com', 'autos-nick-nature-teaches.trycloudflare.com', 'performance-senate-cadillac-papers.trycloudflare.com', 'nations-caring-disclose-forums.trycloudflare.com', 'allowing-daughters-ruth-movements.trycloudflare.com', 'compile-voluntary-works-continuing.trycloudflare.com', 'poster-analyze-suited-cable.trycloudflare.com', 'five-columns-geneva-artists.trycloudflare.com', 'national-attribute-acting-deorative.trycloudflare.com', 'universe-financing-edition-formation.trycloudflare.com', 'friends-brisbane-knitting-school.trycloudflare.com', 'strengthening-regular-joan-entity.trycloudflare.com', 'folk-advert-guide-preferences.trycloudflare.com', 'water-cover-judy-pearl.trycloudflare.com', 'joining-stable-sage-engaged.trycloudflare.com', 'cognitive-authorization-monsters-retrieve.trycloudflare.com', 'document-incredible-lands-disposition.trycloudflare.com', 'projector-methods-peripherals-using.trycloudflare.com', 'coins-talking-money-perl.trycloudflare.com', 'archaic-unpopularly-annika.ngrok-free.dev'],
+    port: 3000,
+    host: '0.0.0.0',
+    allowedHosts,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.API_TARGET || 'http://localhost:8000',
         changeOrigin: true
       }
-    }
+    },
+    // 开启热更新压缩，减少传输体积
+    hmr: { overlay: true }
   },
-  preview: {
-    port: 5173,
-    allowedHosts: ['dom-concerning-evaluated-initial.trycloudflare.com', 'captain-oriental-recruiting-massage.trycloudflare.com', 'treatment-pens-clip-arctic.trycloudflare.com', 'funeng-agri.loca.lt', 'electro-suitable-seekers-retail.trycloudflare.com', 'especially-lows-hardcover-cat.trycloudflare.com', 'yet-pupils-quantities-elegant.trycloudflare.com', 'heroes-lemon-waterproof-surf.trycloudflare.com', 'scripts-anchor-sign-dont.trycloudflare.com', 'constraint-painted-camping-bailey.trycloudflare.com', 'morgan-kelkoo-suse-pos.trycloudflare.com', 'britney-heights-pac-able.trycloudflare.com', 'settled-port-output-organization.trycloudflare.com', 'repository-gamecube-thinkpad-informational.trycloudflare.com', 'nation-antenna-php-ash.trycloudflare.com', 'gps-moving-query-boulder.trycloudflare.com', 'edt-findlaw-commodities-capture.trycloudflare.com', 'warming-cedar-pharmaceuticals-aviation.trycloudflare.com', 'width-tops-considerable-franchise.trycloudflare.com', 'haven-sys-maternity-highland.trycloudflare.com', 'gained-accuracy-was-instructors.trycloudflare.com', 'feelings-kate-spirit-trailer.trycloudflare.com', 'their-wait-rebates-burst.trycloudflare.com', 'spiritual-leaf-appears-penalties.trycloudflare.com', 'replied-vintage-till-creator.trycloudflare.com', 'stylus-bedrooms-leasing-hostel.trycloudflare.com', 'catherine-wayne-perry-addressed.trycloudflare.com', 'autos-nick-nature-teaches.trycloudflare.com', 'performance-senate-cadillac-papers.trycloudflare.com', 'nations-caring-disclose-forums.trycloudflare.com', 'allowing-daughters-ruth-movements.trycloudflare.com', 'compile-voluntary-works-continuing.trycloudflare.com', 'poster-analyze-suited-cable.trycloudflare.com', 'five-columns-geneva-artists.trycloudflare.com', 'national-attribute-acting-decorative.trycloudflare.com', 'universe-financing-edition-formation.trycloudflare.com', 'friends-brisbane-knitting-school.trycloudflare.com']
+  // 预加载优化
+  optimizeDeps: {
+    include: [
+      'vue',
+      'vue-router',
+      'element-plus',
+      '@element-plus/icons-vue',
+      'axios'
+    ]
   }
 })
