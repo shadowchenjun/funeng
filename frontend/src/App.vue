@@ -15,7 +15,7 @@
         <header class="app-header" v-if="showHeader">
           <div class="header-content">
             <div class="logo" @click="goToHome">
-              <img class="logo-icon" src="/logo-new.png" alt="FunEng Logo" />
+              <img class="logo-icon" src="/logo-transparent.png" alt="FunEng Logo" />
             </div>
 
             <nav class="nav-menu">
@@ -121,13 +121,11 @@ watch(
   () => route.path,
   () => {
     loadingBarRef.value?.start()
-    showPageSkeleton.value = true
+    // 路由组件加载是异步的，不需要骨架屏
     setTimeout(() => {
       loadingBarRef.value?.finish()
-      showPageSkeleton.value = false
-    }, 100)
-  },
-  { immediate: true }
+    }, 200)
+  }
 )
 
 onMounted(() => {
@@ -136,19 +134,6 @@ onMounted(() => {
   setTimeout(() => {
     showPageSkeleton.value = false
   }, 300)
-
-  // 调试：监控 logo src 变化
-  const logoImg = document.querySelector('.logo-icon')
-  if (logoImg) {
-    console.log('[Logo Debug] 初始 src:', logoImg.src)
-    let lastSrc = logoImg.src
-    setInterval(() => {
-      if (logoImg.src !== lastSrc) {
-        console.log('[Logo Debug] src 发生变化:', { from: lastSrc, to: logoImg.src })
-        lastSrc = logoImg.src
-      }
-    }, 1000)
-  }
 })
 
 const goToHome = () => {
@@ -296,14 +281,14 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   cursor: pointer;
   text-decoration: none;
 }
 
 .logo-icon {
-  width: 80px;
-  height: 80px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
 }
 

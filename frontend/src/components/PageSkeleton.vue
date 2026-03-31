@@ -50,7 +50,7 @@ withDefaults(defineProps<Props>(), {
 .skeleton-banner {
   width: 100%;
   height: 200px;
-  background: linear-gradient(135deg, #e8e8f0 0%, #d8d8e8 100%);
+  background: linear-gradient(135deg, #e8eff8 0%, #d8e4f8 100%);
   animation: banner-pulse 1.5s ease-in-out infinite;
 }
 
@@ -85,7 +85,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .skeleton-card {
-  background: #f8f9ff;
+  background: #f0f5ff;
   border-radius: 12px;
   padding: 12px;
 }

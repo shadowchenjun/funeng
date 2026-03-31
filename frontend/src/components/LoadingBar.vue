@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 const visible = ref(false)
 const progress = ref(0)
@@ -17,28 +17,34 @@ const start = () => {
   visible.value = true
   progress.value = 0
   if (timer) clearInterval(timer)
+  // 确定性进度：每200ms前进10%，最大到90%
+  let p = 0
   timer = setInterval(() => {
-    // 模拟进度增长，最大到 90%，等待真实加载完成
-    if (progress.value < 90) {
-      progress.value += Math.random() * 15
-    }
+    p = Math.min(p + 10, 90)
+    progress.value = p
   }, 200)
 }
 
 const finish = () => {
   if (timer) clearInterval(timer)
+  timer = null
   progress.value = 100
   setTimeout(() => {
     visible.value = false
     progress.value = 0
-  }, 300)
+  }, 200)
 }
 
 const error = () => {
   if (timer) clearInterval(timer)
+  timer = null
   visible.value = false
   progress.value = 0
 }
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 
 defineExpose({ start, finish, error })
 </script>
@@ -51,20 +57,20 @@ defineExpose({ start, finish, error })
   right: 0;
   height: 3px;
   z-index: 99999;
-  background: rgba(102, 126, 234, 0.2);
+  background: rgba(22, 93, 255, 0.2);
 }
 
 .loading-bar-progress {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #165DFF 0%, #3B82F6 100%);
   transition: width 0.2s ease;
   border-radius: 0 2px 2px 0;
-  box-shadow: 0 0 8px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 0 8px rgba(22, 93, 255, 0.6);
 }
 
 .loading-bar-enter-active,
 .loading-bar-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .loading-bar-enter-from,

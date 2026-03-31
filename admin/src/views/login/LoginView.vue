@@ -37,7 +37,7 @@ const handleLogin = async () => {
     <div class="login-bg">
       <div class="login-box">
         <div class="login-header">
-          <h1 class="title">汤原农文旅云</h1>
+          <h1 class="title">现代农业数字化赋能平台</h1>
           <p class="subtitle">后台管理系统</p>
         </div>
         <el-form :model="form" class="login-form">

@@ -1,28 +1,5 @@
 <template>
   <div class="home-container">
-    <!-- 导航栏 -->
-    <header class="main-nav">
-      <div class="nav-brand">
-        <img src="/logo-new.png" class="brand-icon" alt=" Logo" />
-        <span class="brand-text"></span>
-      </div>
-      <nav class="nav-links">
-        <a href="/" class="nav-link active">首页</a>
-        <a href="/products" class="nav-link">产品</a>
-        <a href="/categories" class="nav-link">分类</a>
-        <a href="/dashboard" class="nav-link">仪表盘</a>
-      </nav>
-      <div class="nav-actions">
-        <template v-if="!isLoggedIn">
-          <button class="btn-nav-outline" @click="$router.push('/login')">登录</button>
-          <button class="btn-nav-primary" @click="$router.push('/register')">注册</button>
-        </template>
-        <template v-else>
-          <button class="btn-nav-primary" @click="$router.push('/dashboard')">进入控制台</button>
-        </template>
-      </div>
-    </header>
-
     <!-- Hero 区域 -->
     <section class="hero-section">
       <div class="hero-bg-pattern"></div>
@@ -152,10 +129,10 @@
     <footer class="home-footer">
       <div class="footer-content">
         <div class="footer-brand">
-          <img src="/logo-new.png" class="footer-icon" alt=" Logo" />
+          <img src="/logo-transparent.png" class="footer-icon" alt=" Logo" />
           <span class="footer-text"></span>
         </div>
-        <p class="footer-slogan">智慧农业赋能农业现代化发展</p>
+        <p class="footer-slogan">本来生活AI赋能农业产业链现代化发展</p>
         <div class="footer-links">
           <a href="#">隐私政策</a>
           <span class="footer-divider">|</span>
@@ -163,7 +140,7 @@
           <span class="footer-divider">|</span>
           <a href="#">联系我们</a>
         </div>
-        <p class="footer-copyright">© 2024 🌾. All rights reserved.</p>
+        <p class="footer-copyright">© 2026 🌾. All rights reserved.</p>
       </div>
     </footer>
   </div>
@@ -289,38 +266,6 @@ const handleHeroAction = () => {
 </script>
 
 <style scoped>
-/* ========== 变量定义 ========== */
-:root {
-  --primary: #165DFF;
-  --primary-light: rgba(22, 93, 255, 0.08);
-  --primary-dark: #0F4AE6;
-  --accent-green: #10B981;
-  --accent-amber: #F59E0B;
-  --accent-blue: #3B82F6;
-  --accent-red: #EF4444;
-  --accent-purple: #8B5CF6;
-  --accent-pink: #EC4899;
-
-  --bg-primary: #FFFFFF;
-  --bg-secondary: #F8FAFC;
-  --bg-tertiary: #F1F5F9;
-
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-tertiary: #94A3B8;
-
-  --border-color: #E2E8F0;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -345,8 +290,8 @@ const handleHeroAction = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 48px;
-  height: 72px;
+  padding: 0 24px;
+  height: 56px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
@@ -355,13 +300,13 @@ const handleHeroAction = () => {
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
 }
 
 .brand-icon {
   font-size: 0;  /* 隐藏 emoji */
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
 }
 
@@ -439,21 +384,13 @@ const handleHeroAction = () => {
 /* ========== Hero 区域 ========== */
 .hero-section {
   position: relative;
-  padding: 100px 48px 60px;
+  padding: 80px 48px 60px;
   background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
   overflow: hidden;
 }
 
 .hero-bg-pattern {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image:
-    radial-gradient(circle at 20% 50%, rgba(22, 93, 255, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
-  pointer-events: none;
+  display: none; /* 移除叠加层，简化视觉效果 */
 }
 
 .hero-content {
@@ -743,15 +680,7 @@ const handleHeroAction = () => {
 }
 
 .features-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(22, 93, 255, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
-  pointer-events: none;
+  display: none; /* 移除叠加层简化视觉效果 */
 }
 
 .features-grid {
@@ -855,8 +784,8 @@ const handleHeroAction = () => {
 }
 
 .footer-icon {
-  width: 32px;
-  height: 32px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
 }
 
