@@ -123,14 +123,7 @@
       
       <el-divider>仓库分布</el-divider>
       <div class="warehouse-map">
-        <iframe 
-          width="100%" 
-          height="200" 
-          frameborder="0" 
-          scrolling="no" 
-          src="https://www.openstreetmap.org/export/embed.html?bbox=117.0%2C36.5%2C117.3%2C36.8&amp;layer=mapnik&amp;marker=36.65%2C117.12"
-          style="border-radius: 8px;">
-        </iframe>
+        <div id="warehouseMap" style="width: 100%; height: 200px; border-radius: 8px;"></div>
       </div>
     </el-card>
     
@@ -200,14 +193,7 @@
       
       <!-- 运输路线地图 -->
       <div class="transport-map">
-        <iframe 
-          width="100%" 
-          height="250" 
-          frameborder="0" 
-          scrolling="no" 
-          src="https://www.openstreetmap.org/export/embed.html?bbox=116.5%2C36.0%2C118.0%2C37.0&amp;layer=mapnik"
-          style="border-radius: 8px; margin-bottom: 15px;">
-        </iframe>
+        <div id="transportMap" style="width: 100%; height: 250px; border-radius: 8px; margin-bottom: 15px;"></div>
       </div>
       
       <!-- 运输轨迹 -->
@@ -986,10 +972,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning, User, Bottom, Operation } from '@element-plus/icons-vue'
+
+declare global {
+  interface Window {
+    AMap: any
+  }
+}
 
 const activeTab = ref('monitor')
 const setActiveTab = (tab: string) => { activeTab.value = tab }
@@ -1017,6 +1009,100 @@ onMounted(() => {
   loadTransportData()
   loadOwnerData()
 })
+
+// 高德地图实例
+let warehouseMap: any = null
+let transportMap: any = null
+
+// 等待 AMap 加载完成
+const waitForAMap = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if (window.AMap) {
+      resolve()
+    } else {
+      const check = setInterval(() => {
+        if (window.AMap) {
+          clearInterval(check)
+          resolve()
+        }
+      }, 100)
+      setTimeout(() => {
+        clearInterval(check)
+        resolve()
+      }, 5000)
+    }
+  })
+}
+
+// 初始化仓库地图
+const initWarehouseMap = () => {
+  nextTick(async () => {
+    await waitForAMap()
+    if (!window.AMap) return
+
+    const container = document.getElementById('warehouseMap')
+    if (!container) return
+
+    if (warehouseMap) {
+      warehouseMap.destroy()
+      warehouseMap = null
+    }
+
+    warehouseMap = new window.AMap.Map('warehouseMap', {
+      zoom: 10,
+      center: [117.12, 36.65],
+      viewMode: '2D'
+    })
+
+    // 添加仓库标记
+    if (warehouses.value.length > 0) {
+      warehouses.value.forEach((w: any) => {
+        if (w.lat && w.lng) {
+          const marker = new window.AMap.Marker({
+            position: [w.lng, w.lat],
+            title: w.name
+          })
+          warehouseMap.add(marker)
+        }
+      })
+    }
+  })
+}
+
+// 初始化运输追踪地图
+const initTransportMap = () => {
+  nextTick(async () => {
+    await waitForAMap()
+    if (!window.AMap) return
+
+    const container = document.getElementById('transportMap')
+    if (!container) return
+
+    if (transportMap) {
+      transportMap.destroy()
+      transportMap = null
+    }
+
+    transportMap = new window.AMap.Map('transportMap', {
+      zoom: 8,
+      center: [117.12, 36.65],
+      viewMode: '2D'
+    })
+
+    // 添加运输车辆标记
+    if (transports.value.length > 0) {
+      transports.value.forEach((t: any) => {
+        if (t.lat && t.lng) {
+          const marker = new window.AMap.Marker({
+            position: [t.lng, t.lat],
+            title: t.vehicle_number || t.id
+          })
+          transportMap.add(marker)
+        }
+      })
+    }
+  })
+}
 
 // 加载监控数据
 const loadMonitorData = async () => {
@@ -1050,6 +1136,12 @@ watch(activeTab, (newTab) => {
   }
   if (newTab === 'operation' && operationTasks.value.length === 0) {
     loadOperationData()
+  }
+  if (newTab === 'warehouse') {
+    setTimeout(initWarehouseMap, 300)
+  }
+  if (newTab === 'transport') {
+    setTimeout(initTransportMap, 300)
   }
 })
 
@@ -1693,9 +1785,9 @@ const traceProduct = () => {
 /* ========== 快捷入口导航 ========== */
 .quick-nav-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .nav-card {
@@ -1703,7 +1795,7 @@ const traceProduct = () => {
   background: var(--bg-primary, #FFFFFF);
   border: 1px solid var(--border-color, #E2E8F0);
   border-radius: 14px;
-  padding: 20px 12px;
+  padding: 16px 12px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1776,7 +1868,7 @@ const traceProduct = () => {
 /* ========== 响应式 ========== */
 @media (max-width: 1200px) {
   .quick-nav-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -1786,17 +1878,17 @@ const traceProduct = () => {
   }
 
   .quick-nav-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
 
   .nav-card {
-    padding: 16px 8px;
+    padding: 12px 8px;
   }
 
   .nav-icon-wrapper {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 
   .nav-label {
