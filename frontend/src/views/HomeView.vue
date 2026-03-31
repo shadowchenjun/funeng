@@ -577,8 +577,8 @@ const handleHeroAction = () => {
 
 .modules-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
 .module-card {
@@ -586,7 +586,7 @@ const handleHeroAction = () => {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 32px 24px;
+  padding: 24px 20px;
   cursor: pointer;
   transition: all 0.3s ease;
   overflow: hidden;

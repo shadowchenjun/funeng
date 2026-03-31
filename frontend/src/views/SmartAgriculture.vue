@@ -153,14 +153,7 @@
         
         <el-divider>地图概览</el-divider>
         <div class="farm-map">
-          <iframe 
-            width="100%" 
-            height="200" 
-            frameborder="0" 
-            scrolling="no" 
-            src="https://www.openstreetmap.org/export/embed.html?bbox=117.0%2C36.5%2C117.3%2C36.8&amp;layer=mapnik&amp;marker=36.65%2C117.12"
-            style="border-radius: 8px;">
-          </iframe>
+          <div id="farmOverviewMap" style="width: 100%; height: 200px; border-radius: 8px;"></div>
           <p class="coords">{{ currentFarm.coords }}</p>
         </div>
         
@@ -237,14 +230,7 @@
       
       <el-divider>设备分布地图</el-divider>
       <div class="device-map">
-        <iframe 
-          width="100%" 
-          height="200" 
-          frameborder="0" 
-          scrolling="no" 
-          src="https://www.openstreetmap.org/export/embed.html?bbox=117.0%2C36.5%2C117.3%2C36.8&amp;layer=mapnik&amp;marker=36.65%2C117.12"
-          style="border-radius: 8px;">
-        </iframe>
+        <div id="deviceMap" style="width: 100%; height: 200px; border-radius: 8px;"></div>
         <p class="coords">共 {{ devices.length }} 个设备</p>
       </div>
     </el-card>
@@ -787,8 +773,12 @@ import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MapLocation, OfficeBuilding, Cpu, DataAnalysis, Sunny, Cloudy, Grid, WindPower, VideoCamera, Grape, TrendCharts, Link } from '@element-plus/icons-vue'
 import axios from 'axios'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+
+declare global {
+  interface Window {
+    AMap: any
+  }
+}
 
 const API_BASE = '/api/smart-agriculture'
 
@@ -1039,49 +1029,160 @@ const farmForm = reactive({
   lat: undefined as number | undefined, lng: undefined as number | undefined
 })
 
-// Leaflet地图实例
-let farmMap: L.Map | null = null
-let farmMarker: L.Marker | null = null
+// 高德地图实例
+let farmMap: any = null
+let farmMarker: any = null
+let farmOverviewMap: any = null
+let deviceMap: any = null
 
-// 初始化地图选点
-const initMapPicker = () => {
-  nextTick(() => {
-    const container = document.getElementById('farmMapContainer')
-    if (!container) return
-    
-    // 如果地图已存在，先移除
-    if (farmMap) {
-      farmMap.remove()
-      farmMap = null
+// 等待 AMap 加载完成
+const waitForAMap = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if (window.AMap) {
+      resolve()
+    } else {
+      const check = setInterval(() => {
+        if (window.AMap) {
+          clearInterval(check)
+          resolve()
+        }
+      }, 100)
+      // 超时保护，5秒后强制结束
+      setTimeout(() => {
+        clearInterval(check)
+        resolve()
+      }, 5000)
     }
-    
-    const lat = farmForm.lat || 36.65
-    const lng = farmForm.lng || 117.12
-    
-    // 创建地图
-    farmMap = L.map('farmMapContainer').setView([lat, lng], 10)
-    
-    // 添加OpenStreetMap图层
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(farmMap)
-    
-    // 添加点击事件
-    farmMap.on('click', (e: L.LeafletMouseEvent) => {
-      farmForm.lat = e.latlng.lat
-      farmForm.lng = e.latlng.lng
-      
-      // 更新标记位置
-      if (farmMarker) {
-        farmMarker.setLatLng(e.latlng)
-      } else {
-        farmMarker = L.marker(e.latlng).addTo(farmMap!)
-      }
+  })
+}
+
+// 初始化高德地图选点
+const initMapPicker = async () => {
+  await nextTick()
+  const container = document.getElementById('farmMapContainer')
+  if (!container) {
+    console.log('[Map] 容器不存在，等待...')
+    return
+  }
+
+  console.log('[Map] 容器尺寸:', container.offsetWidth, container.offsetHeight)
+
+  await waitForAMap()
+  if (!window.AMap) {
+    console.error('[Map] 高德地图加载失败')
+    return
+  }
+
+  console.log('[Map] 开始初始化')
+
+  // 如果地图已存在，先移除
+  if (farmMap) {
+    farmMap.destroy()
+    farmMap = null
+  }
+
+  const lat = farmForm.lat || 36.65
+  const lng = farmForm.lng || 117.12
+
+  // 创建高德地图
+  farmMap = new window.AMap.Map('farmMapContainer', {
+    zoom: 10,
+    center: [lng, lat],
+    viewMode: '2D'
+  })
+
+  console.log('[Map] 地图创建成功')
+
+  // 添加点击事件
+  farmMap.on('click', (e: any) => {
+    const lng = e.lnglat.getLng()
+    const lat = e.lnglat.getLat()
+    farmForm.lat = lat
+    farmForm.lng = lng
+
+    console.log('[Map] 点击位置:', lng, lat)
+
+    // 更新标记位置
+    if (farmMarker) {
+      farmMarker.setPosition([lng, lat])
+    } else {
+      farmMarker = new window.AMap.Marker({
+        position: [lng, lat]
+      })
+      farmMap.add(farmMarker)
+    }
+  })
+
+  // 如果已有坐标，添加标记
+  if (farmForm.lat && farmForm.lng) {
+    farmMarker = new window.AMap.Marker({
+      position: [farmForm.lng, farmForm.lat]
     })
-    
-    // 如果已有坐标，添加标记
-    if (farmForm.lat && farmForm.lng) {
-      farmMarker = L.marker([farmForm.lat, farmForm.lng]).addTo(farmMap)
+    farmMap.add(farmMarker)
+    console.log('[Map] 显示已有标记:', farmForm.lng, farmForm.lat)
+  }
+}
+
+// 初始化农场概览地图
+const initFarmOverviewMap = () => {
+  nextTick(async () => {
+    await waitForAMap()
+    if (!window.AMap) return
+
+    // 农场概览地图
+    const farmContainer = document.getElementById('farmOverviewMap')
+    if (farmContainer && currentFarm.value) {
+      if (farmOverviewMap) {
+        farmOverviewMap.destroy()
+        farmOverviewMap = null
+      }
+
+      let lat = 36.65
+      let lng = 117.12
+      if (currentFarm.value.coords) {
+        const match = currentFarm.value.coords.match(/([\d.]+).*?([\d.]+)/)
+        if (match) {
+          lat = parseFloat(match[1])
+          lng = parseFloat(match[2])
+        }
+      }
+
+      farmOverviewMap = new window.AMap.Map('farmOverviewMap', {
+        zoom: 12,
+        center: [lng, lat],
+        viewMode: '2D'
+      })
+
+      const farmMarker = new window.AMap.Marker({
+        position: [lng, lat]
+      })
+      farmOverviewMap.add(farmMarker)
+    }
+
+    // 设备分布地图
+    const deviceContainer = document.getElementById('deviceMap')
+    if (deviceContainer && devices.value.length > 0) {
+      if (deviceMap) {
+        deviceMap.destroy()
+        deviceMap = null
+      }
+
+      deviceMap = new window.AMap.Map('deviceMap', {
+        zoom: 10,
+        center: [117.12, 36.65],
+        viewMode: '2D'
+      })
+
+      // 添加设备标记
+      devices.value.forEach((device: any) => {
+        if (device.lat && device.lng) {
+          const marker = new window.AMap.Marker({
+            position: [device.lng, device.lat],
+            title: device.name
+          })
+          deviceMap.add(marker)
+        }
+      })
     }
   })
 }
@@ -1089,14 +1190,23 @@ const initMapPicker = () => {
 // 当地图对话框打开时初始化
 watch(() => farmDialogVisible, (val) => {
   if (val) {
-    setTimeout(initMapPicker, 100)
+    console.log('[Map] 对话框打开，等待初始化...')
+    setTimeout(initMapPicker, 500)
   }
 })
+
+// 监听当前农场变化，更新概览地图
+watch(currentFarmId, () => {
+  setTimeout(initFarmOverviewMap, 300)
+}, { immediate: true })
 
 // 切换标签页时加载对应数据
 watch(() => activeTab.value, (tab) => {
   if (tab === 'crop' && crops.value.length === 0) {
     loadCrops()
+  }
+  if (tab === 'device') {
+    setTimeout(initFarmOverviewMap, 300)
   }
 })
 
@@ -1130,6 +1240,11 @@ const showFarmDialog = (farm?: any) => {
     })
   }
   farmDialogVisible.value = true
+  // 直接在这里初始化地图
+  setTimeout(() => {
+    console.log('[Map] showFarmDialog 中初始化地图')
+    initMapPicker()
+  }, 300)
 }
 
 const editFarm = (farm: any) => {
@@ -1435,9 +1550,9 @@ onMounted(() => {
 /* ========== 快捷入口导航 ========== */
 .quick-nav-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .nav-card {
@@ -1445,7 +1560,7 @@ onMounted(() => {
   background: var(--bg-primary, #FFFFFF);
   border: 1px solid var(--border-color, #E2E8F0);
   border-radius: 14px;
-  padding: 20px 12px;
+  padding: 16px 12px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1518,23 +1633,23 @@ onMounted(() => {
 /* ========== 响应式 ========== */
 @media (max-width: 1024px) {
   .quick-nav-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 768px) {
   .quick-nav-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
 
   .nav-card {
-    padding: 16px 8px;
+    padding: 12px 8px;
   }
 
   .nav-icon-wrapper {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 
   .nav-label {
@@ -1556,7 +1671,7 @@ onMounted(() => {
 .farm-detail { }
 
 
-.map-picker { border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden; }
+.map-picker { border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden; min-height: 280px; }
 .map-tip { padding: 8px; background: #f5f7fa; font-size: 12px; color: #909399; text-align: center; }
 .coord-display { padding: 8px; background: #f0f9ff; font-size: 12px; text-align: center; }
 .coord-display .no-coord { color: #909399; }
