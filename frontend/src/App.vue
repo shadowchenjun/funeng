@@ -1,82 +1,104 @@
 <template>
   <el-config-provider :locale="locale">
-    <div class="app-container">
-      <!-- 顶部导航栏 -->
-      <header class="app-header" v-if="showHeader">
-        <div class="header-content">
-          <div class="logo" @click="goToHome">
-            <span class="logo-icon">🌾</span>
-            <span class="logo-text">FunEng</span>
+    <div id="app-root">
+      <!-- 全局顶部加载进度条（Sprint 3） -->
+      <LoadingBar ref="loadingBarRef" />
+
+      <!-- 页面骨架屏（路由切换时显示，Sprint 3） -->
+      <Transition name="page">
+        <PageSkeleton v-if="showPageSkeleton" />
+      </Transition>
+
+      <!-- 主内容 -->
+      <template v-if="!showPageSkeleton">
+        <!-- 顶部导航栏 -->
+        <header class="app-header" v-if="showHeader">
+          <div class="header-content">
+            <div class="logo" @click="goToHome">
+              <span class="logo-icon">🌾</span>
+              <span class="logo-text">FunEng</span>
+            </div>
+
+            <nav class="nav-menu">
+              <router-link
+                v-for="item in navItems"
+                :key="item.path"
+                :to="item.path"
+                class="nav-item"
+                :class="{ active: isActive(item.path) }"
+              >
+                {{ item.label }}
+              </router-link>
+              <router-link
+                v-if="authStore.isAdmin"
+                to="/admin"
+                class="nav-item"
+                :class="{ active: isActive('/admin') }"
+              >
+                管理后台
+              </router-link>
+            </nav>
+
+            <div class="user-section">
+              <template v-if="authStore.isLoggedIn">
+                <el-dropdown @command="handleUserCommand" trigger="click">
+                  <button class="user-btn">
+                    <el-avatar :size="32" :icon="User" />
+                    <span class="username">{{ authStore.userInfo?.username || authStore.user?.username }}</span>
+                    <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
+                  </button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item disabled>
+                        <el-icon><User /></el-icon>
+                        {{ authStore.userInfo?.username || authStore.user?.username }}
+                      </el-dropdown-item>
+                      <el-dropdown-item divided command="logout">
+                        <el-icon><SwitchButton /></el-icon>
+                        退出登录
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
+              <template v-else>
+                <el-button type="primary" @click="goToLogin" class="login-btn">登录</el-button>
+              </template>
+            </div>
           </div>
+        </header>
 
-          <nav class="nav-menu">
-            <router-link
-              v-for="item in navItems"
-              :key="item.path"
-              :to="item.path"
-              class="nav-item"
-              :class="{ active: isActive(item.path) }"
-            >
-              {{ item.label }}
-            </router-link>
-            <router-link
-              v-if="authStore.isAdmin"
-              to="/admin"
-              class="nav-item"
-              :class="{ active: isActive('/admin') }"
-            >
-              管理后台
-            </router-link>
-          </nav>
-
-          <div class="user-section">
-            <template v-if="authStore.isLoggedIn">
-              <el-dropdown @command="handleUserCommand" trigger="click">
-                <button class="user-btn">
-                  <el-avatar :size="32" :icon="User" />
-                  <span class="username">{{ authStore.userInfo?.username || authStore.user?.username }}</span>
-                  <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
-                </button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item disabled>
-                      <el-icon><User /></el-icon>
-                      {{ authStore.userInfo?.username || authStore.user?.username }}
-                    </el-dropdown-item>
-                    <el-dropdown-item divided command="logout">
-                      <el-icon><SwitchButton /></el-icon>
-                      退出登录
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </template>
-            <template v-else>
-              <el-button type="primary" @click="goToLogin" class="login-btn">登录</el-button>
-            </template>
-          </div>
-        </div>
-      </header>
-
-      <!-- 主内容区域 -->
-      <main class="app-main" :class="{ 'no-header': !showHeader }">
-        <router-view />
-      </main>
+        <!-- 主内容区域 -->
+        <main class="app-main" :class="{ 'no-header': !showHeader }">
+          <router-view v-slot="{ Component, route }">
+            <keep-alive :include="cachedViews" :max="5">
+              <component :is="Component" :key="route.path" />
+            </keep-alive>
+          </router-view>
+        </main>
+      </template>
     </div>
   </el-config-provider>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { User, SwitchButton, ArrowDown } from '@element-plus/icons-vue'
 import { useAuthStore } from './stores/auth'
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import LoadingBar from './components/LoadingBar.vue'
+import PageSkeleton from './components/PageSkeleton.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const locale = ref(zhCn)
+const loadingBarRef = ref<InstanceType<typeof LoadingBar> | null>(null)
+const showPageSkeleton = ref(false)
+
+// 需要缓存的视图（保留状态，避免重复加载）
+const cachedViews = ['Products', 'Categories', 'Dashboard']
 
 const navItems = [
   { path: '/', label: '首页' },
@@ -95,8 +117,26 @@ const isActive = (path: string) => {
   return route.path.startsWith(path)
 }
 
+// 监听路由变化，显示加载条（Sprint 3）
+watch(
+  () => route.path,
+  () => {
+    loadingBarRef.value?.start()
+    showPageSkeleton.value = true
+    setTimeout(() => {
+      loadingBarRef.value?.finish()
+      showPageSkeleton.value = false
+    }, 100)
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   authStore.init()
+  // 首屏完成后移除骨架屏
+  setTimeout(() => {
+    showPageSkeleton.value = false
+  }, 300)
 })
 
 const goToHome = () => {
@@ -190,6 +230,28 @@ body {
 ::selection {
   background: var(--primary-light);
   color: var(--primary);
+}
+
+/* 页面切换动画（Sprint 3） */
+.page-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.page-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 路由切换时隐藏旧页面，避免重排 */
+.page-leave-active {
+  position: absolute;
+  width: 100%;
 }
 </style>
 

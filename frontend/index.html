@@ -1,13 +1,64 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>现代农业赋能平台</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- 主题色 -->
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>汤原农文旅云认养平台</title>
+
+  <!-- DNS 预解析（生产环境替换为实际 CDN 域名） -->
+  <link rel="dns-prefetch" href="//picsum.photos">
+
+  <!-- 关键资源预加载 -->
+  <link rel="preload" href="/src/main.ts" as="script">
+  <link rel="preload" href="/src/App.vue" as="document">
+
+  <!-- 字体预加载（生产环境使用实际字体） -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+
+  <!-- 关键 CSS（内联首屏样式） -->
+  <style>
+    /* 消除白屏的最小样式 */
+    body { margin: 0; background: #f5f7fa; }
+    #app { min-height: 100vh; }
+    /* Loading 初始状态 */
+    .app-init-loading {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 99999;
+    }
+    .app-init-loading .logo {
+      font-size: 48px; margin-bottom: 16px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .app-init-loading .text {
+      color: rgba(255,255,255,0.9); font-size: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      letter-spacing: 2px;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 首屏最小化 Loading（CSS 实现，避免 JS 阻塞白屏） -->
+  <div id="app">
+    <div class="app-init-loading">
+      <div class="logo">🌾</div>
+      <div class="text">汤原云认养</div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
 </html>

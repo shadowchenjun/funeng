@@ -1,21 +1,23 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import './assets/responsive.css'
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 
+// Global styles
+import './assets/responsive.css'
+
+// Create app
 const app = createApp(App)
 
-// 注册所有图标
+// Register Element Plus icons globally (used as <el-icon><component :is="iconName" /></el-icon>)
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
 
+// Use plugins
 app.use(createPinia())
 app.use(router)
-app.use(ElementPlus)
 
+// Mount
 app.mount('#app')
