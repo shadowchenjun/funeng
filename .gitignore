@@ -1,4 +1,7 @@
 frontend/node_modules/
+admin/node_modules/
+package-lock.json
+**/package-lock.json
 
 # Python cache
 __pycache__/
