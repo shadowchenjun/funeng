@@ -33,13 +33,38 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     cssCodeSplit: true,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vue: ['vue', 'vue-router'],
-          // Element Plus 由 unplugin-vue-components 按需导入，不再强制打包整个库
-          icons: ['@element-plus/icons-vue'],
-          axios: ['axios']
+        // 动态分 chunk，基于 node_modules 路径
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Vue Router 独立 chunk（通常不需要首屏加载）
+            if (id.includes('vue-router')) {
+              return 'vue-router'
+            }
+            // Pinia 独立 chunk（异步加载）
+            if (id.includes('pinia')) {
+              return 'pinia'
+            }
+            // Element Plus 必须在 vue 之前检查，避免被误入 vue-core
+            // element-plus/es/Alert 这类路径的 @vue 依赖会错误匹配 vue 条件
+            if (id.includes('element-plus')) {
+              return 'element-plus'
+            }
+            // Vue 核心（最小同步 chunk）
+            if (id.includes('vue') || id.includes('@vue')) {
+              return 'vue-core'
+            }
+            // 图标库（按需，只打包实际使用的图标）
+            if (id.includes('@element-plus/icons-vue')) {
+              return 'icons'
+            }
+            // axios
+            if (id.includes('axios')) {
+              return 'axios'
+            }
+          }
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
@@ -63,6 +88,7 @@ export default defineConfig({
     include: [
       'vue',
       'vue-router',
+      'element-plus',
       '@element-plus/icons-vue',
       'axios'
     ]
