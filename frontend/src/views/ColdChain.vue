@@ -1084,22 +1084,98 @@ const initTransportMap = () => {
     }
 
     transportMap = new window.AMap.Map('transportMap', {
-      zoom: 8,
+      zoom: 5,
       center: [117.12, 36.65],
       viewMode: '2D'
     })
 
-    // 添加运输车辆标记
-    if (transports.value.length > 0) {
-      transports.value.forEach((t: any) => {
-        if (t.lat && t.lng) {
-          const marker = new window.AMap.Marker({
-            position: [t.lng, t.lat],
-            title: t.vehicle_number || t.id
-          })
-          transportMap.add(marker)
+    // 地理编码器
+    const geocoder = new window.AMap.Geocoder({ radius: 1000 })
+
+    // 城市坐标缓存，避免重复请求
+    const coordCache: Record<string, [number, number]> = {}
+
+    // 获取坐标（优先用缓存）
+    const getCoord = (city: string): Promise<[number, number] | null> => {
+      return new Promise((resolve) => {
+        if (coordCache[city]) {
+          resolve(coordCache[city])
+          return
         }
+        geocoder.getLocation(city, (status: string, result: any) => {
+          if (status === 'complete' && result.geocodes.length > 0) {
+            const location = result.geocodes[0].location
+            const coord: [number, number] = [location.lng, location.lat]
+            coordCache[city] = coord
+            resolve(coord)
+          } else {
+            resolve(null)
+          }
+        })
       })
+    }
+
+    // 绘制轨迹
+    if (transports.value.length > 0) {
+      // 取第一条运输记录画轨迹（演示用）
+      const t = transports.value[0]
+      const route = t.route || '北京-上海'
+      const cities = route.split('-')
+
+      // 预处理：出发地 -> 目的地
+      const startCity = cities[0] || '北京'
+      const endCity = cities[1] || '上海'
+
+      // 添加起点和终点标记
+      const startCoord = await getCoord(startCity)
+      if (startCoord) {
+        new window.AMap.Marker({
+          position: startCoord,
+          title: `起点: ${startCity}`,
+          icon: new window.AMap.Icon({ size: [16, 16], image: '//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-start.png' })
+        }).addTo(transportMap)
+      }
+
+      const endCoord = await getCoord(endCity)
+      if (endCoord) {
+        new window.AMap.Marker({
+          position: endCoord,
+          title: `终点: ${endCity}`,
+          icon: new window.AMap.Icon({ size: [16, 16], image: '//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-end.png' })
+        }).addTo(transportMap)
+      }
+
+      // 画轨迹线（起点 -> 途经点 -> 终点）
+      if (startCoord && endCoord) {
+        // 生成途经点（模拟）
+        const midCities = ['济南', '南京', '郑州']
+        const path: [number, number][] = [startCoord]
+
+        for (const city of midCities) {
+          const coord = await getCoord(city)
+          if (coord) path.push(coord)
+        }
+        path.push(endCoord)
+
+        // 绘制折线
+        new window.AMap.Polyline({
+          path: path,
+          strokeColor: '#3B82F6',
+          strokeWeight: 4,
+          strokeOpacity: 0.8
+        }).addTo(transportMap)
+
+        // 调整视野
+        transportMap.setFitView()
+      }
+
+      // 添加当前车辆位置标记
+      if (t.lat && t.lng) {
+        new window.AMap.Marker({
+          position: [t.lng, t.lat],
+          title: `当前位置: ${t.vehicle_no || t.id}`
+        }).addTo(transportMap)
+      }
     }
   })
 }
