@@ -190,12 +190,22 @@
       <template #header>
         <span>🗺️ 运输追踪</span>
       </template>
-      
+
+      <!-- 运输路线选择 -->
+      <el-select v-model="selectedTransportId" placeholder="选择运输路线" style="width: 100%; margin-bottom: 15px;" @change="onTransportSelectChange">
+        <el-option
+          v-for="t in transports"
+          :key="t.id"
+          :label="`${t.vehicle_no} - ${t.route} (${t.status === 'in_transit' ? '运输中' : t.status === 'arrived' ? '已到达' : '等待'})`"
+          :value="t.id"
+        />
+      </el-select>
+
       <!-- 运输路线地图 -->
       <div class="transport-map">
         <div id="transportMap" style="width: 100%; height: 250px; border-radius: 8px; margin-bottom: 15px;"></div>
       </div>
-      
+
       <!-- 运输轨迹 -->
       <el-timeline>
         <el-timeline-item
@@ -1118,7 +1128,9 @@ const initTransportMap = () => {
     // 绘制轨迹
     if (transports.value.length > 0) {
       // 取第一条运输记录画轨迹（演示用）
-      const t = transports.value[0]
+      // 根据选中的运输ID获取运输数据
+      const selectedId = selectedTransportId.value || (transports.value.length > 0 ? transports.value[0].id : '')
+      const t = transports.value.find(tr => tr.id === selectedId) || transports.value[0]
       const route = t.route || '北京-上海'
       const cities = route.split('-')
 
@@ -1129,52 +1141,110 @@ const initTransportMap = () => {
       // 添加起点和终点标记
       const startCoord = await getCoord(startCity)
       if (startCoord) {
-        new window.AMap.Marker({
+        const startMarker = new window.AMap.Marker({
           position: startCoord,
           title: `起点: ${startCity}`,
           icon: new window.AMap.Icon({ size: [16, 16], image: '//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-start.png' })
-        }).addTo(transportMap)
+        })
+        transportMap.add(startMarker)
       }
 
       const endCoord = await getCoord(endCity)
       if (endCoord) {
-        new window.AMap.Marker({
+        const endMarker = new window.AMap.Marker({
           position: endCoord,
           title: `终点: ${endCity}`,
           icon: new window.AMap.Icon({ size: [16, 16], image: '//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-end.png' })
-        }).addTo(transportMap)
+        })
+        transportMap.add(endMarker)
       }
 
-      // 画轨迹线（起点 -> 途经点 -> 终点）
-      if (startCoord && endCoord) {
-        // 生成途经点（模拟）
-        const midCities = ['济南', '南京', '郑州']
-        const path: [number, number][] = [startCoord]
+      // 画轨迹线（使用数据库中的route_coords）
+      // route_coords格式: [[lng, lat], [lng, lat], ...]
+      let path: [number, number][] = []
 
-        for (const city of midCities) {
-          const coord = await getCoord(city)
-          if (coord) path.push(coord)
+      // 优先使用route_coords
+      if (t.route_coords) {
+        try {
+          const coords = typeof t.route_coords === 'string' ? JSON.parse(t.route_coords) : t.route_coords
+          if (Array.isArray(coords) && coords.length > 0) {
+            path = coords.map((c: any) => [Number(c[0]), Number(c[1])] as [number, number])
+          }
+        } catch (e) {
+          console.error('解析route_coords失败', e)
         }
-        path.push(endCoord)
+      }
 
+      // 如果没有route_coords，使用waypoints
+      if (path.length === 0 && t.waypoints) {
+        try {
+          const waypoints = typeof t.waypoints === 'string' ? JSON.parse(t.waypoints) : t.waypoints
+          if (Array.isArray(waypoints) && waypoints.length > 0) {
+            path = waypoints.map((w: any) => [Number(w.lng), Number(w.lat)] as [number, number])
+          }
+        } catch (e) {
+          console.error('解析waypoints失败', e)
+        }
+      }
+
+      // 如果都没有，使用地理编码获取起点终点
+      if (path.length === 0 && startCoord && endCoord) {
+        path = [startCoord, endCoord]
+      }
+
+      if (path.length > 0) {
         // 绘制折线
-        new window.AMap.Polyline({
+        const polyline = new window.AMap.Polyline({
           path: path,
           strokeColor: '#3B82F6',
           strokeWeight: 4,
           strokeOpacity: 0.8
-        }).addTo(transportMap)
+        })
+        transportMap.add(polyline)
 
         // 调整视野
         transportMap.setFitView()
       }
 
       // 添加当前车辆位置标记
-      if (t.lat && t.lng) {
-        new window.AMap.Marker({
-          position: [t.lng, t.lat],
+      if (t.current_lat && t.current_lng) {
+        const currentMarker = new window.AMap.Marker({
+          position: [t.current_lng, t.current_lat],
           title: `当前位置: ${t.vehicle_no || t.id}`
-        }).addTo(transportMap)
+        })
+        transportMap.add(currentMarker)
+      }
+
+      // 更新运输轨迹时间线数据（使用真实waypoints）
+      if (t.waypoints) {
+        try {
+          const waypoints = typeof t.waypoints === 'string' ? JSON.parse(t.waypoints) : t.waypoints
+          if (Array.isArray(waypoints) && waypoints.length > 0) {
+            // 计算出发时间（假设每段需要6小时）
+            const baseTime = t.departure_time ? new Date(t.departure_time) : new Date()
+            transportData.value = waypoints.map((w: any, idx: number) => {
+              const isLast = idx === waypoints.length - 1
+              const isFirst = idx === 0
+              let statusText = '运输中'
+              let type = 'primary'
+              let hollow = false
+              if (isFirst) { statusText = '已出发'; type = 'success'; hollow = false }
+              if (isLast) { statusText = t.status === 'arrived' ? '已到达' : '即将到达'; type = 'warning' }
+              const time = new Date(baseTime.getTime() + idx * 6 * 60 * 60 * 1000)
+              return {
+                timestamp: time.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                title: isFirst ? '出发' : (isLast ? '到达' : `途经${w.name}`),
+                location: w.name,
+                temperature: `${t.temperature || -18}°C`,
+                humidity: `${t.humidity || 45}%`,
+                type,
+                hollow
+              }
+            })
+          }
+        } catch (e) {
+          console.error('解析waypoints失败', e)
+        }
       }
     }
   })
@@ -1193,7 +1263,16 @@ const loadTransportData = async () => {
   try {
     const res = await axios.get('/api/cold-chain/transport')
     transports.value = res.data
+    // 默认选中第一条
+    if (res.data.length > 0 && !selectedTransportId.value) {
+      selectedTransportId.value = res.data[0].id
+    }
   } catch (e) { console.error('加载运输数据失败', e) }
+}
+
+// 选择运输路线变化时更新地图
+const onTransportSelectChange = () => {
+  initTransportMap()
 }
 
 // 监听标签页切换，加载对应数据
@@ -1700,6 +1779,7 @@ const loadVehicles = async () => {
 
 // 运输数据
 const transports = ref<any[]>([])
+const selectedTransportId = ref<string>('')
 
 const vehicleDialogVisible = ref(false)
 const isEditVehicle = ref(false)

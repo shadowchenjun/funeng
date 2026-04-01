@@ -53,28 +53,35 @@ class TemperatureAlert(BaseModel):
 @router.get("/transport")
 def get_transports():
     """获取运输列表"""
-    vehicles = ["京A12345", "京B67890", "津C11111", "冀D22222", "鲁E33333"]
-    drivers = ["张师傅", "李师傅", "王师傅", "刘师傅", "陈师傅"]
-    routes = ["北京-上海", "广州-成都", "武汉-西安", "杭州-重庆", "深圳-北京"]
-    statuses = ["运输中", "运输中", "运输中", "到达", "等待"]
-    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM transports ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
     transports = []
-    for i in range(15):
+    for row in rows:
         transports.append({
-            "id": f"T{i+1:04d}",
-            "vehicle_no": random.choice(vehicles),
-            "driver": random.choice(drivers),
-            "route": random.choice(routes),
-            "status": random.choice(statuses),
-            "temperature": round(random.uniform(-5, 8), 1),
-            "humidity": round(random.uniform(40, 80), 1),
-            "location": random.choice(["北京", "上海", "广州", "成都", "武汉", "西安", "杭州", "重庆", "深圳"]),
-            "speed": round(random.uniform(0, 120), 0),
-            "fuel": round(random.uniform(20, 100), 0),
-            "eta": (datetime.now() + timedelta(hours=random.randint(1, 24))).strftime("%Y-%m-%d %H:%M"),
-            "departure_time": (datetime.now() - timedelta(hours=random.randint(2, 48))).strftime("%Y-%m-%d %H:%M"),
-            "cargo": random.choice(["新鲜蔬菜", "水果", "肉类", "冷冻食品", "乳制品"]),
-            "weight": round(random.uniform(5, 30), 1)
+            "id": row["id"],
+            "vehicle_no": row["vehicle_no"],
+            "driver": row["driver"],
+            "route": row["route"],
+            "start_city": row["start_city"],
+            "end_city": row["end_city"],
+            "status": row["status"],
+            "temperature": row["temperature"],
+            "humidity": row["humidity"],
+            "speed": row["speed"],
+            "fuel": row["fuel"],
+            "cargo": row["cargo"],
+            "weight": row["weight"],
+            "current_lat": row["current_lat"],
+            "current_lng": row["current_lng"],
+            "current_location": row["current_location"],
+            "departure_time": row["departure_time"],
+            "eta": row["eta"],
+            "waypoints": row["waypoints"],
+            "route_coords": row["route_coords"]
         })
     return transports
 
@@ -116,23 +123,28 @@ def get_transport_detail(transport_id: str):
 @router.get("/warehouse")
 def get_warehouses():
     """获取仓储列表"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM warehouses ORDER BY id")
+    rows = cursor.fetchall()
+    conn.close()
+
     warehouses = []
-    for i in range(8):
-        capacity = random.randint(500, 2000)
-        used = random.randint(100, int(capacity * 0.9))
-        
+    for row in rows:
         warehouses.append({
-            "id": f"W{i+1:02d}",
-            "name": f"{random.choice(['北京', '上海', '广州', '成都', '武汉'])}中心仓库{i+1}",
-            "address": f"{random.choice(['北京', '上海', '广州', '成都', '武汉'])}市{random.choice(['朝阳', '海淀', '浦东', '天河'])}区",
-            "capacity": capacity,
-            "used": used,
-            "available": capacity - used,
-            "utilization": round(used / capacity * 100, 1),
-            "temperature": round(random.uniform(-5, 10), 1),
-            "humidity": round(random.uniform(40, 70), 1),
-            "products_count": random.randint(10, 100),
-            "alerts": random.randint(0, 5)
+            "id": row["id"],
+            "name": row["name"],
+            "address": row["address"],
+            "lat": row["lat"],
+            "lng": row["lng"],
+            "capacity": row["capacity"],
+            "used": row["used"],
+            "available": row["capacity"] - row["used"] if row["capacity"] else 0,
+            "utilization": round(row["used"] / row["capacity"] * 100, 1) if row["capacity"] else 0,
+            "temperature": row["temperature"],
+            "humidity": row["humidity"],
+            "status": row["status"],
+            "created_at": row["created_at"]
         })
     return warehouses
 
