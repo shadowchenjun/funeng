@@ -771,7 +771,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MapLocation, OfficeBuilding, Cpu, DataAnalysis, Sunny, Cloudy, Grid, WindPower, VideoCamera, Grape, TrendCharts, Link } from '@element-plus/icons-vue'
+import { MapLocation, OfficeBuilding, Cpu, DataAnalysis, Sunny, Cloudy, Grid, WindPower, Grape, TrendCharts, Link } from '@element-plus/icons-vue'
 import axios from 'axios'
 
 declare global {
@@ -1210,13 +1210,6 @@ watch(() => activeTab.value, (tab) => {
   }
 })
 
-// 保存时更新coords字段
-const updateCoords = () => {
-  if (farmForm.lat && farmForm.lng) {
-    farmForm.coords = `${farmForm.lat.toFixed(4)}°N, ${farmForm.lng.toFixed(4)}°E`
-  }
-}
-
 const showFarmDialog = (farm?: any) => {
   if (farm) {
     isEditFarm.value = true
@@ -1324,8 +1317,6 @@ const saveDevice = async () => {
   } catch (e: any) { ElMessage.error('添加失败') }
 }
 
-const icons: any = { temp: Sunny, humidity: Cloudy, soil: Grid, weather: Sunny, camera: VideoCamera }
-
 // 智能决策系统数据
 const cropModels = ref<any[]>([])
 const decisionRecords = ref<any[]>([])
@@ -1353,7 +1344,7 @@ const showDecisionDialog = () => {
 
 const generateDecision = async () => {
   try {
-    const res = await axios.post(`${API_BASE}/decision/generate`, decisionForm)
+    await axios.post(`${API_BASE}/decision/generate`, decisionForm)
     ElMessage.success('决策生成成功')
     decisionDialogVisible.value = false
     loadDecisionRecords()

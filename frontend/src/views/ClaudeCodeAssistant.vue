@@ -223,11 +223,8 @@ const updateLineNumbers = () => {
 // 面板宽度调整
 const startResize = (e: MouseEvent) => {
   e.preventDefault()
-  const startX = e.clientX
-  const panels = document.querySelectorAll('.code-input-panel, .ai-response-panel')
 
-  const onMouseMove = (e: MouseEvent) => {
-    const delta = e.clientX - startX
+  const onMouseMove = (_e: MouseEvent) => {
     // 简化处理，实际项目中可实现拖拽调整
   }
 
@@ -363,7 +360,7 @@ onUnmounted(() => {
 }
 
 .logo-icon {
-  font-size: 24px;
+  font-size: 32px;
 }
 
 .logo-text {

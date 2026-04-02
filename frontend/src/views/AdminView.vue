@@ -77,7 +77,7 @@
         </el-table-column>
         <el-table-column prop="createdAt" label="注册时间" />
         <el-table-column label="操作" width="150">
-          <template #default="{ row }">
+          <template #default="">
             <el-button type="primary" link>编辑</el-button>
             <el-button type="danger" link>删除</el-button>
           </template>

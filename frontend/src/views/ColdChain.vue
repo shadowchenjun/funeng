@@ -212,7 +212,7 @@
           v-for="(item, index) in transportData"
           :key="index"
           :timestamp="item.timestamp"
-          :type="item.type"
+          :type="(item.type as any)"
           :hollow="item.hollow"
         >
           <h4>{{ item.title }}</h4>
@@ -780,7 +780,7 @@
           <el-input-number v-model="receiveForm.qualifiedQty" :min="0" :max="receiveForm.quantity" style="width: 100%" />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="receiveForm.remark" type="textarea" rows="2" placeholder="请输入备注" />
+          <el-input v-model="receiveForm.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -1225,11 +1225,10 @@ const initTransportMap = () => {
             transportData.value = waypoints.map((w: any, idx: number) => {
               const isLast = idx === waypoints.length - 1
               const isFirst = idx === 0
-              let statusText = '运输中'
               let type = 'primary'
               let hollow = false
-              if (isFirst) { statusText = '已出发'; type = 'success'; hollow = false }
-              if (isLast) { statusText = t.status === 'arrived' ? '已到达' : '即将到达'; type = 'warning' }
+              if (isFirst) { type = 'success'; hollow = false }
+              if (isLast) { type = 'warning' }
               const time = new Date(baseTime.getTime() + idx * 6 * 60 * 60 * 1000)
               return {
                 timestamp: time.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),

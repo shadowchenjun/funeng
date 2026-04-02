@@ -39,7 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const groupStyle = computed(() => ({
   display: 'flex',
-  flexDirection: props.direction === 'row' ? 'row' : 'column',
+  flexDirection: (props.direction === 'row' ? 'row' : 'column') as 'row' | 'column',
   gap: typeof props.gap === 'number' ? `${props.gap}px` : props.gap
 }))
 </script>

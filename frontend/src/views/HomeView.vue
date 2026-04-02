@@ -56,7 +56,7 @@
 
       <div class="modules-grid">
         <div
-          v-for="(module, index) in modules"
+          v-for="module in modules"
           :key="module.name"
           class="module-card"
           :style="{ '--accent-color': module.color }"
@@ -156,8 +156,6 @@ import {
   Management,
   ShoppingCart,
   UserFilled,
-  SetUp,
-  Sell,
   ColdDrink,
   Wallet
 } from '@element-plus/icons-vue'

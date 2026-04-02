@@ -10,7 +10,7 @@ const API_BASE = '/api'
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || '')
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
-  const userInfo = ref(null)
+  const userInfo = ref<{ is_admin?: boolean; username?: string } | null>(null)
 
   // 修复：如果 localStorage 存的是 "undefined" 字符串
   if (!user.value || user.value === 'undefined') {

@@ -62,7 +62,7 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150">
-          <template #default="{ row }">
+          <template #default="">
             <el-button type="primary" link>详情</el-button>
             <el-button type="success" link>催收</el-button>
           </template>
