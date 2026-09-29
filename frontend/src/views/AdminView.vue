@@ -2,7 +2,7 @@
   <div class="admin-container">
     <div class="header">
       <h2>⚙️ 管理后台</h2>
-      <el-button type="primary" @click="refreshData">
+      <el-button type="primary" :loading="loading" @click="refreshData">
         刷新数据
       </el-button>
     </div>
@@ -51,70 +51,60 @@
       <template #header>
         <div class="card-header">
           <h3>👥 用户管理</h3>
-          <el-button type="primary" size="small">添加用户</el-button>
+          <el-input
+            v-model="search"
+            placeholder="搜索用户名 / 邮箱 / 姓名"
+            size="small"
+            clearable
+            style="width: 240px"
+            @keyup.enter="fetchUsers"
+            @clear="fetchUsers"
+          />
         </div>
       </template>
-      <el-table :data="users" style="width: 100%">
+      <el-table :data="users" v-loading="loading" empty-text="暂无用户" style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" />
         <el-table-column prop="email" label="邮箱" />
-        <el-table-column prop="role" label="角色" width="120">
+        <el-table-column label="角色" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : 'success'">
-              {{ row.role === 'admin' ? '管理员' : '普通用户' }}
+            <el-tag :type="row.is_admin ? 'danger' : 'success'">
+              {{ row.is_admin ? '管理员' : '普通用户' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column label="状态" width="140">
           <template #default="{ row }">
-            <el-switch 
-              v-model="row.status" 
-              active-text="启用" 
+            <el-switch
+              v-model="row.is_active"
+              active-text="启用"
               inactive-text="禁用"
+              :disabled="row.id === currentUserId"
               @change="handleStatusChange(row)"
             />
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="注册时间" />
-        <el-table-column label="操作" width="150">
-          <template #default="">
-            <el-button type="primary" link>编辑</el-button>
-            <el-button type="danger" link>删除</el-button>
-          </template>
+        <el-table-column label="注册时间" width="180">
+          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
         </el-table-column>
       </el-table>
     </el-card>
     
-    <!-- 系统设置 -->
-    <el-card class="section-card">
-      <template #header>
-        <h3>🔧 系统设置</h3>
-      </template>
-      <el-form :model="systemSettings" label-width="150px">
-        <el-form-item label="系统名称">
-          <el-input v-model="systemSettings.systemName" />
-        </el-form-item>
-        <el-form-item label="系统描述">
-          <el-input v-model="systemSettings.systemDesc" type="textarea" :rows="3" />
-        </el-form-item>
-        <el-form-item label="维护模式">
-          <el-switch v-model="systemSettings.maintenanceMode" active-text="开启" inactive-text="关闭" />
-        </el-form-item>
-        <el-form-item label="用户注册">
-          <el-switch v-model="systemSettings.allowRegister" active-text="允许" inactive-text="禁止" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="saveSettings">保存设置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      title="认养、土地、设备、溯源、营销及系统配置等运营管理，请使用独立的管理后台（admin/）。"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
+import { getErrorMessage } from '../utils/error'
 import { ArrowRight, DataAnalysis, TrendCharts, Van, Wallet } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -154,38 +144,81 @@ const goToModule = (path: string) => {
   router.push(path)
 }
 
+interface UserRow {
+  id: number
+  username: string
+  email: string | null
+  full_name: string | null
+  is_active: boolean
+  is_admin: boolean
+  created_at: string
+}
+
+interface UserStats {
+  total_users: number
+  active_users: number
+  inactive_users: number
+  admin_users: number
+}
+
+const loading = ref(false)
+const search = ref('')
+const users = ref<UserRow[]>([])
+const currentUserId = (JSON.parse(localStorage.getItem('user') || 'null') as { id?: number } | null)?.id
+
 const stats = ref([
-  { title: '总用户数', value: '1,028', color: '#409EFF' },
-  { title: '活跃用户', value: '856', color: '#67C23A' },
-  { title: '管理员', value: '5', color: '#E6A23C' },
-  { title: '总订单', value: '3,256', color: '#F56C6C' }
+  { title: '总用户数', value: '—', color: '#409EFF' },
+  { title: '活跃用户', value: '—', color: '#67C23A' },
+  { title: '管理员', value: '—', color: '#E6A23C' },
+  { title: '总订单', value: '—', color: '#F56C6C' }
 ])
 
-const users = ref([
-  { id: 1, username: 'admin', email: 'admin@funeng.com', role: 'admin', status: true, createdAt: '2026-01-01' },
-  { id: 2, username: 'zhangsan', email: 'zhangsan@example.com', role: 'user', status: true, createdAt: '2026-01-15' },
-  { id: 3, username: 'lisi', email: 'lisi@example.com', role: 'user', status: true, createdAt: '2026-02-01' },
-  { id: 4, username: 'wangwu', email: 'wangwu@example.com', role: 'user', status: false, createdAt: '2026-02-10' }
-])
+const formatDate = (value: string) => value.replace('T', ' ').slice(0, 19)
 
-const systemSettings = reactive({
-  systemName: '现代农业赋能平台',
-  systemDesc: '专业的农产品管理和销售平台',
-  maintenanceMode: false,
-  allowRegister: true
-})
-
-const refreshData = () => {
-  ElMessage.success('数据已刷新')
+const fetchStats = async () => {
+  const [userRes, publicRes] = await Promise.all([
+    axios.get<UserStats>('/api/users/stats'),
+    axios.get<{ order_count: number }>('/api/public/stats')
+  ])
+  const n = (v: number) => v.toLocaleString('zh-CN')
+  stats.value = [
+    { title: '总用户数', value: n(userRes.data.total_users), color: '#409EFF' },
+    { title: '活跃用户', value: n(userRes.data.active_users), color: '#67C23A' },
+    { title: '管理员', value: n(userRes.data.admin_users), color: '#E6A23C' },
+    { title: '总订单', value: n(publicRes.data.order_count), color: '#F56C6C' }
+  ]
 }
 
-const handleStatusChange = (user: any) => {
-  ElMessage.success(`用户 ${user.username} 状态已更新`)
+const fetchUsers = async () => {
+  const { data } = await axios.get<UserRow[]>('/api/users/', {
+    params: { limit: 100, search: search.value || undefined }
+  })
+  users.value = data
 }
 
-const saveSettings = () => {
-  ElMessage.success('系统设置已保存')
+const refreshData = async () => {
+  loading.value = true
+  try {
+    await Promise.all([fetchStats(), fetchUsers()])
+  } catch (e) {
+    ElMessage.error(getErrorMessage(e, '加载数据失败'))
+  } finally {
+    loading.value = false
+  }
 }
+
+const handleStatusChange = async (user: UserRow) => {
+  try {
+    await axios.patch(`/api/users/${user.id}/status`, null, { params: { is_active: user.is_active } })
+    ElMessage.success(`用户 ${user.username} 已${user.is_active ? '启用' : '禁用'}`)
+    await fetchStats()
+  } catch (e) {
+    user.is_active = !user.is_active // 回滚开关状态
+    ElMessage.error(getErrorMessage(e, '状态更新失败'))
+  }
+}
+
+onMounted(refreshData)
 </script>
 
 <style scoped>

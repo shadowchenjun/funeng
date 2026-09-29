@@ -4,6 +4,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { getErrorMessage } from '../utils/error'
 
 const API_BASE = '/api'
 
@@ -55,8 +56,8 @@ export const useAuthStore = defineStore('auth', () => {
       updateAxiosConfig()
       
       return { success: true }
-    } catch (error: any) {
-      const message = error.response?.data?.detail || '登录失败'
+    } catch (error) {
+      const message = getErrorMessage(error, '登录失败')
       return { success: false, message }
     }
   }
@@ -71,8 +72,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await axios.post(`${API_BASE}/auth/register`, userData)
       return { success: true, data: response.data }
-    } catch (error: any) {
-      const message = error.response?.data?.detail || '注册失败'
+    } catch (error) {
+      const message = getErrorMessage(error, '注册失败')
       return { success: false, message }
     }
   }

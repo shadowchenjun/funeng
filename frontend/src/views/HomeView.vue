@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import {
   DataAnalysis,
   Box,
@@ -165,6 +166,7 @@ const isLoggedIn = ref(false)
 
 onMounted(() => {
   isLoggedIn.value = !!localStorage.getItem('token')
+  loadStats()
 })
 
 const modules = [
@@ -247,12 +249,37 @@ const features = [
   }
 ]
 
-const stats = [
-  { value: '1,028', label: '注册用户' },
-  { value: '3,256', label: '订单数量' },
-  { value: '¥128.5万', label: '总销售额' },
-  { value: '156', label: '在售商品' }
-]
+interface PublicStats {
+  user_count: number
+  order_count: number
+  total_revenue: number
+  product_count: number
+}
+
+const formatCount = (n: number) => n.toLocaleString('zh-CN')
+const formatRevenue = (n: number) => (n >= 10000 ? `¥${(n / 10000).toFixed(1)}万` : `¥${n.toLocaleString('zh-CN')}`)
+
+// 加载前显示占位符；公开页面加载失败时保持占位，不打扰访客
+const stats = ref([
+  { value: '—', label: '注册用户' },
+  { value: '—', label: '订单数量' },
+  { value: '—', label: '总销售额' },
+  { value: '—', label: '在售商品' }
+])
+
+const loadStats = async () => {
+  try {
+    const { data } = await axios.get<PublicStats>('/api/public/stats')
+    stats.value = [
+      { value: formatCount(data.user_count), label: '注册用户' },
+      { value: formatCount(data.order_count), label: '订单数量' },
+      { value: formatRevenue(data.total_revenue), label: '总销售额' },
+      { value: formatCount(data.product_count), label: '在售商品' }
+    ]
+  } catch {
+    // 保留占位符
+  }
+}
 
 const goToModule = (path: string) => {
   router.push(path)

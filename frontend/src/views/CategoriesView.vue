@@ -17,7 +17,7 @@
     </header>
 
     <!-- 分类网格 -->
-    <div class="categories-grid">
+    <div class="categories-grid" v-loading="loading">
       <div
         v-for="category in categories"
         :key="category.id"
@@ -60,7 +60,13 @@
       </div>
 
       <!-- 空状态 -->
-      <div v-if="categories.length === 0" class="empty-state">
+      <div v-if="loadError" class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <h3>分类加载失败</h3>
+        <p>{{ loadError }}</p>
+        <el-button type="primary" @click="fetchCategories">重试</el-button>
+      </div>
+      <div v-else-if="categories.length === 0 && !loading" class="empty-state">
         <div class="empty-icon">📂</div>
         <h3>暂无分类</h3>
         <p>点击上方按钮添加第一个分类</p>
@@ -116,9 +122,17 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Apple, Food, Crop, Chicken, Box } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
+import { getErrorMessage } from '../utils/error'
 
 const authStore = useAuthStore()
 const isAdmin = computed(() => authStore.isAdmin)
+
+interface ApiCategory {
+  id: number
+  name: string
+  icon?: string | null
+  color?: string | null
+}
 
 interface Category {
   id: number
@@ -148,7 +162,12 @@ const isEmoji = (str: string) => {
 const categories = ref<Category[]>([])
 
 // 加载分类和产品数量
+const loading = ref(false)
+const loadError = ref('')
+
 const fetchCategories = async () => {
+  loading.value = true
+  loadError.value = ''
   try {
     // 并行获取分类和产品数据
     const [catRes, prodRes] = await Promise.all([
@@ -159,14 +178,14 @@ const fetchCategories = async () => {
     // 统计每个分类的产品数量
     const productCounts: Record<number, number> = {}
     const products = prodRes.data.items || prodRes.data || []
-    products.forEach((p: any) => {
+    products.forEach((p: { category_id?: number | null }) => {
       const catId = p.category_id
       if (catId) {
         productCounts[catId] = (productCounts[catId] || 0) + 1
       }
     })
 
-    categories.value = catRes.data.map((c: any) => ({
+    categories.value = (catRes.data as ApiCategory[]).map((c) => ({
       id: c.id,
       name: c.name,
       icon: c.icon || 'Box',
@@ -176,14 +195,11 @@ const fetchCategories = async () => {
     }))
   } catch (e) {
     console.error('加载分类失败', e)
-    // 使用模拟数据
-    categories.value = [
-      { id: 1, name: '水果', icon: 'Apple', color: '#f56c6c', productCount: 25, status: 'active' },
-      { id: 2, name: '蔬菜', icon: 'Food', color: '#67c23a', productCount: 42, status: 'active' },
-      { id: 3, name: '粮食', icon: 'Rice', color: '#e6a23c', productCount: 18, status: 'active' },
-      { id: 4, name: '畜牧', icon: 'Chicken', color: '#909399', productCount: 12, status: 'active' },
-      { id: 5, name: '其他', icon: 'Box', color: '#409eff', productCount: 8, status: 'active' }
-    ]
+    loadError.value = getErrorMessage(e, '无法获取分类数据，请稍后重试')
+    categories.value = []
+    ElMessage.error(loadError.value)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -249,8 +265,8 @@ const saveCategory = async () => {
     }
     dialogVisible.value = false
     await fetchCategories()
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+  } catch (e) {
+    ElMessage.error(getErrorMessage(e, '操作失败'))
   }
 }
 
@@ -265,8 +281,9 @@ const deleteCategory = async (category: Category) => {
     await axios.delete(`/api/categories/${category.id}`)
     ElMessage.success('分类删除成功！')
     await fetchCategories()
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || '删除失败')
+  } catch (e) {
+    // 用户在确认框点「取消」时 ElMessageBox 以 'cancel' 拒绝，不应提示失败
+    if (e !== 'cancel') ElMessage.error(getErrorMessage(e, '删除失败'))
   }
 }
 </script>

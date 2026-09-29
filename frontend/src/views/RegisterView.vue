@@ -57,7 +57,7 @@ const registerForm = reactive({
   confirmPassword: ''
 })
 
-const validatePassword = (_rule: any, value: any, callback: any) => {
+const validatePassword = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
   if (value !== registerForm.password) {
     callback(new Error('两次输入的密码不一致'))
   } else {
@@ -105,8 +105,8 @@ const handleRegister = async () => {
         } else {
           ElMessage.error(result.message || '注册失败')
         }
-      } catch (error: any) {
-        ElMessage.error(error.message || '注册失败，请稍后重试')
+      } catch (error) {
+        ElMessage.error(error instanceof Error ? error.message : '注册失败，请稍后重试')
       } finally {
         loading.value = false
       }

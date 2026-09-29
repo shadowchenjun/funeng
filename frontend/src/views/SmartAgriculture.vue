@@ -953,10 +953,23 @@ const fetchDevices = async () => {
   } catch (e) { console.error('获取设备失败', e) }
 }
 
-// 监测数据
-const monitorData = reactive({
-  temperature: 25, humidity: 65, soilMoisture: 72, light: 8500, co2: 420, rainfall: 0
+// 监测数据（来自 /monitor：各监测站最新读数均值，降雨量为近 24 小时累计）
+type MonitorKey = 'temperature' | 'humidity' | 'soilMoisture' | 'light' | 'co2' | 'rainfall'
+const monitorKeys: MonitorKey[] = ['temperature', 'humidity', 'soilMoisture', 'light', 'co2', 'rainfall']
+const monitorData = reactive<Record<MonitorKey, number | string>>({
+  temperature: '--', humidity: '--', soilMoisture: '--', light: '--', co2: '--', rainfall: '--'
 })
+const loadMonitorData = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/monitor`)
+    monitorKeys.forEach((k) => {
+      const v = res.data?.[k]
+      monitorData[k] = v === null || v === undefined ? '--' : v
+    })
+  } catch (e) {
+    console.error('加载环境监测数据失败', e)
+  }
+}
 
 onMounted(() => {
   window.scrollTo(0, 0)
@@ -1391,6 +1404,7 @@ onMounted(() => {
   fetchLands()
   loadCrops()
   fetchDevices()
+  loadMonitorData()
   loadSoilData()
   loadWeatherData()
   loadIrrigationData()

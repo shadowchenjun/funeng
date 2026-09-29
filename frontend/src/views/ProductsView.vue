@@ -195,6 +195,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import ImageUpload from '../components/ImageUpload.vue'
 import { useAuthStore } from '../stores/auth'
+import { getErrorMessage } from '../utils/error'
 
 const authStore = useAuthStore()
 const isAdmin = computed(() => authStore.isAdmin)
@@ -256,7 +257,7 @@ onMounted(() => {
 const fetchProducts = async () => {
   loading.value = true
   try {
-    const params: any = {
+    const params: Record<string, string | number> = {
       skip: (currentPage.value - 1) * pageSize.value,
       limit: pageSize.value
     }
@@ -338,8 +339,8 @@ const saveProduct = async () => {
     }
     dialogVisible.value = false
     fetchProducts()
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '操作失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '操作失败'))
   } finally {
     saving.value = false
   }

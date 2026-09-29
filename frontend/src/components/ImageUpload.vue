@@ -43,6 +43,7 @@ import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { getErrorMessage } from '../utils/error'
 
 const props = defineProps<{
   modelValue?: string
@@ -142,8 +143,8 @@ async function uploadFile(file: File) {
     emit('update:modelValue', url)
     
     ElMessage.success('图片上传成功')
-  } catch (err: any) {
-    error.value = err.response?.data?.detail || '上传失败，请重试'
+  } catch (err) {
+    error.value = getErrorMessage(err, '上传失败，请重试')
     previewUrl.value = ''
     setTimeout(() => { error.value = '' }, 3000)
   } finally {

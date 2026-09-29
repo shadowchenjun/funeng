@@ -1487,38 +1487,46 @@ const showAppointmentDetail = (row: any) => {
   appointmentDetailVisible.value = true
 }
 
-// 签到
+// 签到（持久化到后端：待签到 -> 已签到）
 const signInAppointment = async (row: any) => {
   try {
     await ElMessageBox.confirm(`确认车辆 ${row.vehicle_no} 签到吗？`, '签到确认', { type: 'info' })
-    row.status = '已签到'
+    await axios.put(`/api/cold-chain/inbound/appointments/${row.id}/checkin`)
     ElMessage.success('签到成功')
     appointmentDetailVisible.value = false
-  } catch (e) {
-    // 用户取消
+    await loadInboundData()
+  } catch (e: any) {
+    if (e !== 'cancel' && e?.action !== 'cancel') {
+      ElMessage.error(e?.response?.data?.detail || '签到失败')
+    }
   }
 }
 
-// 开始收货
+// 开始收货（持久化到后端：已签到 -> 收货中，并生成入库单）
 const startReceive = async (row: any) => {
-  row.status = '收货中'
-  ElMessage.success('已开始收货')
-  appointmentDetailVisible.value = false
+  try {
+    const res = await axios.put(`/api/cold-chain/inbound/appointments/${row.id}/receive`)
+    ElMessage.success(`已开始收货，生成入库单 ${res.data.order_id || ''}`)
+    appointmentDetailVisible.value = false
+    await loadInboundData()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '开始收货失败')
+  }
 }
 
 // 入库单详情
 const inboundDetailVisible = ref(false)
 const currentInboundOrder = ref<any>(null)
-const showInboundDetail = (row: any) => {
-  // 模拟货物明细
-  row.items = Array.from({ length: row.total_items || 3 }, (_, i) => ({
-    sku: `SKU${String(i + 1).padStart(3, '0')}`,
-    name: `商品${i + 1}`,
-    expected_qty: Math.floor(row.total_quantity / (row.total_items || 3)),
-    received_qty: Math.floor(Math.random() * 50),
-    qualified_qty: 0,
-    status: '待收货'
-  }))
+const showInboundDetail = async (row: any) => {
+  // 货物明细来自后端（/inbound/orders 列表已含 items；缺失时拉取详情兜底）
+  if (!row.items || row.items.length === 0) {
+    try {
+      const res = await axios.get(`/api/cold-chain/inbound/orders/${row.id}`)
+      Object.assign(row, res.data)
+    } catch (e) {
+      console.error('加载入库单详情失败', e)
+    }
+  }
   currentInboundOrder.value = row
   inboundDetailVisible.value = true
 }
@@ -1535,18 +1543,16 @@ const receiveForm = ref({
   maxQty: 0
 })
 
-const receiveGoods = (row: any) => {
-  // 确保有商品列表，如果没有则动态生成
+const receiveGoods = async (row: any) => {
   let items = row.items
   if (!items || items.length === 0) {
-    items = Array.from({ length: row.total_items || 3 }, (_, i) => ({
-      sku: `SKU${String(i + 1).padStart(3, '0')}`,
-      name: `商品${i + 1}`,
-      expected_qty: Math.floor(row.total_quantity / (row.total_items || 3)),
-      received_qty: Math.floor(Math.random() * 50),
-      qualified_qty: 0,
-      status: '待收货'
-    }))
+    try {
+      const res = await axios.get(`/api/cold-chain/inbound/orders/${row.id}`)
+      Object.assign(row, res.data)
+      items = row.items
+    } catch (e) {
+      console.error('加载入库单详情失败', e)
+    }
   }
   receiveForm.value = {
     orderId: row.id,
@@ -1570,37 +1576,40 @@ const submitReceive = async () => {
     return
   }
   
-  // 更新订单状态
-  const order = currentInboundOrder.value
-  if (order) {
-    order.received_quantity = (order.received_quantity || 0) + receiveForm.value.quantity
-    order.qualified_quantity = (order.qualified_quantity || 0) + receiveForm.value.qualifiedQty
-    
-    // 更新货物明细
-    const item = order.items?.find((i: any) => i.sku === receiveForm.value.sku)
-    if (item) {
-      item.received_qty = (item.received_qty || 0) + receiveForm.value.quantity
-      item.qualified_qty = (item.qualified_qty || 0) + receiveForm.value.qualifiedQty
-      item.status = item.received_qty >= item.expected_qty ? '已完成' : '部分收货'
-    }
-    
-    // 判断订单是否完成
-    if (order.received_quantity >= order.total_quantity) {
-      order.status = '已完成'
-    } else {
-      order.status = '收货中'
-    }
+  // 收货登记持久化到后端（累加 SKU 已收/合格数量，收齐后订单自动变为已入库）
+  try {
+    await axios.post(`/api/cold-chain/inbound/orders/${receiveForm.value.orderId}/receive`, {
+      sku: receiveForm.value.sku,
+      quantity: receiveForm.value.quantity,
+      qualified_qty: receiveForm.value.qualifiedQty,
+      remark: receiveForm.value.remark || undefined
+    })
+    ElMessage.success('收货成功')
+    receiveDialogVisible.value = false
+    inboundDetailVisible.value = false
+    await loadInboundData()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '收货失败')
   }
-  
-  ElMessage.success('收货成功')
-  receiveDialogVisible.value = false
-  inboundDetailVisible.value = false
 }
 
-// 确认上架
-const confirmPutaway = (row: any) => {
-  ElMessage.success(`已确认上架到 ${row.suggested_location}`)
-  putawaySuggestions.value = putawaySuggestions.value.filter(item => item.sku !== row.sku)
+// 确认上架（持久化到后端：记录货位并占用温区托位）
+const confirmPutaway = async (row: any) => {
+  if (!row.suggested_location || !row.zone_id) {
+    ElMessage.warning('该 SKU 无可用温区，无法上架')
+    return
+  }
+  try {
+    await axios.post(`/api/cold-chain/inbound/orders/${row.order_id}/putaway`, {
+      sku: row.sku,
+      zone_id: row.zone_id,
+      location: row.suggested_location
+    })
+    ElMessage.success(`已确认上架到 ${row.suggested_location}`)
+    await loadPutawaySuggestions()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '上架失败')
+  }
 }
 
 // 入库管理数据
@@ -1617,60 +1626,31 @@ const loadInboundData = async () => {
     appointmentList.value = apptRes.data
     inboundOrders.value = ordersRes.data
     
-    // 模拟上架建议数据 - 带智能推荐逻辑
-    const tempZones = [
-      { name: '冷藏区A', temp: '0-5°C', suitable: ['蔬菜', '水果', '乳制品'] },
-      { name: '冷藏区B', temp: '0-5°C', suitable: ['蔬菜', '水果'] },
-      { name: '冷冻区A', temp: '-18°C', suitable: ['肉类', '冷冻食品', '海鲜'] },
-      { name: '常温区A', temp: '15-25°C', suitable: ['干果', '罐头', '饮料'] }
-    ]
-    
-    const products = [
-      { name: '新鲜草莓', temp: '冷藏', zone: 0 },
-      { name: '进口车厘子', temp: '冷藏', zone: 1 },
-      { name: '冷冻鸡胸肉', temp: '冷冻', zone: 2 },
-      { name: '冷冻海鲜', temp: '冷冻', zone: 2 },
-      { name: '纯牛奶', temp: '冷藏', zone: 0 },
-      { name: '新鲜蔬菜', temp: '冷藏', zone: 1 },
-      { name: '矿泉水', temp: '常温', zone: 3 },
-      { name: '薯片零食', temp: '常温', zone: 3 },
-      { name: '冷冻猪肉', temp: '冷冻', zone: 2 },
-      { name: '新鲜苹果', temp: '冷藏', zone: 0 }
-    ]
-    
-    putawaySuggestions.value = products.map((product, i) => {
-      const zone = tempZones[product.zone]
-      // 智能推荐逻辑：根据温度匹配度和库存情况计算置信度
-      const tempMatch = Math.random() * 0.15 + 0.85 // 温度匹配度
-      const inventoryBalance = Math.random() * 0.2 + 0.8 // 库存均衡度
-      const proximityScore = Math.random() * 0.15 + 0.85 // 靠近同类/出库口
-      
-      const confidence = (tempMatch * 0.5 + inventoryBalance * 0.3 + proximityScore * 0.2)
-      
-      // 推荐原因
-      let reason = '温度匹配'
-      if (confidence > 0.92) {
-        reason = Math.random() > 0.5 ? '温度匹配 + 库存均衡' : '温度匹配 + 靠近出库口'
-      } else if (tempMatch > 0.9) {
-        reason = '温度匹配'
-      } else if (inventoryBalance > 0.9) {
-        reason = '库存均衡'
-      } else {
-        reason = '靠近同类商品'
-      }
-      
-      return {
-        sku: `SKU${String(i + 1).padStart(3, '0')}`,
-        name: product.name,
-        quantity: Math.floor(Math.random() * 200) + 50,
-        suggested_location: `${zone.name}-${String(Math.floor(i / 3) + 1).padStart(2, '0')}-${String((i % 3) + 1).padStart(2, '0')}`,
-        zone: zone.name,
-        reason: reason,
-        confidence: confidence
-      }
-    })
+    // 上架建议来自后端（按温度匹配、温区剩余容量与距出库口距离确定性打分）
+    await loadPutawaySuggestions(ordersRes.data)
   } catch (e) {
     console.error('加载入库数据失败', e)
+  }
+}
+
+// 加载上架建议：取第一个仍有未上架货物的入库单
+const loadPutawaySuggestions = async (orders?: any[]) => {
+  try {
+    let list = orders
+    if (!list) {
+      const res = await axios.get('/api/cold-chain/inbound/orders')
+      list = res.data
+    }
+    const pending = (list || []).find((o: any) =>
+      (o.items || []).some((i: any) => !i.zone_id))
+    if (!pending) {
+      putawaySuggestions.value = []
+      return
+    }
+    const res = await axios.get(`/api/cold-chain/inbound/suggestions/${pending.id}`)
+    putawaySuggestions.value = res.data
+  } catch (e) {
+    console.error('加载上架建议失败', e)
   }
 }
 

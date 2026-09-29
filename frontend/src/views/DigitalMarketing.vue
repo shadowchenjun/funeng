@@ -55,8 +55,8 @@
               </el-icon>
             </div>
             <h4>直播带货</h4>
-            <p>直播: <span class="highlight">3</span></p>
-            <p>销售额: <span class="highlight">¥12,580</span></p>
+            <p>直播: <span class="highlight">{{ channelStats.liveSessions }}</span></p>
+            <p>销售额: <span class="highlight">{{ formatMoney(channelStats.liveSales) }}</span></p>
           </el-card>
         </el-col>
         <el-col :span="8">
@@ -67,8 +67,8 @@
               </el-icon>
             </div>
             <h4>社交推广</h4>
-            <p>粉丝: <span class="highlight">28,560</span></p>
-            <p>新增: <span class="highlight">+856</span></p>
+            <p>粉丝: <span class="highlight">{{ formatNumber(channelStats.followers) }}</span></p>
+            <p>新增: <span class="highlight">+{{ formatNumber(channelStats.newFollowers) }}</span></p>
           </el-card>
         </el-col>
         <el-col :span="8">
@@ -79,8 +79,8 @@
               </el-icon>
             </div>
             <h4>电商管理</h4>
-            <p>商品: <span class="highlight">156</span></p>
-            <p>订单: <span class="highlight">23</span></p>
+            <p>商品: <span class="highlight">{{ channelStats.products }}</span></p>
+            <p>订单: <span class="highlight">{{ channelStats.pendingOrders }}</span></p>
           </el-card>
         </el-col>
       </el-row>
@@ -163,8 +163,8 @@
           <el-card class="channel-detail-card">
             <el-icon :size="32" color="#07C160"><VideoCamera /></el-icon>
             <h4>直播带货</h4>
-            <p>进行中: 3</p>
-            <p>今日销售额: ¥12,580</p>
+            <p>进行中: {{ channelStats.liveSessions }}</p>
+            <p>今日销售额: {{ formatMoney(channelStats.liveSales) }}</p>
             <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
           </el-card>
         </el-col>
@@ -172,8 +172,8 @@
           <el-card class="channel-detail-card">
             <el-icon :size="32" color="#FF6B00"><ChatDotRound /></el-icon>
             <h4>社交推广</h4>
-            <p>粉丝: 28,560</p>
-            <p>今日新增: +856</p>
+            <p>粉丝: {{ formatNumber(channelStats.followers) }}</p>
+            <p>今日新增: +{{ formatNumber(channelStats.newFollowers) }}</p>
             <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
           </el-card>
         </el-col>
@@ -181,8 +181,8 @@
           <el-card class="channel-detail-card">
             <el-icon :size="32" color="#0089FF"><ShoppingCart /></el-icon>
             <h4>电商管理</h4>
-            <p>在售: 156</p>
-            <p>待处理: 23</p>
+            <p>在售: {{ channelStats.products }}</p>
+            <p>待处理: {{ channelStats.pendingOrders }}</p>
             <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
           </el-card>
         </el-col>
@@ -190,8 +190,8 @@
           <el-card class="channel-detail-card">
             <el-icon :size="32" color="#F56C6C"><Message /></el-icon>
             <h4>消息推送</h4>
-            <p>发送: 1,280</p>
-            <p>打开率: 68%</p>
+            <p>发送: {{ formatNumber(channelStats.pushSent) }}</p>
+            <p>打开率: {{ channelStats.pushOpenRate }}%</p>
             <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
           </el-card>
         </el-col>
@@ -382,13 +382,48 @@ const loadCampaigns = async () => {
   }
 }
 
-// 营销数据
+// 营销数据（来自 /analytics：今日指标及与昨日对比）
+const formatNumber = (n: number) => Number(n || 0).toLocaleString('zh-CN')
+const formatMoney = (n: number) => `¥${Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`
+
 const marketingStats = ref([
-  { title: '今日销售额', value: '¥28,560', color: '#67C23A', trend: 12.5 },
-  { title: '访客数量', value: '3,256', color: '#409EFF', trend: 8.2 },
-  { title: '转化率', value: '4.8%', color: '#E6A23C', trend: -2.1 },
-  { title: '新增会员', value: '128', color: '#F56C6C', trend: 15.3 }
+  { title: '今日销售额', value: '--', color: '#67C23A', trend: 0 },
+  { title: '访客数量', value: '--', color: '#409EFF', trend: 0 },
+  { title: '转化率', value: '--', color: '#E6A23C', trend: 0 },
+  { title: '新增会员', value: '--', color: '#F56C6C', trend: 0 }
 ])
+
+const channelStats = reactive({
+  liveSessions: 0, liveSales: 0, followers: 0, newFollowers: 0,
+  products: 0, pendingOrders: 0, pushSent: 0, pushOpenRate: 0
+})
+
+const loadAnalytics = async () => {
+  try {
+    const res = await axios.get('/api/digital-marketing/analytics')
+    const t = res.data.today || {}
+    const ch = res.data.channels || {}
+    marketingStats.value = [
+      { title: '今日销售额', value: formatMoney(t.sales), color: '#67C23A', trend: t.sales_trend || 0 },
+      { title: '访客数量', value: formatNumber(t.visitors), color: '#409EFF', trend: t.visitors_trend || 0 },
+      { title: '转化率', value: `${t.conversion_rate || 0}%`, color: '#E6A23C', trend: t.conversion_trend || 0 },
+      { title: '新增会员', value: formatNumber(t.new_members), color: '#F56C6C', trend: t.new_members_trend || 0 }
+    ]
+    Object.assign(channelStats, {
+      liveSessions: ch.live?.sessions || 0,
+      liveSales: ch.live?.sales || 0,
+      followers: ch.social?.followers || 0,
+      newFollowers: ch.social?.new_followers || 0,
+      products: ch.ecommerce?.products || 0,
+      pendingOrders: ch.ecommerce?.pending_orders || 0,
+      pushSent: ch.push?.sent || 0,
+      pushOpenRate: ch.push?.open_rate || 0
+    })
+  } catch (e) {
+    console.error('加载营销数据失败', e)
+    ElMessage.error('加载营销数据失败')
+  }
+}
 
 // 会员对话框
 const memberDialogVisible = ref(false)
@@ -453,6 +488,7 @@ const saveMember = async () => {
     }
     memberDialogVisible.value = false
     await loadMembers()
+    loadAnalytics()
   } catch (e: any) {
     ElMessage.error(e.response?.data?.detail || '操作失败')
   }
@@ -468,6 +504,7 @@ const deleteMember = async (member: any) => {
     await axios.delete(`/api/digital-marketing/members/${member.id}`)
     ElMessage.success('删除成功')
     await loadMembers()
+    loadAnalytics()
   } catch (e: any) {
     if (e !== 'cancel') {
       ElMessage.error(e.response?.data?.detail || '删除失败')
@@ -569,6 +606,7 @@ onMounted(() => {
   window.scrollTo(0, 0)
   loadMembers()
   loadCampaigns()
+  loadAnalytics()
 })
 </script>
 
