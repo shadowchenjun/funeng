@@ -2,14 +2,15 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { landApi } from '../../api/land'
+import type { LandParcel, RentalOrder } from '../../types'
 
-const parcels = ref<any[]>([])
-const rentalOrders = ref<any[]>([])
+const parcels = ref<LandParcel[]>([])
+const rentalOrders = ref<RentalOrder[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增土地')
 const isEdit = ref(false)
-const currentId = ref<string>('')
+const currentId = ref<number | null>(null)
 const formRef = ref()
 
 const formData = ref({
@@ -50,19 +51,28 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: any) => {
+const handleEdit = (row: LandParcel) => {
   dialogTitle.value = '编辑土地'
   isEdit.value = true
   currentId.value = row.id
-  formData.value = { ...row }
+  formData.value = {
+    name: row.name,
+    code: row.code,
+    area: row.area,
+    location: row.location || '',
+    type: row.type,
+    description: row.description || ''
+  }
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
   try {
     await formRef.value.validate()
-    if (isEdit.value) {
-      await landApi.updateParcel(currentId.value, formData.value)
+    if (isEdit.value && currentId.value !== null) {
+      // 土地编号创建后不可修改，后端 update 不接收 code
+      const { code: _code, ...updates } = formData.value
+      await landApi.updateParcel(currentId.value, updates)
       ElMessage.success('更新成功')
     } else {
       await landApi.createParcel(formData.value)
@@ -75,7 +85,7 @@ const handleSubmit = async () => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: LandParcel) => {
   try {
     await ElMessageBox.confirm('确定要删除吗？', '提示', { type: 'warning' })
     await landApi.deleteParcel(row.id)
@@ -90,6 +100,16 @@ const statusOptions = [
   { label: '可用', value: 'available', type: 'success' },
   { label: '已租用', value: 'rented', type: 'warning' },
   { label: '预留', value: 'reserved', type: 'info' }
+]
+
+// 租地订单状态（与土地状态不同）
+const orderStatusOptions = [
+  { label: '待支付', value: 'pending', type: 'warning' },
+  { label: '已支付', value: 'paid', type: 'success' },
+  { label: '进行中', value: 'active', type: 'primary' },
+  { label: '已完成', value: 'completed', type: 'info' },
+  { label: '已取消', value: 'cancelled', type: 'danger' },
+  { label: '已退款', value: 'refunded', type: 'info' }
 ]
 
 const typeOptions = [
@@ -146,8 +166,8 @@ onMounted(fetchData)
           </el-table-column>
           <el-table-column prop="status" label="状态">
             <template #default="{ row }">
-              <el-tag :type="statusOptions.find(s => s.value === row.status)?.type || 'info'">
-                {{ statusOptions.find(s => s.value === row.status)?.label || row.status }}
+              <el-tag :type="orderStatusOptions.find(s => s.value === row.status)?.type || 'info'">
+                {{ orderStatusOptions.find(s => s.value === row.status)?.label || row.status }}
               </el-tag>
             </template>
           </el-table-column>
@@ -163,7 +183,7 @@ onMounted(fetchData)
           <el-input v-model="formData.name" placeholder="请输入土地名称" />
         </el-form-item>
         <el-form-item label="编号" prop="code">
-          <el-input v-model="formData.code" placeholder="请输入唯一编号" />
+          <el-input v-model="formData.code" placeholder="请输入唯一编号" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="面积(m²)" prop="area">
           <el-input-number v-model="formData.area" :min="0" style="width: 100%" />

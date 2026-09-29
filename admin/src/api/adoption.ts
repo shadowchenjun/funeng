@@ -1,6 +1,7 @@
 import request from '../utils/request'
-import type { AdoptionCategory, AdoptionConfig, AdoptionOrder, PageResponse } from '../types'
+import type { OrderStatus, StatusUpdateBody, AdoptionCategory, AdoptionConfig, AdoptionOrder, CreatedResponse, MessageResponse, PageResponse } from '../types'
 
+/** 认养管理 API（/api/admin/adoption/*），写接口以 JSON body 提交。 */
 export const adoptionApi = {
   // 认养分类
   getCategories() {
@@ -8,7 +9,15 @@ export const adoptionApi = {
   },
 
   createCategory(data: { name: string; code: string; icon?: string; description?: string; sort_order?: number }) {
-    return request.post('/admin/adoption/categories', data)
+    return request.post<CreatedResponse>('/admin/adoption/categories', data)
+  },
+
+  updateCategory(id: number, data: Partial<{ name: string; icon: string; description: string; sort_order: number; is_active: boolean }>) {
+    return request.put<MessageResponse>(`/admin/adoption/categories/${id}`, data)
+  },
+
+  deleteCategory(id: number) {
+    return request.delete<MessageResponse>(`/admin/adoption/categories/${id}`)
   },
 
   // 认养配置
@@ -20,6 +29,7 @@ export const adoptionApi = {
     return request.get<AdoptionConfig>(`/admin/adoption/configs/${id}`)
   },
 
+  /** benefits / images 为数组时会被序列化为 JSON 字符串（后端按 JSON 字符串存储） */
   createConfig(data: {
     category_id: number
     name: string
@@ -27,10 +37,11 @@ export const adoptionApi = {
     duration_days: number
     description?: string
     unit?: string
-    benefits?: any
+    benefits?: string[]
+    images?: string[]
     stock?: number
   }) {
-    return request.post('/admin/adoption/configs', data)
+    return request.post<CreatedResponse>('/admin/adoption/configs', data)
   },
 
   // 认养订单
@@ -50,7 +61,8 @@ export const adoptionApi = {
     return request.get<AdoptionOrder>(`/admin/adoption/orders/${id}`)
   },
 
-  updateOrderStatus(id: number, status: string, remark?: string) {
-    return request.put(`/admin/adoption/orders/${id}/status`, { status, remark })
+  updateOrderStatus(id: number, status: OrderStatus, remark?: string) {
+    const body: StatusUpdateBody = { status, remark: remark || undefined }
+    return request.put<MessageResponse>(`/admin/adoption/orders/${id}/status`, body)
   }
 }

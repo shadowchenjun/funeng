@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '认养管理' }
       },
       {
+        path: 'order',
+        name: 'Order',
+        component: () => import('../views/order/OrderView.vue'),
+        meta: { title: '订单管理' }
+      },
+      {
         path: 'land',
         name: 'Land',
         component: () => import('../views/land/LandView.vue'),
@@ -81,7 +87,7 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   authStore.initFromStorage()
 

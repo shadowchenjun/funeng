@@ -1,6 +1,7 @@
 import request from '../utils/request'
-import type { TraceabilityConfig, TraceabilityNode, PageResponse } from '../types'
+import type { CreatedResponse, MessageResponse, TraceabilityConfig, TraceabilityNode, TraceabilityRecord, PageResponse } from '../types'
 
+/** 溯源管理 API（/api/admin/traceability/*），写接口以 JSON body 提交。 */
 export const traceabilityApi = {
   // 溯源配置
   getConfigs(params?: { is_active?: boolean }) {
@@ -8,11 +9,11 @@ export const traceabilityApi = {
   },
 
   createConfig(data: { name: string; code: string; description?: string; land_parcel_id?: number }) {
-    return request.post('/admin/traceability/configs', data)
+    return request.post<CreatedResponse>('/admin/traceability/configs', data)
   },
 
-  updateConfig(id: number, data: Partial<TraceabilityConfig>) {
-    return request.put(`/admin/traceability/configs/${id}`, data)
+  updateConfig(id: number, data: Partial<{ name: string; description: string; land_parcel_id: number; is_active: boolean }>) {
+    return request.put<MessageResponse>(`/admin/traceability/configs/${id}`, data)
   },
 
   // 溯源节点
@@ -29,15 +30,23 @@ export const traceabilityApi = {
     sort_order?: number
     data_fields?: string
   }) {
-    return request.post('/admin/traceability/nodes', data)
+    return request.post<CreatedResponse>('/admin/traceability/nodes', data)
   },
 
-  updateNode(id: number, data: Partial<TraceabilityNode>) {
-    return request.put(`/admin/traceability/nodes/${id}`, data)
+  updateNode(id: number, data: Partial<{
+    name: string
+    node_type: string
+    icon: string
+    description: string
+    sort_order: number
+    data_fields: string
+    is_active: boolean
+  }>) {
+    return request.put<MessageResponse>(`/admin/traceability/nodes/${id}`, data)
   },
 
   deleteNode(id: number) {
-    return request.delete(`/admin/traceability/nodes/${id}`)
+    return request.delete<MessageResponse>(`/admin/traceability/nodes/${id}`)
   },
 
   // 溯源记录
@@ -49,11 +58,11 @@ export const traceabilityApi = {
     page?: number
     page_size?: number
   }) {
-    return request.get<PageResponse<any>>('/admin/traceability/records', { params })
+    return request.get<PageResponse<TraceabilityRecord>>('/admin/traceability/records', { params })
   },
 
   getRecord(id: number) {
-    return request.get(`/admin/traceability/records/${id}`)
+    return request.get<TraceabilityRecord>(`/admin/traceability/records/${id}`)
   },
 
   createRecord(data: {
@@ -63,6 +72,6 @@ export const traceabilityApi = {
     image_url?: string
     operator?: string
   }) {
-    return request.post('/admin/traceability/records', data)
+    return request.post<CreatedResponse>('/admin/traceability/records', data)
   }
 }

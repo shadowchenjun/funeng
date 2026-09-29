@@ -1,5 +1,8 @@
-import request from '../utils/request'
-import type { PageResponse } from '../types'
+import request, { toQuery } from '../utils/request'
+import type { CreatedResponse, MessageResponse, PageResponse } from '../types'
+
+export type SystemConfigValue = string | number | boolean | object
+export type SystemConfigType = 'string' | 'number' | 'boolean' | 'json'
 
 export interface SystemConfig {
   id: number
@@ -23,29 +26,31 @@ export interface OperationLog {
   created_at: string
 }
 
+/** 系统配置 / 操作日志 API（/api/admin/system/*），写接口以 JSON body 提交。 */
 export const systemApi = {
   // 系统配置
   getConfigs(group?: string) {
-    return request.get<SystemConfig[]>('/admin/system/configs', { params: { group } })
+    return request.get<SystemConfig[]>('/admin/system/configs', { params: toQuery({ group }) })
   },
 
   getConfig(key: string) {
     return request.get<SystemConfig>(`/admin/system/configs/${key}`)
   },
 
-  updateConfig(key: string, value: string) {
-    return request.put(`/admin/system/configs/${key}`, { value })
+  /** value 可为字符串，json 类型配置也可直接传对象/数组 */
+  updateConfig(key: string, value: SystemConfigValue) {
+    return request.put<MessageResponse>(`/admin/system/configs/${key}`, { value })
   },
 
   createConfig(data: {
     key: string
-    value: string
-    type?: string
+    value: SystemConfigValue
+    type?: SystemConfigType
     group?: string
     description?: string
     is_public?: boolean
   }) {
-    return request.post('/admin/system/configs', data)
+    return request.post<CreatedResponse>('/admin/system/configs', data)
   },
 
   // 操作日志

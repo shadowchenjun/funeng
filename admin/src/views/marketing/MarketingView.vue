@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { marketingApi } from '../../api/marketing'
+import type { Activity, Coupon } from '../../types'
 
-const coupons = ref<any[]>([])
-const activities = ref<any[]>([])
+const coupons = ref<Coupon[]>([])
+const activities = ref<Activity[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增优惠券')
@@ -79,7 +80,12 @@ const handleSubmit = async () => {
   try {
     if (dialogType.value === 'coupon') {
       await formRef.value.validate()
-      await marketingApi.createCoupon(couponForm.value)
+      // 日期选择器只给出 YYYY-MM-DD，结束日期补到当天 23:59:59，避免当天即失效
+      await marketingApi.createCoupon({
+        ...couponForm.value,
+        valid_from: `${couponForm.value.valid_from}T00:00:00`,
+        valid_until: `${couponForm.value.valid_until}T23:59:59`
+      })
       ElMessage.success('创建成功')
     } else {
       await formRef.value.validate()

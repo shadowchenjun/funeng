@@ -19,6 +19,21 @@ export interface ChartData {
   category_data: Array<{ name: string; count: number }>
 }
 
+export interface RecentOrderItem {
+  id: number
+  order_no: string
+  user: string
+  total_amount: number
+  status: string
+  created_at: string
+}
+
+export interface RecentOrders {
+  adoption_orders: RecentOrderItem[]
+  rental_orders: RecentOrderItem[]
+}
+
+/** 数据看板 API（/api/admin/dashboard/*） */
 export const dashboardApi = {
   getStats() {
     return request.get<DashboardStats>('/admin/dashboard/stats')
@@ -29,6 +44,6 @@ export const dashboardApi = {
   },
 
   getRecentOrders(limit: number = 10) {
-    return request.get('/admin/dashboard/recent-orders', { params: { limit } })
+    return request.get<RecentOrders>('/admin/dashboard/recent-orders', { params: { limit } })
   }
 }

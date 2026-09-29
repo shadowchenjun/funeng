@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { deviceApi } from '../../api/device'
+import type { Device, DeviceType } from '../../types'
 
-const deviceTypes = ref<any[]>([])
-const devices = ref<any[]>([])
+const deviceTypes = ref<DeviceType[]>([])
+const devices = ref<Device[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增设备类型')
@@ -16,7 +17,7 @@ const formData = ref({
   code: '',
   icon: '',
   description: '',
-  device_type_id: '',
+  device_type_id: undefined as number | undefined,
   location: '',
   firmware_version: ''
 })
@@ -51,20 +52,19 @@ const fetchData = async () => {
 const showAddType = () => {
   dialogTitle.value = '新增设备类型'
   dialogType.value = 'type'
-  formData.value = { name: '', code: '', icon: '', description: '', device_type_id: '', location: '', firmware_version: '' }
+  formData.value = { name: '', code: '', icon: '', description: '', device_type_id: undefined, location: '', firmware_version: '' }
   dialogVisible.value = true
 }
 
 const showAddDevice = () => {
   dialogTitle.value = '新增设备'
   dialogType.value = 'device'
-  formData.value = { name: '', code: '', icon: '', description: '', device_type_id: '', location: '', firmware_version: '' }
+  formData.value = { name: '', code: '', icon: '', description: '', device_type_id: undefined, location: '', firmware_version: '' }
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
   try {
-    const rules = dialogType.value === 'type' ? typeRules : deviceRules
     await formRef.value.validate()
 
     if (dialogType.value === 'type') {
@@ -76,6 +76,7 @@ const handleSubmit = async () => {
       })
       ElMessage.success('创建成功')
     } else {
+      if (formData.value.device_type_id === undefined) return
       await deviceApi.createDevice({
         name: formData.value.name,
         code: formData.value.code,
@@ -131,7 +132,7 @@ onMounted(fetchData)
           <el-table-column prop="code" label="编号" />
           <el-table-column prop="device_type_id" label="类型">
             <template #default="{ row }">
-              {{ deviceTypes.find(t => t.id === row.device_type_id)?.name || '-' }}
+              {{ row.device_type_name || deviceTypes.find(t => t.id === row.device_type_id)?.name || '-' }}
             </template>
           </el-table-column>
           <el-table-column prop="location" label="位置" />

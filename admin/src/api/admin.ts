@@ -1,5 +1,5 @@
 import request from '../utils/request'
-import type { AdminUser, PageResponse } from '../types'
+import type { AdminListItem, MessageResponse, CreatedResponse, PageResponse } from '../types'
 
 export interface AdminRole {
   id: number
@@ -8,8 +8,13 @@ export interface AdminRole {
   description?: string
   permissions?: string
   is_active: boolean
+  created_at?: string
 }
 
+/**
+ * 管理员 / 角色管理 API（/api/admin/admin-user/*）。
+ * 写接口以 JSON body 提交（字段与后端 app/schemas/admin.py 一致）。
+ */
 export const adminApi = {
   // 管理员
   getAdmins(params?: {
@@ -19,11 +24,11 @@ export const adminApi = {
     page?: number
     page_size?: number
   }) {
-    return request.get<PageResponse<AdminUser>>('/admin/admin-user/admins', { params })
+    return request.get<PageResponse<AdminListItem>>('/admin/admin-user/admins', { params })
   },
 
   getAdmin(id: number) {
-    return request.get<AdminUser>(`/admin/admin-user/admins/${id}`)
+    return request.get<AdminListItem>(`/admin/admin-user/admins/${id}`)
   },
 
   createAdmin(data: {
@@ -34,7 +39,7 @@ export const adminApi = {
     phone?: string
     role_id?: number
   }) {
-    return request.post('/admin/admin-user/admins', data)
+    return request.post<CreatedResponse>('/admin/admin-user/admins', data)
   },
 
   updateAdmin(id: number, data: Partial<{
@@ -45,15 +50,16 @@ export const adminApi = {
     role_id: number
     is_active: boolean
   }>) {
-    return request.put(`/admin/admin-user/admins/${id}`, data)
+    return request.put<MessageResponse>(`/admin/admin-user/admins/${id}`, data)
   },
 
   resetPassword(id: number, password: string) {
-    return request.put(`/admin/admin-user/admins/${id}/password`, { password })
+    // 密码只能放在 JSON body 中，不能出现在 URL
+    return request.put<MessageResponse>(`/admin/admin-user/admins/${id}/password`, { password })
   },
 
   deleteAdmin(id: number) {
-    return request.delete(`/admin/admin-user/admins/${id}`)
+    return request.delete<MessageResponse>(`/admin/admin-user/admins/${id}`)
   },
 
   // 角色
@@ -62,7 +68,7 @@ export const adminApi = {
   },
 
   createRole(data: { name: string; code: string; description?: string; permissions?: string }) {
-    return request.post('/admin/admin-user/roles', data)
+    return request.post<CreatedResponse>('/admin/admin-user/roles', data)
   },
 
   updateRole(id: number, data: Partial<{
@@ -71,10 +77,10 @@ export const adminApi = {
     permissions: string
     is_active: boolean
   }>) {
-    return request.put(`/admin/admin-user/roles/${id}`, data)
+    return request.put<MessageResponse>(`/admin/admin-user/roles/${id}`, data)
   },
 
   deleteRole(id: number) {
-    return request.delete(`/admin/admin-user/roles/${id}`)
+    return request.delete<MessageResponse>(`/admin/admin-user/roles/${id}`)
   }
 }

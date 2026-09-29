@@ -6,17 +6,21 @@ export interface AdminUser {
   email?: string
   phone?: string
   avatar?: string
-  role?: AdminRole
+  role?: AdminRoleSummary | null
   last_login?: string
   created_at: string
 }
 
-export interface AdminRole {
+// 登录与 profile 接口统一返回的角色结构
+export interface AdminRoleSummary {
   id: number
   name: string
   code: string
+  permissions?: string | null
+}
+
+export interface AdminRole extends AdminRoleSummary {
   description?: string
-  permissions?: string
 }
 
 // 土地相关类型
@@ -78,6 +82,49 @@ export interface AdoptionOrder {
   harvest_info?: any
   remark?: string
   created_at: string
+  // 仅详情接口返回
+  user_email?: string
+  updated_at?: string
+}
+
+// 订单相关类型（认养订单 / 租地订单共用状态，与后端 app/schemas/admin.py 的 OrderStatus 一致）
+export type OrderStatus = 'pending' | 'paid' | 'active' | 'completed' | 'cancelled' | 'refunded'
+
+export interface RentalOrder {
+  id: number
+  order_no: string
+  user_id: number
+  user_name?: string
+  land_parcel_id: number
+  land_parcel_name?: string
+  area: number
+  unit_price: number
+  total_amount: number
+  start_date: string
+  end_date: string
+  status: string
+  crop_plan?: string
+  remark?: string
+  created_at: string
+  // 仅详情接口返回
+  user_email?: string
+  updated_at?: string
+}
+
+// 订单状态变更请求体（PUT .../orders/{id}/status）
+export interface StatusUpdateBody {
+  status: OrderStatus
+  remark?: string
+}
+
+// 订单列表通用筛选参数
+export interface OrderQuery {
+  status?: string
+  user_id?: number
+  start_date?: string
+  end_date?: string
+  page?: number
+  page_size?: number
 }
 
 // 设备相关类型
@@ -184,6 +231,73 @@ export interface TraceabilityNode {
   data_fields?: any[]
   is_active: boolean
   created_at: string
+}
+
+export interface TraceabilityRecord {
+  id: number
+  node_id: number
+  node_name?: string
+  adoption_order_id?: number | null
+  order_no?: string | null
+  data: Record<string, unknown>
+  image_url?: string | null
+  operator?: string | null
+  timestamp: string
+  created_at: string
+}
+
+// 用户详情（GET /admin/user/users/{id}）
+export interface UserDetail extends User {
+  updated_at?: string
+  stats: {
+    total_adoption_orders: number
+    active_adoption_orders: number
+    total_rental_orders: number
+    active_rental_orders: number
+  }
+  adoption_orders: unknown[]
+  rental_orders: unknown[]
+}
+
+export interface UserGroup {
+  id: number
+  name: string
+  code: string
+  description?: string | null
+  criteria?: string | null
+  is_active: boolean
+  created_at: string
+}
+
+// 土地详情（GET /admin/land/parcels/{id}）
+export interface LandParcelDetail extends LandParcel {
+  updated_at?: string
+  adoption_orders: unknown[]
+  rental_orders: unknown[]
+}
+
+// 管理员列表项（GET /admin/admin-user/admins，角色为扁平的 role_id / role_name）
+export interface AdminListItem {
+  id: number
+  username: string
+  full_name?: string | null
+  email?: string | null
+  phone?: string | null
+  avatar?: string | null
+  role_id?: number | null
+  role_name?: string | null
+  is_active: boolean
+  last_login?: string | null
+  created_at: string
+}
+
+// 通用写操作响应
+export interface MessageResponse {
+  message: string
+}
+
+export interface CreatedResponse extends MessageResponse {
+  id: number
 }
 
 // 分页响应

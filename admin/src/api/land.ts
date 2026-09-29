@@ -1,6 +1,7 @@
 import request from '../utils/request'
-import type { LandParcel, PageResponse } from '../types'
+import type { OrderStatus, StatusUpdateBody, CreatedResponse, LandParcel, LandParcelDetail, MessageResponse, PageResponse, RentalOrder } from '../types'
 
+/** 土地管理 API（/api/admin/land/*），写接口以 JSON body 提交。 */
 export const landApi = {
   getParcels(params?: {
     status?: string
@@ -13,7 +14,7 @@ export const landApi = {
   },
 
   getParcel(id: number) {
-    return request.get(`/admin/land/parcels/${id}`)
+    return request.get<LandParcelDetail>(`/admin/land/parcels/${id}`)
   },
 
   createParcel(data: {
@@ -25,7 +26,7 @@ export const landApi = {
     description?: string
     image_url?: string
   }) {
-    return request.post('/admin/land/parcels', data)
+    return request.post<CreatedResponse>('/admin/land/parcels', data)
   },
 
   updateParcel(id: number, data: Partial<{
@@ -37,11 +38,11 @@ export const landApi = {
     image_url: string
     status: string
   }>) {
-    return request.put(`/admin/land/parcels/${id}`, data)
+    return request.put<MessageResponse>(`/admin/land/parcels/${id}`, data)
   },
 
   deleteParcel(id: number) {
-    return request.delete(`/admin/land/parcels/${id}`)
+    return request.delete<MessageResponse>(`/admin/land/parcels/${id}`)
   },
 
   // 租地订单
@@ -54,14 +55,15 @@ export const landApi = {
     page?: number
     page_size?: number
   }) {
-    return request.get<PageResponse<any>>('/admin/land/rental-orders', { params })
+    return request.get<PageResponse<RentalOrder>>('/admin/land/rental-orders', { params })
   },
 
   getRentalOrder(id: number) {
-    return request.get(`/admin/land/rental-orders/${id}`)
+    return request.get<RentalOrder>(`/admin/land/rental-orders/${id}`)
   },
 
-  updateRentalStatus(id: number, status: string, remark?: string) {
-    return request.put(`/admin/land/rental-orders/${id}/status`, { status, remark })
+  updateRentalStatus(id: number, status: OrderStatus, remark?: string) {
+    const body: StatusUpdateBody = { status, remark: remark || undefined }
+    return request.put<MessageResponse>(`/admin/land/rental-orders/${id}/status`, body)
   }
 }

@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { adminApi } from '../../api/admin'
+import { adminApi, type AdminRole } from '../../api/admin'
+import type { AdminListItem } from '../../types'
 
-const admins = ref<any[]>([])
-const roles = ref<any[]>([])
+const admins = ref<AdminListItem[]>([])
+const roles = ref<AdminRole[]>([])
 const loading = ref(false)
 const activeTab = ref('admins')
 const dialogVisible = ref(false)
 const roleDialogVisible = ref(false)
 const dialogTitle = ref('新增管理员')
 const isEdit = ref(false)
-const currentId = ref('')
+const currentId = ref<number | null>(null)
 const formRef = ref()
 const roleFormRef = ref()
 
@@ -21,7 +22,7 @@ const adminForm = ref({
   full_name: '',
   email: '',
   phone: '',
-  role_id: ''
+  role_id: undefined as number | undefined
 })
 
 const roleForm = ref({
@@ -60,7 +61,7 @@ const fetchData = async () => {
 const showAddAdmin = () => {
   dialogTitle.value = '新增管理员'
   isEdit.value = false
-  adminForm.value = { username: '', password: '', full_name: '', email: '', phone: '', role_id: '' }
+  adminForm.value = { username: '', password: '', full_name: '', email: '', phone: '', role_id: undefined }
   dialogVisible.value = true
 }
 
@@ -87,7 +88,7 @@ const handleDeleteAdmin = async (id: number) => {
   }
 }
 
-const handleStatusChange = async (admin: any) => {
+const handleStatusChange = async (admin: AdminListItem) => {
   try {
     await adminApi.updateAdmin(admin.id, { is_active: !admin.is_active })
     ElMessage.success('状态更新成功')
@@ -104,18 +105,25 @@ const showAddRole = () => {
   roleDialogVisible.value = true
 }
 
-const showEditRole = (row: any) => {
+const showEditRole = (row: AdminRole) => {
   isEdit.value = true
   currentId.value = row.id
-  roleForm.value = { ...row }
+  roleForm.value = {
+    name: row.name,
+    code: row.code,
+    description: row.description || '',
+    permissions: row.permissions || ''
+  }
   roleDialogVisible.value = true
 }
 
 const handleSubmitRole = async () => {
   try {
     await roleFormRef.value.validate()
-    if (isEdit.value) {
-      await adminApi.updateRole(currentId.value, roleForm.value)
+    if (isEdit.value && currentId.value !== null) {
+      // 角色代码创建后不可修改，后端 update 不接收 code
+      const { code: _code, ...updates } = roleForm.value
+      await adminApi.updateRole(currentId.value, updates)
       ElMessage.success('更新成功')
     } else {
       await adminApi.createRole(roleForm.value)
@@ -231,7 +239,7 @@ onMounted(fetchData)
           <el-input v-model="roleForm.name" placeholder="请输入角色名称" />
         </el-form-item>
         <el-form-item label="代码" prop="code">
-          <el-input v-model="roleForm.code" placeholder="请输入唯一代码" />
+          <el-input v-model="roleForm.code" placeholder="请输入唯一代码" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="roleForm.description" type="textarea" placeholder="请输入描述" />

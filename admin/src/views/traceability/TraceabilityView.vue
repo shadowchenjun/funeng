@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type TabPaneName } from 'element-plus'
 import { traceabilityApi } from '../../api/traceability'
+import type { TraceabilityConfig, TraceabilityNode, TraceabilityRecord } from '../../types'
 
-const configs = ref<any[]>([])
-const nodes = ref<any[]>([])
-const records = ref<any[]>([])
+const configs = ref<TraceabilityConfig[]>([])
+const nodes = ref<TraceabilityNode[]>([])
+const records = ref<TraceabilityRecord[]>([])
 const loading = ref(false)
 const activeTab = ref('configs')
-const selectedConfigId = ref<string>('')
+const selectedConfigId = ref<number | null>(null)
 const configDialogVisible = ref(false)
 const nodeDialogVisible = ref(false)
 const dialogTitle = ref('新增配置')
 const isEdit = ref(false)
-const currentId = ref('')
+const currentId = ref<number | null>(null)
 const formRef = ref()
 const nodeFormRef = ref()
 
@@ -24,7 +25,7 @@ const configForm = ref({
 })
 
 const nodeForm = ref({
-  config_id: '',
+  config_id: undefined as number | undefined,
   name: '',
   node_type: '',
   icon: '',
@@ -64,7 +65,7 @@ const fetchConfigs = async () => {
   }
 }
 
-const fetchNodes = async (configId: string) => {
+const fetchNodes = async (configId: number) => {
   selectedConfigId.value = configId
   try {
     nodes.value = await traceabilityApi.getNodes(configId)
@@ -76,7 +77,8 @@ const fetchNodes = async (configId: string) => {
 const fetchRecords = async () => {
   loading.value = true
   try {
-    records.value = await traceabilityApi.getRecords({ page: 1, page_size: 50 })
+    const res = await traceabilityApi.getRecords({ page: 1, page_size: 50 })
+    records.value = res.items
   } catch (e: any) {
     ElMessage.error(e.message || '加载失败')
   } finally {
@@ -84,7 +86,7 @@ const fetchRecords = async () => {
   }
 }
 
-const handleTabChange = async (tab: string) => {
+const handleTabChange = async (tab: TabPaneName) => {
   if (tab === 'configs') {
     await fetchConfigs()
   } else if (tab === 'records') {
@@ -99,19 +101,23 @@ const showAddConfig = () => {
   configDialogVisible.value = true
 }
 
-const showEditConfig = (row: any) => {
+const showEditConfig = (row: TraceabilityConfig) => {
   dialogTitle.value = '编辑配置'
   isEdit.value = true
   currentId.value = row.id
-  configForm.value = { ...row }
+  configForm.value = { name: row.name, code: row.code, description: row.description || '' }
   configDialogVisible.value = true
 }
 
 const handleSubmitConfig = async () => {
   try {
     await formRef.value.validate()
-    if (isEdit.value) {
-      await traceabilityApi.updateConfig(currentId.value, configForm.value)
+    if (isEdit.value && currentId.value !== null) {
+      // 配置代码创建后不可修改，后端 update 不接收 code
+      await traceabilityApi.updateConfig(currentId.value, {
+        name: configForm.value.name,
+        description: configForm.value.description
+      })
       ElMessage.success('更新成功')
     } else {
       await traceabilityApi.createConfig(configForm.value)
@@ -124,11 +130,12 @@ const handleSubmitConfig = async () => {
   }
 }
 
-const handleDeleteConfig = async (row: any) => {
+const handleDeleteConfig = async (row: TraceabilityConfig) => {
   try {
-    await ElMessageBox.confirm('确定要删除吗？', '提示', { type: 'warning' })
+    // 后端没有删除溯源配置的接口，这里以停用代替
+    await ElMessageBox.confirm('确定要停用该配置吗？', '提示', { type: 'warning' })
     await traceabilityApi.updateConfig(row.id, { is_active: false })
-    ElMessage.success('删除成功')
+    ElMessage.success('已停用')
     fetchConfigs()
   } catch (e: any) {
     if (e !== 'cancel') if (e.message) ElMessage.error(e.message)
@@ -136,7 +143,7 @@ const handleDeleteConfig = async (row: any) => {
 }
 
 const showAddNode = () => {
-  if (!selectedConfigId.value) {
+  if (selectedConfigId.value === null) {
     ElMessage.warning('请先选择一个配置查看节点')
     return
   }
@@ -153,25 +160,38 @@ const showAddNode = () => {
   nodeDialogVisible.value = true
 }
 
-const showEditNode = (row: any) => {
+const showEditNode = (row: TraceabilityNode) => {
   isEdit.value = true
   currentId.value = row.id
-  nodeForm.value = { ...row }
+  nodeForm.value = {
+    config_id: row.config_id,
+    name: row.name,
+    node_type: row.node_type,
+    icon: row.icon || '',
+    description: row.description || '',
+    sort_order: row.sort_order,
+    data_fields: (row.data_fields || []).join(',')
+  }
   nodeDialogVisible.value = true
 }
 
 const handleSubmitNode = async () => {
   try {
     await nodeFormRef.value.validate()
-    if (isEdit.value) {
-      await traceabilityApi.updateNode(currentId.value, nodeForm.value)
+    const { config_id, data_fields, ...rest } = nodeForm.value
+    // 后端以 JSON 字符串存储 data_fields 并在读取时 json.loads，输入的逗号分隔文本需转为 JSON 数组
+    const fields = data_fields.split(/[,，]/).map(f => f.trim()).filter(Boolean)
+    const payload = { ...rest, data_fields: JSON.stringify(fields) }
+    if (isEdit.value && currentId.value !== null) {
+      await traceabilityApi.updateNode(currentId.value, payload)
       ElMessage.success('更新成功')
     } else {
-      await traceabilityApi.createNode(nodeForm.value)
+      if (config_id === undefined) return
+      await traceabilityApi.createNode({ config_id, ...payload })
       ElMessage.success('创建成功')
     }
     nodeDialogVisible.value = false
-    if (selectedConfigId.value) {
+    if (selectedConfigId.value !== null) {
       fetchNodes(selectedConfigId.value)
     }
   } catch (e: any) {
@@ -179,12 +199,12 @@ const handleSubmitNode = async () => {
   }
 }
 
-const handleDeleteNode = async (row: any) => {
+const handleDeleteNode = async (row: TraceabilityNode) => {
   try {
     await ElMessageBox.confirm('确定要删除吗？', '提示', { type: 'warning' })
     await traceabilityApi.deleteNode(row.id)
     ElMessage.success('删除成功')
-    if (selectedConfigId.value) {
+    if (selectedConfigId.value !== null) {
       fetchNodes(selectedConfigId.value)
     }
   } catch (e: any) {
@@ -193,7 +213,11 @@ const handleDeleteNode = async (row: any) => {
 }
 
 const formatDate = (date: string) => {
-  return date ? date.slice(0, 19) : '-'
+  return date ? date.slice(0, 19).replace('T', ' ') : '-'
+}
+
+const showRecord = (row: TraceabilityRecord) => {
+  ElMessageBox.alert(JSON.stringify(row.data, null, 2), `溯源记录 #${row.id}`, { confirmButtonText: '关闭' })
 }
 
 onMounted(fetchConfigs)
@@ -201,7 +225,7 @@ onMounted(fetchConfigs)
 
 <template>
   <div class="traceability-view" v-loading="loading">
-    <el-tabs @tab-change="handleTabChange">
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
       <el-tab-pane label="溯源配置" name="configs">
         <div class="toolbar">
           <el-button type="primary" @click="showAddConfig">新增配置</el-button>
@@ -220,14 +244,14 @@ onMounted(fetchConfigs)
             <template #default="{ row }">
               <el-button link type="primary" @click="fetchNodes(row.id)">查看节点</el-button>
               <el-button link type="primary" @click="showEditConfig(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleDeleteConfig(row)">删除</el-button>
+              <el-button link type="danger" @click="handleDeleteConfig(row)">停用</el-button>
             </template>
           </el-table-column>
         </el-table>
 
-        <el-divider v-if="selectedConfigId" />
+        <el-divider v-if="selectedConfigId !== null" />
 
-        <div v-if="selectedConfigId">
+        <div v-if="selectedConfigId !== null">
           <h4>溯源节点</h4>
           <div class="toolbar">
             <el-button type="primary" @click="showAddNode">新增节点</el-button>
@@ -257,15 +281,17 @@ onMounted(fetchConfigs)
       </el-tab-pane>
 
       <el-tab-pane label="溯源记录" name="records">
-        <el-table :data="records.items || []" stripe>
+        <el-table :data="records" stripe>
           <el-table-column prop="id" label="ID" width="80" />
           <el-table-column prop="node_name" label="节点" />
           <el-table-column prop="order_no" label="订单号" width="180" />
           <el-table-column prop="operator" label="操作人" />
-          <el-table-column prop="timestamp" label="时间" width="180" />
+          <el-table-column prop="timestamp" label="时间" width="180">
+            <template #default="{ row }">{{ formatDate(row.timestamp) }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="100">
             <template #default="{ row }">
-              <el-button link type="primary">查看</el-button>
+              <el-button link type="primary" @click="showRecord(row)">查看</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -278,7 +304,7 @@ onMounted(fetchConfigs)
           <el-input v-model="configForm.name" placeholder="请输入配置名称" />
         </el-form-item>
         <el-form-item label="代码" prop="code">
-          <el-input v-model="configForm.code" placeholder="请输入唯一代码" />
+          <el-input v-model="configForm.code" placeholder="请输入唯一代码" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="configForm.description" type="textarea" placeholder="请输入描述" />

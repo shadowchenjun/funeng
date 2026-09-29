@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { adoptionApi } from '../../api/adoption'
+import type { AdoptionCategory, AdoptionConfig, AdoptionOrder } from '../../types'
 
 const activeTab = ref('categories')
-const categories = ref<any[]>([])
-const configs = ref<any[]>([])
-const orders = ref<any[]>([])
+const categories = ref<AdoptionCategory[]>([])
+const configs = ref<AdoptionConfig[]>([])
+const orders = ref<AdoptionOrder[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增分类')
@@ -14,7 +15,7 @@ const dialogType = ref<'category' | 'config'>('category')
 const formRef = ref()
 
 const categoryForm = ref({ name: '', code: '', icon: '', description: '' })
-const configForm = ref({ category_id: '', name: '', price: 0, duration_days: 30, description: '', unit: 'year', stock: 0 })
+const configForm = ref({ category_id: undefined as number | undefined, name: '', price: 0, duration_days: 30, description: '', unit: 'year', stock: 0 })
 
 const categoryRules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
@@ -56,7 +57,7 @@ const showAddCategory = () => {
 const showAddConfig = () => {
   dialogTitle.value = '新增配置'
   dialogType.value = 'config'
-  configForm.value = { category_id: '', name: '', price: 0, duration_days: 30, description: '', unit: 'year', stock: 0 }
+  configForm.value = { category_id: undefined, name: '', price: 0, duration_days: 30, description: '', unit: 'year', stock: 0 }
   dialogVisible.value = true
 }
 
@@ -68,7 +69,9 @@ const handleSubmit = async () => {
       ElMessage.success('创建成功')
     } else {
       await formRef.value.validate()
-      await adoptionApi.createConfig(configForm.value)
+      const { category_id, ...rest } = configForm.value
+      if (category_id === undefined) return
+      await adoptionApi.createConfig({ category_id, ...rest })
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false

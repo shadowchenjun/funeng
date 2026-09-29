@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
@@ -14,6 +14,7 @@ const activeMenu = computed(() => route.path)
 const menuItems = [
   { path: '/dashboard', title: '数据看板', icon: 'DataAnalysis' },
   { path: '/adoption', title: '认养管理', icon: 'Crop' },
+  { path: '/order', title: '订单管理', icon: 'Tickets' },
   { path: '/land', title: '土地管理', icon: 'MapLocation' },
   { path: '/device', title: '设备管理', icon: 'Monitor' },
   { path: '/traceability', title: '溯源管理', icon: 'Connection' },

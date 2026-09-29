@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { systemApi } from '../../api/system'
+import { ElMessage } from 'element-plus'
+import { systemApi, type OperationLog, type SystemConfig, type SystemConfigType } from '../../api/system'
 
-const configs = ref<any[]>([])
-const logs = ref<any[]>([])
+const configs = ref<SystemConfig[]>([])
+const logs = ref<OperationLog[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -14,8 +14,8 @@ const formRef = ref()
 const formData = ref({
   key: '',
   value: '',
-  type: 'string',
-  group_name: '',
+  type: 'string' as SystemConfigType,
+  group: '',
   description: '',
   is_public: false
 })
@@ -43,14 +43,22 @@ const fetchData = async () => {
 
 const showAddConfig = () => {
   isEdit.value = false
-  formData.value = { key: '', value: '', type: 'string', group_name: '', description: '', is_public: false }
+  formData.value = { key: '', value: '', type: 'string', group: '', description: '', is_public: false }
   dialogVisible.value = true
 }
 
-const showEditConfig = (row: any) => {
+const showEditConfig = (row: SystemConfig) => {
   isEdit.value = true
   currentKey.value = row.key
-  formData.value = { ...row }
+  formData.value = {
+    key: row.key,
+    // json 类型的 value 后端已解析为对象，编辑时需还原为字符串
+    value: row.type === 'json' ? JSON.stringify(row.value) : String(row.value ?? ''),
+    type: row.type as SystemConfigType,
+    group: row.group,
+    description: row.description || '',
+    is_public: row.is_public
+  }
   dialogVisible.value = true
 }
 
@@ -90,12 +98,12 @@ onMounted(fetchData)
           <el-table-column prop="value" label="值">
             <template #default="{ row }">
               <span v-if="row.type === 'json'">{{ JSON.stringify(row.value) }}</span>
-              <span v-else-if="row.type === 'boolean'">{{ row.value ? '是' : '否' }}</span>
+              <span v-else-if="row.type === 'boolean'">{{ String(row.value) === 'true' ? '是' : '否' }}</span>
               <span v-else>{{ row.value }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="type" label="类型" width="100" />
-          <el-table-column prop="group_name" label="分组" width="120" />
+          <el-table-column prop="group" label="分组" width="120" />
           <el-table-column prop="description" label="描述" />
           <el-table-column prop="is_public" label="公开">
             <template #default="{ row }">
@@ -134,7 +142,7 @@ onMounted(fetchData)
           <el-input v-model="formData.value" type="textarea" placeholder="请输入配置值" />
         </el-form-item>
         <el-form-item label="分组">
-          <el-input v-model="formData.group_name" placeholder="如: basic, seo" />
+          <el-input v-model="formData.group" placeholder="如: basic, seo" />
         </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="formData.type" style="width: 100%">

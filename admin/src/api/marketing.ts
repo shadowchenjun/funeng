@@ -1,6 +1,11 @@
 import request from '../utils/request'
-import type { Coupon, Activity, PageResponse } from '../types'
+import type { Coupon, Activity, CreatedResponse, MessageResponse, PageResponse } from '../types'
 
+/**
+ * 营销管理 API（/api/admin/marketing/*），写接口以 JSON body 提交。
+ * 时间字段（valid_from / valid_until / start_time / end_time）后端用
+ * datetime.fromisoformat 解析，需传 ISO 格式字符串，如 2026-01-01T00:00:00。
+ */
 export const marketingApi = {
   // 优惠券
   getCoupons(params?: { is_active?: boolean; type?: string; page?: number; page_size?: number }) {
@@ -23,7 +28,26 @@ export const marketingApi = {
     total_count?: number
     per_user_limit?: number
   }) {
-    return request.post('/admin/marketing/coupons', data)
+    return request.post<CreatedResponse>('/admin/marketing/coupons', data)
+  },
+
+  updateCoupon(id: number, data: Partial<{
+    name: string
+    discount_value: number
+    valid_from: string
+    valid_until: string
+    type: string
+    min_amount: number
+    max_discount: number
+    total_count: number
+    per_user_limit: number
+    is_active: boolean
+  }>) {
+    return request.put<MessageResponse>(`/admin/marketing/coupons/${id}`, data)
+  },
+
+  deleteCoupon(id: number) {
+    return request.delete<MessageResponse>(`/admin/marketing/coupons/${id}`)
   },
 
   // 活动
@@ -41,9 +65,13 @@ export const marketingApi = {
     start_time: string
     end_time: string
     description?: string
-    rules?: any
+    rules?: object
     banner_url?: string
   }) {
-    return request.post('/admin/marketing/activities', data)
+    return request.post<CreatedResponse>('/admin/marketing/activities', data)
+  },
+
+  deleteActivity(id: number) {
+    return request.delete<MessageResponse>(`/admin/marketing/activities/${id}`)
   }
 }

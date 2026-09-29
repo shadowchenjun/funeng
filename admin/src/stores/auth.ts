@@ -20,7 +20,9 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (username: string, password: string) => {
     const res = await authApi.login({ username, password })
     setToken(res.access_token)
-    setUser(res.admin)
+    // 登录响应中的 admin 为精简信息（role 与 profile 同结构，但缺少 phone 等字段），再拉取完整 profile
+    const profile = await authApi.getProfile()
+    setUser(profile)
     return res
   }
 
@@ -40,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return null
     try {
       const res = await authApi.getProfile()
-      user.value = res
+      setUser(res)
       return res
     } catch (e) {
       logout()

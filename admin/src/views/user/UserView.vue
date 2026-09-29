@@ -2,9 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '../../api/user'
+import type { User, UserGroup } from '../../types'
 
-const users = ref<any[]>([])
-const groups = ref<any[]>([])
+const users = ref<User[]>([])
+const groups = ref<UserGroup[]>([])
 const loading = ref(false)
 const activeTab = ref('users')
 const dialogVisible = ref(false)
@@ -12,7 +13,7 @@ const dialogTitle = ref('新增分组')
 const dialogType = ref<'group'>('group')
 const formRef = ref()
 const isEdit = ref(false)
-const currentId = ref('')
+const currentId = ref<number | null>(null)
 
 const groupForm = ref({
   name: '',
@@ -42,7 +43,7 @@ const fetchData = async () => {
   }
 }
 
-const handleStatusChange = async (user: any) => {
+const handleStatusChange = async (user: User) => {
   try {
     await userApi.updateUserStatus(user.id, !user.is_active)
     ElMessage.success('状态更新成功')
@@ -60,16 +61,21 @@ const showAddGroup = () => {
   dialogVisible.value = true
 }
 
-const showEditGroup = (row: any) => {
+const showEditGroup = (row: UserGroup) => {
   dialogTitle.value = '编辑分组'
   dialogType.value = 'group'
   isEdit.value = true
   currentId.value = row.id
-  groupForm.value = { ...row }
+  groupForm.value = {
+    name: row.name,
+    code: row.code,
+    description: row.description || '',
+    criteria: row.criteria || ''
+  }
   dialogVisible.value = true
 }
 
-const handleDeleteGroup = async (row: any) => {
+const handleDeleteGroup = async (row: UserGroup) => {
   try {
     await ElMessageBox.confirm('确定要删除吗？', '提示', { type: 'warning' })
     await userApi.deleteGroup(row.id)
@@ -83,8 +89,10 @@ const handleDeleteGroup = async (row: any) => {
 const handleSubmit = async () => {
   try {
     await formRef.value.validate()
-    if (isEdit.value) {
-      await userApi.updateGroup(currentId.value, groupForm.value)
+    if (isEdit.value && currentId.value !== null) {
+      // 分组代码创建后不可修改，后端 update 不接收 code
+      const { code: _code, ...updates } = groupForm.value
+      await userApi.updateGroup(currentId.value, updates)
       ElMessage.success('更新成功')
     } else {
       await userApi.createGroup(groupForm.value)
@@ -160,7 +168,7 @@ onMounted(fetchData)
           <el-input v-model="groupForm.name" placeholder="请输入分组名称" />
         </el-form-item>
         <el-form-item label="代码" prop="code">
-          <el-input v-model="groupForm.code" placeholder="请输入唯一代码" />
+          <el-input v-model="groupForm.code" placeholder="请输入唯一代码" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="groupForm.description" type="textarea" placeholder="请输入描述" />
