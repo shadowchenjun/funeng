@@ -5,7 +5,9 @@ from app.models.base import Base
 from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product
-from app.models.cold_chain import Transport
+from app.models.uploaded_file import UploadedFile
+from app.models.export_task import ExportTaskRecord
+from app.models.cold_chain import Transport, Vehicle, CargoOwner, ColdChainWarehouse
 from app.models.admin import (
     AdminUser, AdminRole,
     LandParcel, AdoptionCategory, AdoptionConfig, AdoptionOrder, RentalOrder,
@@ -15,8 +17,8 @@ from app.models.admin import (
 )
 
 __all__ = [
-    "Base", "User", "Category", "Product",
-    "Transport",
+    "Base", "User", "Category", "Product", "UploadedFile", "ExportTaskRecord",
+    "Transport", "Vehicle", "CargoOwner", "ColdChainWarehouse",
     "AdminUser", "AdminRole",
     "LandParcel", "AdoptionCategory", "AdoptionConfig", "AdoptionOrder", "RentalOrder",
     "DeviceType", "Device", "MonitoringPoint", "MonitoringRecord", "DeviceLog",

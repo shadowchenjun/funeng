@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import bcrypt
 
+from app.config import SECRET_KEY
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token
@@ -19,7 +20,6 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # JWT 配置
-SECRET_KEY = "funeng-secret-key-2024"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 小时
 

@@ -2,11 +2,11 @@
 
 ## Overview
 
-**现代农业赋能平台** — 为农业产业链提供数字化管理工具。前端 Vue 3 + TypeScript，后端 Python FastAPI + SQLite，支持冷链物流、智慧农业、供应链金融等核心业务。
+**现代农业赋能平台** — 为农业产业链提供数字化管理工具。前端 Vue 3 + TypeScript，后端 Python FastAPI + Supabase Postgres，支持冷链物流、智慧农业、供应链金融等核心业务。
 
 **关键设计决策：**
 - 前后端分离，通过 RESTful API 通信
-- 单数据库（SQLite）简化部署
+- Supabase Postgres 作为持久化数据库，Supabase Storage 保存私有文件
 - 模块化业务划分（每个业务模块独立 API + Model + View）
 
 ---
@@ -48,6 +48,8 @@ frontend/views  →  frontend/stores ← 状态管理（allowed）
 用户请求 → Frontend Views → Backend API → Backend Models → SQLite
            ↑                                                    ↓
            └──────────── Response ─────────────────────────────┘
+                              ↓
+                   Supabase Postgres / Storage
 ```
 
 ---
@@ -143,7 +145,7 @@ def read_products(db: Session = Depends(get_db),
     models/product.py (扣减库存)
     models/cold_chain.py (创建订单记录)
        ↓
-    SQLite (事务提交)
+    Supabase Postgres (事务提交)
        ↓
     返回订单 ID
 ```

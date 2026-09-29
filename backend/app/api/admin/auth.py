@@ -6,16 +6,16 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
-import jwt
+from jose import JWTError, jwt
 import bcrypt
 
+from app.config import ADMIN_SECRET_KEY as SECRET_KEY
 from app.database import get_db
 from app.models.admin import AdminUser, AdminOperationLog
 
 router = APIRouter()
 
 # JWT配置
-SECRET_KEY = "funeng-admin-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
@@ -43,7 +43,7 @@ def verify_token(token: str = Depends(oauth2_scheme)):
                 detail="无效的认证凭证"
             )
         return payload
-    except jwt.PyJWTError:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="无效的认证凭证"

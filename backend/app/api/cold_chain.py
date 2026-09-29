@@ -1,22 +1,61 @@
 """
 数字冷链物联API
 """
-import sqlite3
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
 import random
+import sqlite3
+import uuid
+
+from app.database import engine
 
 router = APIRouter()
 
 def get_db():
-    import os
-    # 使用相对路径，与其他模块保持一致
-    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'funeng.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Return a DB-API connection using the same database as the rest of the API."""
+    conn = engine.raw_connection()
+    if engine.dialect.name == "sqlite":
+        conn.driver_connection.row_factory = sqlite3.Row
+    else:
+        from psycopg.rows import dict_row
+
+        conn.driver_connection.row_factory = dict_row
+    return _CompatibleConnection(conn)
+
+
+class _CompatibleConnection:
+    """Small adapter for the module's legacy qmark SQL statements."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    def cursor(self):
+        return _CompatibleCursor(self.connection.cursor())
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.connection.close()
+
+
+class _CompatibleCursor:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def execute(self, query, parameters=()):
+        if engine.dialect.name != "sqlite":
+            query = query.replace("?", "%s")
+        self.cursor.execute(query, parameters)
+        return self
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
 
 # 冷链运输数据模型
 class TransportData(BaseModel):
@@ -707,11 +746,11 @@ def create_owner(data: dict):
     
     cursor.execute("""
         INSERT INTO cargo_owners (code, name, contact, phone, email, address, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
     """, (code, data.get("name"), data.get("contact"), data.get("phone"), 
           data.get("email"), data.get("address"), data.get("status", "正常")))
+    new_owner_id = cursor.fetchone()["id"]
     conn.commit()
-    new_owner_id = cursor.lastrowid
     conn.close()
     
     return {"success": True, "id": new_owner_id, "code": code}
@@ -1062,18 +1101,18 @@ def create_warehouse(data: dict):
     """创建仓库"""
     conn = get_db()
     cursor = conn.cursor()
+    new_id = f"W{uuid.uuid4().hex[:10].upper()}"
     cursor.execute("""
-        INSERT INTO warehouses (name, address, capacity, area, temperature, humidity, inventory, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (data.get("name"), data.get("address"), data.get("capacity"), data.get("area"),
+        INSERT INTO warehouses (id, name, address, capacity, area, temperature, humidity, inventory, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (new_id, data.get("name"), data.get("address"), data.get("capacity"), data.get("area"),
           data.get("temperature"), data.get("humidity"), data.get("inventory", 0), data.get("status", "正常")))
     conn.commit()
-    new_id = cursor.lastrowid
     conn.close()
     return {"success": True, "id": new_id, "message": "仓库创建成功"}
 
 @router.put("/warehouses/{warehouse_id}")
-def update_warehouse(warehouse_id: int, data: dict):
+def update_warehouse(warehouse_id: str, data: dict):
     """更新仓库"""
     conn = get_db()
     cursor = conn.cursor()
@@ -1089,7 +1128,7 @@ def update_warehouse(warehouse_id: int, data: dict):
     return {"success": True, "message": "仓库更新成功"}
 
 @router.delete("/warehouses/{warehouse_id}")
-def delete_warehouse(warehouse_id: int):
+def delete_warehouse(warehouse_id: str):
     """删除仓库"""
     conn = get_db()
     cursor = conn.cursor()
@@ -1137,12 +1176,12 @@ def create_vehicle(data: dict):
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO vehicles (plate, vehicle_type, driver, phone, load_capacity, volume, gps_device, temp_range, status, location, temperature, battery)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
     """, (data.get("plate"), data.get("vehicleType", "冷藏车"), data.get("driver"), data.get("phone"),
           data.get("loadCapacity", 5), data.get("volume"), data.get("gpsDevice"), data.get("tempRange", "-25°C~5°C"),
           data.get("status", "空闲"), data.get("location", ""), data.get("temperature", -18), data.get("battery", 100)))
+    new_id = cursor.fetchone()["id"]
     conn.commit()
-    new_id = cursor.lastrowid
     conn.close()
     return {"success": True, "id": new_id, "message": "车辆创建成功"}
 

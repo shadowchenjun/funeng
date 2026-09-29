@@ -1,7 +1,7 @@
 """
 现代农业赋能平台 - 后端入口
 """
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, products, categories, dashboard
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
@@ -14,10 +14,13 @@ from app.models.product import Product
 from app.models.category import Category
 from app.models.admin import AdminUser, AdminRole
 from app.database import engine, get_db
+from app.config import IS_PRODUCTION, CORS_ORIGINS
+from app.api.auth import get_current_user
 import bcrypt
 
-# 创建数据库表
-base.Base.metadata.create_all(bind=engine)
+# Production schema is maintained by a reviewed migration, outside request startup.
+if not IS_PRODUCTION:
+    base.Base.metadata.create_all(bind=engine)
 
 # 创建默认数据（如果不存在）- 不会删除已有数据
 def seed_default_data():
@@ -164,8 +167,9 @@ def seed_default_data():
     finally:
         db.close()
 
-# 启动时初始化数据
-seed_default_data()
+# Test accounts must never be created implicitly in production.
+if not IS_PRODUCTION:
+    seed_default_data()
 
 app = FastAPI(
     title="现代农业赋能平台 API",
@@ -176,7 +180,7 @@ app = FastAPI(
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://*.trycloudflare.com", "https://*.loca.lt"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -186,14 +190,15 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(products.router, prefix="/api/products", tags=["产品管理"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类管理"])
-app.include_router(dashboard.router, prefix="/api/dashboard", tags=["仪表盘"])
+login_required = [Depends(get_current_user)]
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["仪表盘"], dependencies=login_required)
 app.include_router(upload.router, prefix="/api/upload", tags=["文件上传"])
 app.include_router(users.router, prefix="/api/users", tags=["用户管理"])
-app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", tags=["智慧农业"])
-app.include_router(digital_marketing.router, prefix="/api/digital-marketing", tags=["数字营销"])
-app.include_router(cold_chain.router, prefix="/api/cold-chain", tags=["数字冷链物联"])
-app.include_router(supply_chain_finance.router, prefix="/api/supply-chain-finance", tags=["供应链金融"])
-app.include_router(admin_router)
+app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", tags=["智慧农业"], dependencies=login_required)
+app.include_router(digital_marketing.router, prefix="/api/digital-marketing", tags=["数字营销"], dependencies=login_required)
+app.include_router(cold_chain.router, prefix="/api/cold-chain", tags=["数字冷链物联"], dependencies=login_required)
+app.include_router(supply_chain_finance.router, prefix="/api/supply-chain-finance", tags=["供应链金融"], dependencies=login_required)
+app.include_router(admin_router, prefix="/api")
 app.include_router(analytics_platform_router, prefix="/api", tags=["平台分析(优化)"])  # Sprint 2
 
 @app.get("/")

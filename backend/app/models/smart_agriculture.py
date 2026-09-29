@@ -74,14 +74,19 @@ class Warehouse(Base):
     """冷链仓库模型"""
     __tablename__ = "warehouses"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String(20), primary_key=True, index=True)
     name = Column(String(100), nullable=False, comment="仓库名称")
     address = Column(String(200), comment="仓库地址")
+    lat = Column(Float, comment="纬度")
+    lng = Column(Float, comment="经度")
     capacity = Column(Float, default=0, comment="容量(m³)")
+    used = Column(Float, default=0, comment="已用容量(m³)")
     area = Column(Float, default=0, comment="面积(㎡)")
     temperature = Column(Float, default=-18, comment="温度(°C)")
     humidity = Column(Float, default=45, comment="湿度(%)")
     inventory = Column(Integer, default=0, comment="库存数量")
+    manager = Column(String(50), comment="负责人")
+    phone = Column(String(20), comment="联系电话")
     status = Column(String(20), default="正常", comment="状态")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
