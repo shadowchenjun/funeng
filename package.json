@@ -1,0 +1,17 @@
+{
+  "name": "funeng",
+  "private": true,
+  "description": "现代农业赋能平台 — 仓库级脚本入口（前台 frontend/、管理后台 admin/、后端 backend/）",
+  "scripts": {
+    "setup": "npm --prefix frontend install && npm --prefix admin install && python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements-dev.txt",
+    "test": "npm run test:backend",
+    "test:backend": "cd backend && .venv/bin/python -m pytest -q tests",
+    "lint": "npm run typecheck:frontend && npm run typecheck:admin",
+    "typecheck:frontend": "npm --prefix frontend run typecheck",
+    "typecheck:admin": "npm --prefix admin exec vue-tsc -- --noEmit",
+    "build": "npm --prefix frontend run build && npm --prefix admin run build",
+    "dev:backend": "cd backend && .venv/bin/uvicorn main:app --reload --port 8000",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:admin": "npm --prefix admin run dev"
+  }
+}

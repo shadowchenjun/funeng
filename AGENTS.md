@@ -1,6 +1,6 @@
 # AGENTS.md — funeng Agent Harness
 
-[One sentence describing what this repo does.]
+现代农业赋能平台：Vue 3 前台（冷链/智慧农业/数字营销/供应链金融）+ Vue 3 管理后台 + FastAPI/SQLite 后端。
 This file is a **table of contents** — not a reference manual. Follow the links.
 
 > **Context depth guide (progressive disclosure):**
@@ -15,17 +15,14 @@ This file is a **table of contents** — not a reference manual. Follow the link
 ## Repo Map
 
 ```
-  backend/
-  frontend/
+  backend/    FastAPI + SQLAlchemy + SQLite（main.py 入口，app/config.py 读环境变量，tests/ 为 pytest）
+  frontend/   前台 Vue 3 + TS + Vite（:5173，代理 /api → :8000）
+  admin/      管理后台 Vue 3 + TS + Vite（:3001，调用 /api/admin/*）
+  docs/       架构、质量标准、执行计划（docs/plans/）
+  scripts/    agent-lint.sh
 ```
 
----
-
-## Packages (0 total)
-
-```
-  (see source directories)
-```
+**环境变量**（生产必须设置）：`SECRET_KEY`、`ADMIN_SECRET_KEY`、`DATABASE_URL`、`CORS_ORIGINS`
 
 ---
 
@@ -45,14 +42,11 @@ This file is a **table of contents** — not a reference manual. Follow the link
 ## How to Build & Test
 
 ```bash
-# Run all tests
-npm test
-
-# Run lints
-npm run lint
-
-# Run agent-specific lints (architectural invariants)
-bash scripts/agent-lint.sh
+npm run setup            # 安装 frontend/admin 依赖 + backend/.venv
+npm test                 # 后端 pytest（临时数据库，不会改动 funeng.db）
+npm run lint             # frontend + admin 类型检查
+bash scripts/agent-lint.sh   # 类型检查 + 测试 + 密钥/长度检查
+npm run dev:backend | dev:frontend | dev:admin
 ```
 
 ---

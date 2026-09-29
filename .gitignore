@@ -49,3 +49,8 @@ uploads/
 
 # Build output
 dist/
+
+# Test / tooling artifacts
+.coverage
+htmlcov/
+backend/exports/
