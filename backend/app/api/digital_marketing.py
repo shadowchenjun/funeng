@@ -1,51 +1,23 @@
 """
 数字营销API - 连接真实数据库
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import func
 
-from app.database import get_db, engine
-from app.models.base import Base
+from app.database import get_db
+from app.models.product import Product as ProductModel
+from app.models.smart_agriculture import (
+    Member as MemberModel, Campaign as CampaignModel,
+    MarketingOrder as MarketingOrderModel, MarketingTrafficDaily as MarketingTrafficModel,
+)
 
 router = APIRouter()
 
-# ============ 数据模型 ============
-class MemberModel(Base):
-    __tablename__ = "members"
-    __table_args__ = {'extend_existing': True}
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), nullable=False)
-    phone = Column(String(20))
-    level = Column(String(20), default='普通')
-    points = Column(Integer, default=0)
-    total_spent = Column(String(50), default='¥0')
-    gender = Column(String(10), default='男')
-    birthday = Column(String(20))
-    email = Column(String(100))
-    address = Column(String(200))
-    register_date = Column(String(20))
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-
-
-class CampaignModel(Base):
-    __tablename__ = "campaigns"
-    __table_args__ = {'extend_existing': True}
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    campaign_type = Column(String(50))
-    status = Column(String(20), default='未开始')
-    participants = Column(Integer, default=0)
-    sales = Column(String(50), default='¥0')
-    end_date = Column(String(20))
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+# 数据模型统一定义在 app/models/smart_agriculture.py
 
 
 # ============ Pydantic Schemas ============
@@ -251,44 +223,132 @@ def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
     return {"message": "活动删除成功"}
 
 
-# ============ 保留原有模拟数据接口（用于展示） ============
+# ============ 电商订单 / 营销分析（来自 marketing_orders / marketing_traffic_daily） ============
+PENDING_STATUSES = ("待付款", "待发货")
+VALID_STATUSES = ("待付款", "待发货", "配送中", "已完成", "已取消")
+
+
+def _order_dict(o: MarketingOrderModel) -> dict:
+    return {
+        "id": o.order_no,
+        "order_id": o.id,
+        "customer_name": o.customer_name,
+        "product": o.product_name,
+        "product_id": o.product_id,
+        "quantity": o.quantity,
+        "unit_price": o.unit_price,
+        "price": o.amount,
+        "status": o.status,
+        "channel": o.channel,
+        "created_at": o.created_at.isoformat() if o.created_at else None,
+    }
+
+
 @router.get("/orders")
-def get_orders():
-    """获取电商订单列表 - 模拟数据"""
-    from datetime import timedelta
-    import random
+def get_orders(status: Optional[str] = None, channel: Optional[str] = None,
+               limit: int = Query(20, ge=1, le=500), db: Session = Depends(get_db)):
+    """获取电商订单列表（最新在前）"""
+    q = db.query(MarketingOrderModel)
+    if status:
+        q = q.filter(MarketingOrderModel.status == status)
+    if channel:
+        q = q.filter(MarketingOrderModel.channel == channel)
+    orders = q.order_by(MarketingOrderModel.created_at.desc(), MarketingOrderModel.id.desc()).limit(limit).all()
+    return [_order_dict(o) for o in orders]
 
-    statuses = ["待付款", "待发货", "配送中", "已完成", "已取消"]
-    channels = ["APP", "小程序", "网页", "直播间"]
-    products = ["有机大米", "新鲜蔬菜", "水果礼盒", "土特产", "有机水果"]
 
-    orders = []
-    for i in range(20):
-        date = datetime.now() - timedelta(hours=random.randint(0, 72))
-        orders.append({
-            "id": f"ORD{datetime.now().strftime('%Y%m%d')}{i+1:04d}",
-            "customer_name": f"客户{i+1}",
-            "product": random.choice(products),
-            "quantity": random.randint(1, 10),
-            "price": round(random.uniform(50, 500), 2),
-            "status": random.choice(statuses),
-            "channel": random.choice(channels),
-            "created_at": date.isoformat()
-        })
-    return orders
+class OrderStatusUpdate(BaseModel):
+    status: str
+
+
+@router.put("/orders/{order_no}/status")
+def update_order_status(order_no: str, body: OrderStatusUpdate, db: Session = Depends(get_db)):
+    """更新订单状态"""
+    if body.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail="无效的订单状态")
+    order = db.query(MarketingOrderModel).filter(MarketingOrderModel.order_no == order_no).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    order.status = body.status
+    db.commit()
+    return _order_dict(order)
+
+
+def _pct_change(cur: float, prev: float) -> float:
+    return round((cur - prev) / prev * 100, 1) if prev else 0.0
 
 
 @router.get("/analytics")
 def get_marketing_analytics(db: Session = Depends(get_db)):
-    """获取营销分析数据"""
-    member_total = db.query(MemberModel).count()
-    campaign_total = db.query(CampaignModel).count()
+    """获取营销分析数据：概览、今日指标（与昨日对比）、渠道数据"""
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+    tomorrow = today + timedelta(days=1)
+    valid = MarketingOrderModel.status != "已取消"
+
+    def orders_between(start, end, *filters):
+        return db.query(
+            func.count(MarketingOrderModel.id), func.coalesce(func.sum(MarketingOrderModel.amount), 0)
+        ).filter(MarketingOrderModel.created_at >= start, MarketingOrderModel.created_at < end, valid, *filters).one()
+
+    def traffic(day: datetime):
+        return db.query(MarketingTrafficModel).filter(MarketingTrafficModel.date == day.strftime("%Y-%m-%d")).first()
+
+    def new_members(day: datetime) -> int:
+        return db.query(MemberModel).filter(MemberModel.register_date == day.strftime("%Y-%m-%d")).count()
+
+    t_count, t_sales = orders_between(today, tomorrow)
+    y_count, y_sales = orders_between(yesterday, today)
+    t_traffic, y_traffic = traffic(today), traffic(yesterday)
+    t_visitors = t_traffic.visitors if t_traffic else 0
+    y_visitors = y_traffic.visitors if y_traffic else 0
+    t_conv = round(t_count / t_visitors * 100, 2) if t_visitors else 0.0
+    y_conv = round(y_count / y_visitors * 100, 2) if y_visitors else 0.0
+    t_new, y_new = new_members(today), new_members(yesterday)
+
+    total_orders, total_revenue = db.query(
+        func.count(MarketingOrderModel.id), func.coalesce(func.sum(MarketingOrderModel.amount), 0)
+    ).filter(valid).one()
+    live_count, live_sales = orders_between(today, tomorrow, MarketingOrderModel.channel == "直播间")
+    latest_traffic = db.query(MarketingTrafficModel).order_by(MarketingTrafficModel.date.desc()).first()
+    push = t_traffic or latest_traffic
 
     return {
         "overview": {
-            "total_members": member_total,
-            "total_campaigns": campaign_total,
-            "total_orders": 0,
-            "total_revenue": 0
-        }
+            "total_members": db.query(MemberModel).count(),
+            "total_campaigns": db.query(CampaignModel).count(),
+            "total_orders": total_orders,
+            "total_revenue": round(float(total_revenue), 2),
+        },
+        "today": {
+            "sales": round(float(t_sales), 2),
+            "sales_trend": _pct_change(t_sales, y_sales),
+            "orders": t_count,
+            "visitors": t_visitors,
+            "visitors_trend": _pct_change(t_visitors, y_visitors),
+            "conversion_rate": t_conv,
+            "conversion_trend": _pct_change(t_conv, y_conv),
+            "new_members": t_new,
+            "new_members_trend": _pct_change(t_new, y_new),
+        },
+        "channels": {
+            "live": {
+                "sessions": t_traffic.live_sessions if t_traffic else 0,
+                "orders": live_count,
+                "sales": round(float(live_sales), 2),
+            },
+            "social": {
+                "followers": latest_traffic.followers_total if latest_traffic else 0,
+                "new_followers": t_traffic.new_followers if t_traffic else 0,
+            },
+            "ecommerce": {
+                "products": db.query(ProductModel).filter(ProductModel.is_active == 1).count(),
+                "pending_orders": db.query(MarketingOrderModel).filter(
+                    MarketingOrderModel.status.in_(PENDING_STATUSES)).count(),
+            },
+            "push": {
+                "sent": push.push_sent if push else 0,
+                "open_rate": round(push.push_opened / push.push_sent * 100, 1) if push and push.push_sent else 0,
+            },
+        },
     }

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Union
 import json
 
 from app.database import get_db
@@ -13,8 +13,34 @@ from app.models.admin import (
     AdminUser, TraceabilityConfig, TraceabilityNode, TraceabilityRecordEntry
 )
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import (
+    TraceabilityConfigCreate, TraceabilityConfigUpdate, TraceabilityNodeCreate,
+    TraceabilityNodeUpdate, TraceabilityRecordCreate, apply_update,
+)
 
 router = APIRouter()
+
+
+def _parse_data_fields(raw: Optional[str]) -> list:
+    """解析节点 data_fields；兼容历史上以逗号分隔存储的非 JSON 值"""
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+        return value if isinstance(value, list) else [value]
+    except ValueError:
+        return [f.strip() for f in raw.split(",") if f.strip()]
+
+
+def _normalize_data_fields(raw: Optional[Union[str, List[str]]]) -> Optional[str]:
+    """写入前统一存为 JSON 数组字符串（接受数组、JSON 字符串或逗号分隔文本）"""
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        fields = [str(f).strip() for f in raw if str(f).strip()]
+    else:
+        fields = _parse_data_fields(raw)
+    return json.dumps(fields, ensure_ascii=False)
 
 
 # ============ 溯源配置 ============
@@ -48,29 +74,21 @@ def list_configs(
 
 @router.post("/configs")
 def create_config(
-    name: str,
-    code: str,
-    description: Optional[str] = None,
-    land_parcel_id: Optional[int] = None,
+    body: TraceabilityConfigCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建溯源配置"""
-    existing = db.query(TraceabilityConfig).filter(TraceabilityConfig.code == code).first()
+    existing = db.query(TraceabilityConfig).filter(TraceabilityConfig.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="配置代码已存在")
 
-    config = TraceabilityConfig(
-        name=name,
-        code=code,
-        description=description,
-        land_parcel_id=land_parcel_id
-    )
+    config = TraceabilityConfig(**body.model_dump())
     db.add(config)
     db.commit()
     db.refresh(config)
 
-    log_operation(db, current_admin.id, "create", "traceability_config", config.id, f"创建溯源配置: {name}")
+    log_operation(db, current_admin.id, "create", "traceability_config", config.id, f"创建溯源配置: {body.name}")
 
     return {"id": config.id, "message": "创建成功"}
 
@@ -78,10 +96,7 @@ def create_config(
 @router.put("/configs/{config_id}")
 def update_config(
     config_id: int,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    land_parcel_id: Optional[int] = None,
-    is_active: Optional[bool] = None,
+    body: TraceabilityConfigUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -90,19 +105,12 @@ def update_config(
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
 
-    if name:
-        config.name = name
-    if description:
-        config.description = description
-    if land_parcel_id is not None:
-        config.land_parcel_id = land_parcel_id
-    if is_active is not None:
-        config.is_active = is_active
+    apply_update(config, body)
 
     config.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "traceability_config", config_id, f"更新溯源配置: {name}")
+    log_operation(db, current_admin.id, "update", "traceability_config", config_id, f"更新溯源配置: {config.name}")
 
     return {"message": "更新成功"}
 
@@ -129,7 +137,7 @@ def list_nodes(
             "description": n.description,
             "icon": n.icon,
             "sort_order": n.sort_order,
-            "data_fields": json.loads(n.data_fields) if n.data_fields else [],
+            "data_fields": _parse_data_fields(n.data_fields),
             "is_active": n.is_active,
             "created_at": n.created_at
         }
@@ -139,35 +147,24 @@ def list_nodes(
 
 @router.post("/nodes")
 def create_node(
-    config_id: int,
-    name: str,
-    node_type: str,
-    icon: Optional[str] = None,
-    description: Optional[str] = None,
-    sort_order: int = 0,
-    data_fields: Optional[str] = None,
+    body: TraceabilityNodeCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建溯源节点"""
-    config = db.query(TraceabilityConfig).filter(TraceabilityConfig.id == config_id).first()
+    config = db.query(TraceabilityConfig).filter(TraceabilityConfig.id == body.config_id).first()
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
 
     node = TraceabilityNode(
-        config_id=config_id,
-        name=name,
-        node_type=node_type,
-        icon=icon,
-        description=description,
-        sort_order=sort_order,
-        data_fields=data_fields
+        **body.model_dump(exclude={"data_fields"}),
+        data_fields=_normalize_data_fields(body.data_fields)
     )
     db.add(node)
     db.commit()
     db.refresh(node)
 
-    log_operation(db, current_admin.id, "create", "traceability_node", node.id, f"创建溯源节点: {name}")
+    log_operation(db, current_admin.id, "create", "traceability_node", node.id, f"创建溯源节点: {body.name}")
 
     return {"id": node.id, "message": "创建成功"}
 
@@ -175,13 +172,7 @@ def create_node(
 @router.put("/nodes/{node_id}")
 def update_node(
     node_id: int,
-    name: Optional[str] = None,
-    node_type: Optional[str] = None,
-    icon: Optional[str] = None,
-    description: Optional[str] = None,
-    sort_order: Optional[int] = None,
-    data_fields: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    body: TraceabilityNodeUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -190,24 +181,13 @@ def update_node(
     if not node:
         raise HTTPException(status_code=404, detail="节点不存在")
 
-    if name:
-        node.name = name
-    if node_type:
-        node.node_type = node_type
-    if icon:
-        node.icon = icon
-    if description:
-        node.description = description
-    if sort_order is not None:
-        node.sort_order = sort_order
-    if data_fields:
-        node.data_fields = data_fields
-    if is_active is not None:
-        node.is_active = is_active
+    changes = apply_update(node, body, exclude=frozenset({"data_fields"}))
+    if "data_fields" in changes:
+        node.data_fields = _normalize_data_fields(changes["data_fields"])
 
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "traceability_node", node_id, f"更新溯源节点: {name}")
+    log_operation(db, current_admin.id, "update", "traceability_node", node_id, f"更新溯源节点: {node.name}")
 
     return {"message": "更新成功"}
 
@@ -284,25 +264,18 @@ def list_records(
 
 @router.post("/records")
 def create_record(
-    node_id: int,
-    data: str,
-    adoption_order_id: Optional[int] = None,
-    image_url: Optional[str] = None,
-    operator: Optional[str] = None,
+    body: TraceabilityRecordCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建溯源记录"""
-    node = db.query(TraceabilityNode).filter(TraceabilityNode.id == node_id).first()
+    node = db.query(TraceabilityNode).filter(TraceabilityNode.id == body.node_id).first()
     if not node:
         raise HTTPException(status_code=404, detail="节点不存在")
 
     record = TraceabilityRecordEntry(
-        node_id=node_id,
-        adoption_order_id=adoption_order_id,
-        data=data,
-        image_url=image_url,
-        operator=operator or current_admin.full_name or current_admin.username
+        **body.model_dump(exclude={"operator"}),
+        operator=body.operator or current_admin.full_name or current_admin.username
     )
     db.add(record)
     db.commit()

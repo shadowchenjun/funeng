@@ -13,6 +13,10 @@ from app.models.admin import (
     AdminUser, DeviceType, Device, MonitoringPoint, MonitoringRecord, DeviceLog
 )
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import (
+    DeviceTypeCreate, DeviceTypeUpdate, DeviceCreate, DeviceUpdate,
+    MonitoringPointCreate, MonitoringPointUpdate, apply_update,
+)
 
 router = APIRouter()
 
@@ -43,31 +47,21 @@ def list_device_types(
 
 @router.post("/types")
 def create_device_type(
-    name: str,
-    code: str,
-    icon: Optional[str] = None,
-    description: Optional[str] = None,
-    specifications: Optional[str] = None,
+    body: DeviceTypeCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建设备类型"""
-    existing = db.query(DeviceType).filter(DeviceType.code == code).first()
+    existing = db.query(DeviceType).filter(DeviceType.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="设备类型代码已存在")
 
-    device_type = DeviceType(
-        name=name,
-        code=code,
-        icon=icon,
-        description=description,
-        specifications=specifications
-    )
+    device_type = DeviceType(**body.model_dump())
     db.add(device_type)
     db.commit()
     db.refresh(device_type)
 
-    log_operation(db, current_admin.id, "create", "device_type", device_type.id, f"创建设备类型: {name}")
+    log_operation(db, current_admin.id, "create", "device_type", device_type.id, f"创建设备类型: {body.name}")
 
     return {"id": device_type.id, "message": "创建成功"}
 
@@ -75,11 +69,7 @@ def create_device_type(
 @router.put("/types/{type_id}")
 def update_device_type(
     type_id: int,
-    name: Optional[str] = None,
-    icon: Optional[str] = None,
-    description: Optional[str] = None,
-    specifications: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    body: DeviceTypeUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -88,21 +78,12 @@ def update_device_type(
     if not device_type:
         raise HTTPException(status_code=404, detail="设备类型不存在")
 
-    if name:
-        device_type.name = name
-    if icon:
-        device_type.icon = icon
-    if description:
-        device_type.description = description
-    if specifications:
-        device_type.specifications = specifications
-    if is_active is not None:
-        device_type.is_active = is_active
+    apply_update(device_type, body)
 
     device_type.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "device_type", type_id, f"更新设备类型: {name}")
+    log_operation(db, current_admin.id, "update", "device_type", type_id, f"更新设备类型: {device_type.name}")
 
     return {"message": "更新成功"}
 
@@ -235,39 +216,25 @@ def get_device(
 
 @router.post("/devices")
 def create_device(
-    name: str,
-    code: str,
-    device_type_id: int,
-    location: Optional[str] = None,
-    land_parcel_id: Optional[int] = None,
-    config: Optional[str] = None,
-    firmware_version: Optional[str] = None,
+    body: DeviceCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建设备"""
-    existing = db.query(Device).filter(Device.code == code).first()
+    existing = db.query(Device).filter(Device.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="设备编号已存在")
 
-    device_type = db.query(DeviceType).filter(DeviceType.id == device_type_id).first()
+    device_type = db.query(DeviceType).filter(DeviceType.id == body.device_type_id).first()
     if not device_type:
         raise HTTPException(status_code=404, detail="设备类型不存在")
 
-    device = Device(
-        name=name,
-        code=code,
-        device_type_id=device_type_id,
-        location=location,
-        land_parcel_id=land_parcel_id,
-        config=config,
-        firmware_version=firmware_version
-    )
+    device = Device(**body.model_dump())
     db.add(device)
     db.commit()
     db.refresh(device)
 
-    log_operation(db, current_admin.id, "create", "device", device.id, f"创建设备: {name}")
+    log_operation(db, current_admin.id, "create", "device", device.id, f"创建设备: {body.name}")
 
     return {"id": device.id, "message": "创建成功"}
 
@@ -275,12 +242,7 @@ def create_device(
 @router.put("/devices/{device_id}")
 def update_device(
     device_id: int,
-    name: Optional[str] = None,
-    location: Optional[str] = None,
-    land_parcel_id: Optional[int] = None,
-    config: Optional[str] = None,
-    firmware_version: Optional[str] = None,
-    status: Optional[str] = None,
+    body: DeviceUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -289,23 +251,12 @@ def update_device(
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
 
-    if name:
-        device.name = name
-    if location:
-        device.location = location
-    if land_parcel_id is not None:
-        device.land_parcel_id = land_parcel_id
-    if config:
-        device.config = config
-    if firmware_version:
-        device.firmware_version = firmware_version
-    if status:
-        device.status = status
+    apply_update(device, body)
 
     device.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "device", device_id, f"更新设备: {name}")
+    log_operation(db, current_admin.id, "update", "device", device_id, f"更新设备: {device.name}")
 
     return {"message": "更新成功"}
 
@@ -370,28 +321,16 @@ def list_monitoring_points(
 
 @router.post("/monitoring-points")
 def create_monitoring_point(
-    device_id: int,
-    name: str,
-    data_type: str,
-    unit: Optional[str] = None,
-    threshold_min: Optional[float] = None,
-    threshold_max: Optional[float] = None,
+    body: MonitoringPointCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建监控点"""
-    device = db.query(Device).filter(Device.id == device_id).first()
+    device = db.query(Device).filter(Device.id == body.device_id).first()
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
 
-    point = MonitoringPoint(
-        device_id=device_id,
-        name=name,
-        data_type=data_type,
-        unit=unit,
-        threshold_min=threshold_min,
-        threshold_max=threshold_max
-    )
+    point = MonitoringPoint(**body.model_dump())
     db.add(point)
     db.commit()
     db.refresh(point)
@@ -402,11 +341,7 @@ def create_monitoring_point(
 @router.put("/monitoring-points/{point_id}")
 def update_monitoring_point(
     point_id: int,
-    name: Optional[str] = None,
-    unit: Optional[str] = None,
-    threshold_min: Optional[float] = None,
-    threshold_max: Optional[float] = None,
-    is_active: Optional[bool] = None,
+    body: MonitoringPointUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -415,16 +350,13 @@ def update_monitoring_point(
     if not point:
         raise HTTPException(status_code=404, detail="监控点不存在")
 
-    if name:
-        point.name = name
-    if unit:
-        point.unit = unit
-    if threshold_min is not None:
-        point.threshold_min = threshold_min
-    if threshold_max is not None:
-        point.threshold_max = threshold_max
-    if is_active is not None:
-        point.is_active = is_active
+    changes = body.model_dump(exclude_unset=True)
+    lo = changes.get("threshold_min", point.threshold_min)
+    hi = changes.get("threshold_max", point.threshold_max)
+    if lo is not None and hi is not None and lo > hi:
+        raise HTTPException(status_code=422, detail="threshold_min 不能大于 threshold_max")
+
+    apply_update(point, body)
 
     db.commit()
     return {"message": "更新成功"}

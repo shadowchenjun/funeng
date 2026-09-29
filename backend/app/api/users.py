@@ -4,7 +4,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import ConfigDict, BaseModel, EmailStr
 from datetime import datetime
 
 from app.database import get_db
@@ -28,8 +28,7 @@ class UserListResponse(BaseModel):
     is_admin: bool
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # 获取所有用户（仅管理员）
 @router.get("/", response_model=List[UserListResponse])

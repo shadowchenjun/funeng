@@ -10,6 +10,7 @@ from typing import Optional
 from app.database import get_db
 from app.models.admin import AdminUser, LandParcel, AdoptionOrder, RentalOrder
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import LandParcelCreate, LandParcelUpdate, StatusUpdate, apply_update
 
 router = APIRouter()
 
@@ -121,35 +122,21 @@ def get_parcel(
 
 @router.post("/parcels")
 def create_parcel(
-    name: str,
-    code: str,
-    area: float,
-    location: Optional[str] = None,
-    type: str = "farm",
-    description: Optional[str] = None,
-    image_url: Optional[str] = None,
+    body: LandParcelCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建土地"""
-    existing = db.query(LandParcel).filter(LandParcel.code == code).first()
+    existing = db.query(LandParcel).filter(LandParcel.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="土地编号已存在")
 
-    parcel = LandParcel(
-        name=name,
-        code=code,
-        area=area,
-        location=location,
-        type=type,
-        description=description,
-        image_url=image_url
-    )
+    parcel = LandParcel(**body.model_dump())
     db.add(parcel)
     db.commit()
     db.refresh(parcel)
 
-    log_operation(db, current_admin.id, "create", "land_parcel", parcel.id, f"创建土地: {name}")
+    log_operation(db, current_admin.id, "create", "land_parcel", parcel.id, f"创建土地: {body.name}")
 
     return {"id": parcel.id, "message": "创建成功"}
 
@@ -157,13 +144,7 @@ def create_parcel(
 @router.put("/parcels/{parcel_id}")
 def update_parcel(
     parcel_id: int,
-    name: Optional[str] = None,
-    area: Optional[float] = None,
-    location: Optional[str] = None,
-    type: Optional[str] = None,
-    description: Optional[str] = None,
-    image_url: Optional[str] = None,
-    status: Optional[str] = None,
+    body: LandParcelUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -172,25 +153,12 @@ def update_parcel(
     if not parcel:
         raise HTTPException(status_code=404, detail="土地不存在")
 
-    if name:
-        parcel.name = name
-    if area is not None:
-        parcel.area = area
-    if location:
-        parcel.location = location
-    if type:
-        parcel.type = type
-    if description:
-        parcel.description = description
-    if image_url:
-        parcel.image_url = image_url
-    if status:
-        parcel.status = status
+    apply_update(parcel, body)
 
     parcel.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "land_parcel", parcel_id, f"更新土地: {name}")
+    log_operation(db, current_admin.id, "update", "land_parcel", parcel_id, f"更新土地: {parcel.name}")
 
     return {"message": "更新成功"}
 
@@ -321,8 +289,7 @@ def get_rental_order(
 @router.put("/rental-orders/{order_id}/status")
 def update_rental_status(
     order_id: int,
-    status: str,
-    remark: Optional[str] = None,
+    body: StatusUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -332,9 +299,10 @@ def update_rental_status(
         raise HTTPException(status_code=404, detail="订单不存在")
 
     old_status = order.status
+    status = body.status
     order.status = status
-    if remark:
-        order.remark = remark
+    if body.remark:
+        order.remark = body.remark
 
     # 如果订单完成或取消，释放土地
     if status in ["completed", "cancelled", "refunded"] and order.land_parcel:

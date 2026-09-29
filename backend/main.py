@@ -1,9 +1,11 @@
 """
 现代农业赋能平台 - 后端入口
 """
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, products, categories, dashboard
+from app.api.auth import get_current_user
+from app.config import CORS_ORIGINS, CORS_ORIGIN_REGEX
+from app.api import auth, products, categories, dashboard, public
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
 from app.api.admin import router as admin_router
 from app.api.analytics_platform import router as analytics_platform_router  # Sprint 2 性能优化
@@ -13,6 +15,9 @@ from app.models.smart_agriculture import FarmInfo, Land, Crop
 from app.models.product import Product
 from app.models.category import Category
 from app.models.admin import AdminUser, AdminRole
+from app.seeds.supply_chain_finance import seed_supply_chain_finance
+from app.seeds.cold_chain import seed_cold_chain
+from app.seeds.smart_agriculture import seed_smart_agriculture
 from app.database import engine, get_db
 import bcrypt
 
@@ -159,6 +164,18 @@ def seed_default_data():
             db.commit()
             print("✅ 默认管理员账号已创建: admin / admin123456")
 
+        # 7. 创建供应链金融默认数据（融资订单 / 应收账款 / 保单 / 信用评估）
+        if seed_supply_chain_finance(db):
+            print("✅ 供应链金融默认数据已创建")
+
+        # 8. 创建冷链仓储默认数据
+        if seed_cold_chain(db):
+            print("✅ 冷链仓储默认数据已创建")
+
+        # 9. 创建智慧农业监测默认数据
+        if seed_smart_agriculture(db):
+            print("✅ 智慧农业监测默认数据已创建")
+
     except Exception as e:
         print(f"⚠️ 初始化数据时出错: {e}")
     finally:
@@ -176,7 +193,8 @@ app = FastAPI(
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://*.trycloudflare.com", "https://*.loca.lt"],
+    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -184,16 +202,19 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
+app.include_router(public.router, prefix="/api/public", tags=["公开统计"])
 app.include_router(products.router, prefix="/api/products", tags=["产品管理"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类管理"])
-app.include_router(dashboard.router, prefix="/api/dashboard", tags=["仪表盘"])
+# 业务模块需要登录用户（前端路由均为 requiresAuth）
+login_required = [Depends(get_current_user)]
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["仪表盘"], dependencies=login_required)
 app.include_router(upload.router, prefix="/api/upload", tags=["文件上传"])
 app.include_router(users.router, prefix="/api/users", tags=["用户管理"])
-app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", tags=["智慧农业"])
-app.include_router(digital_marketing.router, prefix="/api/digital-marketing", tags=["数字营销"])
-app.include_router(cold_chain.router, prefix="/api/cold-chain", tags=["数字冷链物联"])
-app.include_router(supply_chain_finance.router, prefix="/api/supply-chain-finance", tags=["供应链金融"])
-app.include_router(admin_router)
+app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", tags=["智慧农业"], dependencies=login_required)
+app.include_router(digital_marketing.router, prefix="/api/digital-marketing", tags=["数字营销"], dependencies=login_required)
+app.include_router(cold_chain.router, prefix="/api/cold-chain", tags=["数字冷链物联"], dependencies=login_required)
+app.include_router(supply_chain_finance.router, prefix="/api/supply-chain-finance", tags=["供应链金融"], dependencies=login_required)
+app.include_router(admin_router, prefix="/api")
 app.include_router(analytics_platform_router, prefix="/api", tags=["平台分析(优化)"])  # Sprint 2
 
 @app.get("/")

@@ -235,6 +235,7 @@ class TraceabilityConfig(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+    land_parcel = relationship("LandParcel")
     nodes = relationship("TraceabilityNode", back_populates="config")
 
 

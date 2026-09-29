@@ -1,7 +1,7 @@
 """
 认证相关的Schema
 """
-from pydantic import BaseModel, EmailStr
+from pydantic import ConfigDict, BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
@@ -27,8 +27,7 @@ class UserResponse(BaseModel):
     is_admin: bool
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Token
 class Token(BaseModel):

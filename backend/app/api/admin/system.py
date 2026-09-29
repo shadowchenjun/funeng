@@ -9,6 +9,7 @@ import json
 from app.database import get_db
 from app.models.admin import AdminUser, SystemConfig, AdminOperationLog
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import SystemConfigCreate, SystemConfigUpdate, config_value_to_text
 
 router = APIRouter()
 
@@ -66,7 +67,7 @@ def get_config(
 @router.put("/configs/{key}")
 def update_config(
     key: str,
-    value: str,
+    body: SystemConfigUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -75,7 +76,10 @@ def update_config(
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
 
-    config.value = value
+    try:
+        config.value = config_value_to_text(body.value, config.type)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"value {e}")
     db.commit()
 
     log_operation(db, current_admin.id, "update", "system_config", config.id, f"更新配置: {key}")
@@ -85,33 +89,21 @@ def update_config(
 
 @router.post("/configs")
 def create_config(
-    key: str,
-    value: str,
-    type: str = "string",
-    group: str = "general",
-    description: Optional[str] = None,
-    is_public: bool = False,
+    body: SystemConfigCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建系统配置"""
-    existing = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+    existing = db.query(SystemConfig).filter(SystemConfig.key == body.key).first()
     if existing:
         raise HTTPException(status_code=400, detail="配置键已存在")
 
-    config = SystemConfig(
-        key=key,
-        value=value,
-        type=type,
-        group=group,
-        description=description,
-        is_public=is_public
-    )
+    config = SystemConfig(**body.model_dump())
     db.add(config)
     db.commit()
     db.refresh(config)
 
-    log_operation(db, current_admin.id, "create", "system_config", config.id, f"创建配置: {key}")
+    log_operation(db, current_admin.id, "create", "system_config", config.id, f"创建配置: {body.key}")
 
     return {"id": config.id, "message": "创建成功"}
 

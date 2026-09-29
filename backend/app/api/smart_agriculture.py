@@ -1,15 +1,18 @@
 """
 智慧农业API - 农场、地块、作物、设备管理
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
-from fastapi.encoders import jsonable_encoder
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import datetime
-import random
+from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.models.smart_agriculture import Land, FarmInfo, IoTDevice, Warehouse, Member, Campaign, Crop, CropGrowthModel, DecisionRecord, TraceabilityRecord, TraceabilityChainNode
+from app.models.smart_agriculture import (
+    Land, FarmInfo, IoTDevice, Crop, CropGrowthModel, DecisionRecord, TraceabilityRecord, TraceabilityChainNode,
+    EnvironmentReading, IrrigationZone, IrrigationRecord,
+)
 from app.models.base import Base
 from app.database import engine
 
@@ -443,101 +446,352 @@ def delete_device(device_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "删除成功"}
 
-# ============= 以下是原有的传感器数据API =============
+# ============= 传感器数据 / 灌溉 / 分析（均来自数据库） =============
+
+SOIL_OPTIMAL = {  # 土壤指标适宜区间，用于计算土壤健康评分
+    "soil_ph": (6.0, 7.5),
+    "soil_moisture": (40, 75),
+    "nitrogen": (100, 200),
+    "phosphorus": (30, 80),
+    "potassium": (150, 250),
+}
+LAND_YIELD_FACTOR = {"normal": 1.0, "warning": 0.85}  # 其他状态按 0.6 计
+
+
+def _latest_readings(db: Session, before: Optional[datetime] = None) -> List[EnvironmentReading]:
+    """每个监测站最新（或指定时间之前最新）的一条读数，按 sensor_id 排序"""
+    sub = db.query(
+        EnvironmentReading.sensor_id,
+        func.max(EnvironmentReading.recorded_at).label("ts"),
+    )
+    if before is not None:
+        sub = sub.filter(EnvironmentReading.recorded_at <= before)
+    sub = sub.group_by(EnvironmentReading.sensor_id).subquery()
+    return (
+        db.query(EnvironmentReading)
+        .join(sub, (EnvironmentReading.sensor_id == sub.c.sensor_id) & (EnvironmentReading.recorded_at == sub.c.ts))
+        .order_by(EnvironmentReading.sensor_id)
+        .all()
+    )
+
+
+def _ts(value: Optional[datetime]) -> Optional[str]:
+    return value.isoformat() if value else None
+
+
+def _avg(values) -> Optional[float]:
+    values = [v for v in values if v is not None]
+    return sum(values) / len(values) if values else None
+
+
+def _soil_score(readings: List[EnvironmentReading]) -> Optional[float]:
+    """土壤健康评分：每项指标在适宜区间中点得 100 分，到区间边界线性降到 60 分，
+    区间外继续按同样斜率下降（最低 0），取各站各项的平均值"""
+    scores = []
+    for r in readings:
+        for field, (lo, hi) in SOIL_OPTIMAL.items():
+            v = getattr(r, field)
+            if v is None:
+                continue
+            mid, half = (lo + hi) / 2, (hi - lo) / 2
+            scores.append(max(0.0, 100.0 - 40.0 * abs(v - mid) / half))
+    return _avg(scores)
+
+
+def _soil_status(score: float) -> str:
+    if score >= 90:
+        return "优秀"
+    if score >= 75:
+        return "良好"
+    if score >= 60:
+        return "一般"
+    return "较差"
+
 
 @router.get("/soil")
-def get_soil_data():
-    """获取土壤监测数据"""
-    sensors = ["S001", "S002", "S003", "S004"]
-    locations = ["东区1号田", "西区1号田", "东区2号田", "西区2号田"]
-    
-    data = []
-    for i, (sensor_id, location) in enumerate(zip(sensors, locations)):
-        data.append({
-            "id": i + 1,
-            "sensor_id": sensor_id,
-            "location": location,
-            "temperature": round(18 + random.uniform(-2, 8), 1),
-            "humidity": round(65 + random.uniform(-15, 20), 1),
-            "ph": round(6.5 + random.uniform(-0.5, 0.8), 1),
-            "nitrogen": round(120 + random.uniform(-30, 50), 1),
-            "phosphorus": round(45 + random.uniform(-15, 20), 1),
-            "potassium": round(180 + random.uniform(-40, 60), 1),
-            "conductivity": round(1.2 + random.uniform(-0.3, 0.5), 2),
-            "timestamp": datetime.now().isoformat()
-        })
-    return data
+def get_soil_data(db: Session = Depends(get_db)):
+    """获取土壤监测数据（每个监测站最新读数）"""
+    return [{
+        "id": idx + 1,
+        "sensor_id": r.sensor_id,
+        "location": r.location,
+        "land_id": r.land_id,
+        "temperature": r.soil_temperature,
+        "humidity": r.soil_moisture,
+        "ph": r.soil_ph,
+        "nitrogen": r.nitrogen,
+        "phosphorus": r.phosphorus,
+        "potassium": r.potassium,
+        "conductivity": r.conductivity,
+        "timestamp": _ts(r.recorded_at),
+    } for idx, r in enumerate(_latest_readings(db))]
+
 
 @router.get("/weather")
-def get_weather_data():
-    """获取气象数据"""
-    locations = ["园区1号", "园区2号", "园区3号", "园区4号"]
-    
-    data = []
-    for i, location in enumerate(locations):
-        data.append({
-            "id": i + 1,
-            "location": location,
-            "temperature": round(15 + random.uniform(-5, 15), 1),
-            "humidity": round(60 + random.uniform(-15, 25), 1),
-            "wind_speed": round(random.uniform(0, 20), 1),
-            "wind_direction": random.choice(["北风", "东北风", "东风", "东南风", "南风"]),
-            "precipitation": round(random.uniform(0, 5), 1),
-            "atmospheric_pressure": round(1013 + random.uniform(-20, 30), 0),
-            "uv_index": round(random.uniform(1, 11), 0),
-            "visibility": round(5 + random.uniform(-2, 8), 1),
-            "timestamp": datetime.now().isoformat()
-        })
-    return data
+def get_weather_data(db: Session = Depends(get_db)):
+    """获取气象数据（每个监测站最新读数）"""
+    return [{
+        "id": idx + 1,
+        "sensor_id": r.sensor_id,
+        "location": r.location,
+        "land_id": r.land_id,
+        "temperature": r.air_temperature,
+        "humidity": r.air_humidity,
+        "wind_speed": r.wind_speed,
+        "wind_direction": r.wind_direction,
+        "precipitation": r.rainfall,
+        "atmospheric_pressure": r.pressure,
+        "uv_index": r.uv_index,
+        "visibility": r.visibility,
+        "light": r.light,
+        "co2": r.co2,
+        "timestamp": _ts(r.recorded_at),
+    } for idx, r in enumerate(_latest_readings(db))]
+
+
+@router.get("/monitor")
+def get_monitor_summary(db: Session = Depends(get_db)):
+    """环境监测概览：各监测站最新读数的平均值，降雨量为最近 24 小时累计"""
+    latest = _latest_readings(db)
+    if not latest:
+        return {"temperature": None, "humidity": None, "soilMoisture": None, "light": None,
+                "co2": None, "rainfall": None, "stationCount": 0, "timestamp": None}
+    newest = max(r.recorded_at for r in latest)
+    rain_rows = db.query(EnvironmentReading.sensor_id, func.sum(EnvironmentReading.rainfall)).filter(
+        EnvironmentReading.recorded_at > newest - timedelta(hours=24)
+    ).group_by(EnvironmentReading.sensor_id).all()
+
+    def r1(v, nd=1):
+        return round(v, nd) if v is not None else None
+
+    return {
+        "temperature": r1(_avg(r.air_temperature for r in latest)),
+        "humidity": r1(_avg(r.air_humidity for r in latest)),
+        "soilMoisture": r1(_avg(r.soil_moisture for r in latest)),
+        "light": r1(_avg(r.light for r in latest), 0),
+        "co2": r1(_avg(r.co2 for r in latest), 0),
+        "rainfall": r1(_avg(total or 0 for _, total in rain_rows)),
+        "stationCount": len(latest),
+        "timestamp": _ts(newest),
+    }
+
+
+@router.get("/readings")
+def get_readings(
+    sensor_id: Optional[str] = None,
+    land_id: Optional[int] = None,
+    hours: int = Query(24, ge=1, le=24 * 31),
+    db: Session = Depends(get_db),
+):
+    """环境读数时间序列（最近 N 小时，相对最新一条读数），按时间升序"""
+    base = db.query(EnvironmentReading)
+    if sensor_id:
+        base = base.filter(EnvironmentReading.sensor_id == sensor_id)
+    if land_id:
+        base = base.filter(EnvironmentReading.land_id == land_id)
+    newest = base.with_entities(func.max(EnvironmentReading.recorded_at)).scalar()
+    if newest is None:
+        return []
+    rows = base.filter(EnvironmentReading.recorded_at > newest - timedelta(hours=hours)).order_by(
+        EnvironmentReading.recorded_at, EnvironmentReading.sensor_id
+    ).all()
+    return [{
+        "sensor_id": r.sensor_id,
+        "location": r.location,
+        "land_id": r.land_id,
+        "timestamp": _ts(r.recorded_at),
+        "air_temperature": r.air_temperature,
+        "air_humidity": r.air_humidity,
+        "rainfall": r.rainfall,
+        "light": r.light,
+        "co2": r.co2,
+        "soil_temperature": r.soil_temperature,
+        "soil_moisture": r.soil_moisture,
+        "ph": r.soil_ph,
+        "nitrogen": r.nitrogen,
+        "phosphorus": r.phosphorus,
+        "potassium": r.potassium,
+    } for r in rows]
+
+
+def _irrigation_item(db: Session, zone: IrrigationZone) -> dict:
+    last_done = db.query(IrrigationRecord).filter(
+        IrrigationRecord.zone_id == zone.id, IrrigationRecord.ended_at.isnot(None)
+    ).order_by(IrrigationRecord.started_at.desc()).first()
+    running = zone.status == "运行中"
+    return {
+        "id": zone.id,
+        "zone": zone.name,
+        "land_id": zone.land_id,
+        "status": zone.status,
+        "water_flow": zone.rated_flow if running else 0,
+        "pressure": zone.pressure,
+        "duration": zone.planned_duration if running else 0,
+        "moisture_before": last_done.moisture_before if last_done else None,
+        "moisture_after": last_done.moisture_after if last_done else None,
+        "auto_mode": bool(zone.auto_mode),
+        "started_at": _ts(zone.started_at) if running else None,
+        "timestamp": _ts(zone.updated_at),
+    }
+
 
 @router.get("/irrigation")
-def get_irrigation_data():
-    """获取智能灌溉数据"""
-    zones = ["灌溉区A", "灌溉区B", "灌溉区C", "灌溉区D"]
-    statuses = ["运行中", "停止", "运行中", "停止"]
-    
-    data = []
-    for i, (zone, status) in enumerate(zip(zones, statuses)):
-        data.append({
-            "id": i + 1,
-            "zone": zone,
-            "status": status,
-            "water_flow": round(random.uniform(10, 50), 1) if status == "运行中" else 0,
-            "pressure": round(random.uniform(2, 5), 1),
-            "duration": random.randint(0, 120) if status == "运行中" else 0,
-            "moisture_before": round(35 + random.uniform(-5, 10), 1),
-            "moisture_after": round(65 + random.uniform(-5, 10), 1),
-            "auto_mode": random.choice([True, False]),
-            "timestamp": datetime.now().isoformat()
-        })
-    return data
+def get_irrigation_data(db: Session = Depends(get_db)):
+    """获取智能灌溉数据（分区当前状态 + 最近一次完成灌溉的前后土壤湿度）"""
+    zones = db.query(IrrigationZone).order_by(IrrigationZone.id).all()
+    return [_irrigation_item(db, z) for z in zones]
+
+
+@router.get("/irrigation/records")
+def get_irrigation_records(zone_id: Optional[int] = None, limit: int = Query(50, ge=1, le=500),
+                           db: Session = Depends(get_db)):
+    """灌溉历史记录（最新在前）"""
+    q = db.query(IrrigationRecord)
+    if zone_id:
+        q = q.filter(IrrigationRecord.zone_id == zone_id)
+    rows = q.order_by(IrrigationRecord.started_at.desc(), IrrigationRecord.id.desc()).limit(limit).all()
+    return [{
+        "id": r.id,
+        "zone_id": r.zone_id,
+        "land_id": r.land_id,
+        "mode": r.mode,
+        "started_at": _ts(r.started_at),
+        "ended_at": _ts(r.ended_at),
+        "duration": r.duration,
+        "water_volume": r.water_volume,
+        "moisture_before": r.moisture_before,
+        "moisture_after": r.moisture_after,
+    } for r in rows]
+
+
+class IrrigationControl(BaseModel):
+    action: str  # start / stop
+    duration: Optional[int] = None  # start 时的计划时长(分钟)
+    auto_mode: Optional[bool] = None
+
+
+def _latest_moisture(db: Session, land_id: Optional[int]) -> Optional[float]:
+    if land_id is None:
+        return None
+    r = db.query(EnvironmentReading).filter(EnvironmentReading.land_id == land_id).order_by(
+        EnvironmentReading.recorded_at.desc()
+    ).first()
+    return r.soil_moisture if r else None
+
+
+@router.post("/irrigation/{zone_id}/control")
+def control_irrigation(zone_id: int, body: IrrigationControl, db: Session = Depends(get_db)):
+    """启动 / 停止灌溉分区，并写入灌溉记录"""
+    zone = db.query(IrrigationZone).filter(IrrigationZone.id == zone_id).first()
+    if not zone:
+        raise HTTPException(status_code=404, detail="灌溉分区不存在")
+    if body.action not in ("start", "stop"):
+        raise HTTPException(status_code=400, detail="action 只能为 start 或 stop")
+    now = datetime.now()
+    if body.auto_mode is not None:
+        zone.auto_mode = body.auto_mode
+    open_record = db.query(IrrigationRecord).filter(
+        IrrigationRecord.zone_id == zone.id, IrrigationRecord.ended_at.is_(None)
+    ).order_by(IrrigationRecord.started_at.desc()).first()
+
+    if body.action == "start":
+        if zone.status == "运行中":
+            raise HTTPException(status_code=400, detail="该分区已在运行")
+        zone.status = "运行中"
+        zone.started_at = now
+        zone.planned_duration = body.duration or 45
+        db.add(IrrigationRecord(
+            zone_id=zone.id, land_id=zone.land_id, mode="manual", started_at=now,
+            moisture_before=_latest_moisture(db, zone.land_id),
+        ))
+    else:
+        if zone.status != "运行中":
+            raise HTTPException(status_code=400, detail="该分区未在运行")
+        if open_record:
+            minutes = max(0, int((now - open_record.started_at).total_seconds() // 60))
+            open_record.ended_at = now
+            open_record.duration = minutes
+            open_record.water_volume = round((zone.rated_flow or 0) * minutes / 60, 2)
+            # 灌溉后湿度取该地块最新的传感器读数
+            open_record.moisture_after = _latest_moisture(db, zone.land_id)
+        zone.status = "停止"
+        zone.planned_duration = 0
+        zone.started_at = None
+    zone.updated_at = now
+    db.commit()
+    db.refresh(zone)
+    return _irrigation_item(db, zone)
+
 
 @router.get("/analytics")
-def get_analytics():
-    """获取农业分析数据"""
+def get_analytics(db: Session = Depends(get_db)):
+    """农业分析数据：由地块、作物、传感器读数、灌溉记录计算"""
+    # 土壤健康：最新读数 vs 24 小时前读数
+    latest = _latest_readings(db)
+    score = _soil_score(latest)
+    trend = "持平"
+    if latest and score is not None:
+        prev = _soil_score(_latest_readings(db, max(r.recorded_at for r in latest) - timedelta(hours=24)))
+        if prev is not None and abs(score - prev) >= 0.5:
+            trend = "上升" if score > prev else "下降"
+
+    # 用水量(m³)：按灌溉开始日期统计
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def water_between(start: datetime, end: datetime) -> float:
+        return db.query(func.coalesce(func.sum(IrrigationRecord.water_volume), 0)).filter(
+            IrrigationRecord.started_at >= start, IrrigationRecord.started_at < end
+        ).scalar() or 0
+
+    week_total = water_between(today - timedelta(days=7), today)
+    done = db.query(IrrigationRecord).filter(
+        IrrigationRecord.ended_at.isnot(None),
+        IrrigationRecord.moisture_before.isnot(None),
+        IrrigationRecord.moisture_after.isnot(None),
+    ).all()
+    # 灌溉效率：灌后土壤湿度达到适宜下限以上且较灌前提升 ≥10 个百分点的灌溉次数占比
+    effective = [r for r in done
+                 if r.moisture_after >= SOIL_OPTIMAL["soil_moisture"][0] and r.moisture_after - r.moisture_before >= 10]
+    efficiency = round(len(effective) / len(done) * 100) if done else 0
+
+    # 作物状态：按地块状态的面积占比
+    lands = db.query(Land).all()
+    total_area = sum(l.area or 0 for l in lands)
+
+    def area_pct(pred) -> float:
+        if not total_area:
+            return 0
+        return round(sum(l.area or 0 for l in lands if pred(l.status or "normal")) / total_area * 100)
+
+    # 产量预测(吨)：地块面积 × 作物标准亩产(斤) × 地块状态系数；last_season 为按标准亩产计算的基准产量
+    yields = {c.name: c.yield_per_mu or 0 for c in db.query(Crop).all()}
+    baseline = sum((l.area or 0) * yields.get(l.crop, 0) for l in lands) / 2000
+    current = sum((l.area or 0) * yields.get(l.crop, 0) * LAND_YIELD_FACTOR.get(l.status or "normal", 0.6)
+                  for l in lands) / 2000
+
     return {
         "soil_health": {
-            "score": round(random.uniform(75, 95), 0),
-            "status": "良好",
-            "trend": "上升"
+            "score": round(score) if score is not None else 0,
+            "status": _soil_status(score) if score is not None else "无数据",
+            "trend": trend,
         },
         "water_usage": {
-            "today": round(random.uniform(100, 500), 0),
-            "yesterday": round(random.uniform(100, 500), 0),
-            "week_avg": round(random.uniform(100, 500), 0),
-            "efficiency": round(random.uniform(75, 95), 0)
+            "today": round(water_between(today, today + timedelta(days=1)), 1),
+            "yesterday": round(water_between(today - timedelta(days=1), today), 1),
+            "week_avg": round(week_total / 7, 1),
+            "efficiency": efficiency,
         },
         "crop_status": {
-            "total_area": round(random.uniform(500, 2000), 0),
-            "healthy": round(random.uniform(80, 95), 0),
-            "warning": round(random.uniform(3, 15), 0),
-            "critical": round(random.uniform(0, 5), 0)
+            "total_area": round(total_area, 1),
+            "healthy": area_pct(lambda s: s == "normal"),
+            "warning": area_pct(lambda s: s == "warning"),
+            "critical": area_pct(lambda s: s not in ("normal", "warning")),
         },
         "yield_prediction": {
-            "current_season": round(random.uniform(800, 1500), 0),
-            "last_season": round(random.uniform(800, 1500), 0),
-            "change": round(random.uniform(-10, 20), 1)
-        }
+            "current_season": round(current, 1),
+            "last_season": round(baseline, 1),
+            "change": round((current - baseline) / baseline * 100, 1) if baseline else 0,
+        },
     }
 
 # ============= 智能决策系统 API =============

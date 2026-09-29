@@ -77,11 +77,16 @@ class Warehouse(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, comment="仓库名称")
     address = Column(String(200), comment="仓库地址")
+    lat = Column(Float, comment="纬度")
+    lng = Column(Float, comment="经度")
     capacity = Column(Float, default=0, comment="容量(m³)")
+    used = Column(Float, default=0, comment="已用容量(m³)")
     area = Column(Float, default=0, comment="面积(㎡)")
     temperature = Column(Float, default=-18, comment="温度(°C)")
     humidity = Column(Float, default=45, comment="湿度(%)")
     inventory = Column(Integer, default=0, comment="库存数量")
+    manager = Column(String(50), comment="负责人")
+    phone = Column(String(20), comment="联系电话")
     status = Column(String(20), default="正常", comment="状态")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -96,6 +101,11 @@ class Member(Base):
     level = Column(String(20), default="普通", comment="会员等级")
     points = Column(Integer, default=0, comment="积分")
     total_spent = Column(String(50), default="¥0", comment="累计消费")
+    gender = Column(String(10), default="男", comment="性别")
+    birthday = Column(String(20), comment="生日")
+    email = Column(String(100), comment="邮箱")
+    address = Column(String(200), comment="地址")
+    register_date = Column(String(20), comment="注册日期")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -197,3 +207,101 @@ class TraceabilityChainNode(Base):
     image_url = Column(String(200), comment="现场图片URL")
     timestamp = Column(String(30), comment="时间戳")
     created_at = Column(DateTime, server_default=func.now())
+
+
+# ============= 传感器时序 / 灌溉（替代原随机模拟数据） =============
+
+class EnvironmentReading(Base):
+    """环境监测读数 - 每个监测站（通常对应一个地块）每小时一条"""
+    __tablename__ = "environment_readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    land_id = Column(Integer, nullable=True, index=True, comment="关联地块ID")
+    sensor_id = Column(String(20), nullable=False, index=True, comment="监测站/传感器编号")
+    location = Column(String(100), comment="监测位置")
+    recorded_at = Column(DateTime, nullable=False, index=True, comment="采集时间")
+    # 气象
+    air_temperature = Column(Float, comment="空气温度(°C)")
+    air_humidity = Column(Float, comment="空气湿度(%)")
+    wind_speed = Column(Float, comment="风速(m/s)")
+    wind_direction = Column(String(10), comment="风向")
+    rainfall = Column(Float, default=0, comment="小时降雨量(mm)")
+    pressure = Column(Float, comment="气压(hPa)")
+    uv_index = Column(Float, comment="紫外线指数")
+    visibility = Column(Float, comment="能见度(km)")
+    light = Column(Float, comment="光照强度(lux)")
+    co2 = Column(Float, comment="CO2浓度(ppm)")
+    # 土壤
+    soil_temperature = Column(Float, comment="土壤温度(°C)")
+    soil_moisture = Column(Float, comment="土壤湿度(%)")
+    soil_ph = Column(Float, comment="土壤pH")
+    nitrogen = Column(Float, comment="含氮量(mg/kg)")
+    phosphorus = Column(Float, comment="含磷量(mg/kg)")
+    potassium = Column(Float, comment="含钾量(mg/kg)")
+    conductivity = Column(Float, comment="电导率(mS/cm)")
+
+
+class IrrigationZone(Base):
+    """灌溉分区 - 当前运行状态"""
+    __tablename__ = "irrigation_zones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False, comment="分区名称")
+    land_id = Column(Integer, nullable=True, index=True, comment="关联地块ID")
+    status = Column(String(20), default="停止", comment="状态: 运行中/停止")
+    auto_mode = Column(Boolean, default=True, comment="是否自动模式")
+    rated_flow = Column(Float, default=20, comment="额定流量(m³/h)")
+    pressure = Column(Float, default=3, comment="管网压力(bar)")
+    planned_duration = Column(Integer, default=0, comment="本次计划灌溉时长(分钟)")
+    started_at = Column(DateTime, nullable=True, comment="本次开始时间")
+    updated_at = Column(DateTime, comment="状态更新时间")
+
+
+class IrrigationRecord(Base):
+    """灌溉记录 - 每次灌溉一条"""
+    __tablename__ = "irrigation_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    zone_id = Column(Integer, nullable=False, index=True, comment="灌溉分区ID")
+    land_id = Column(Integer, nullable=True, comment="关联地块ID")
+    mode = Column(String(10), default="auto", comment="auto/manual")
+    started_at = Column(DateTime, nullable=False, index=True, comment="开始时间")
+    ended_at = Column(DateTime, nullable=True, comment="结束时间(进行中为空)")
+    duration = Column(Integer, default=0, comment="时长(分钟)")
+    water_volume = Column(Float, default=0, comment="用水量(m³)")
+    moisture_before = Column(Float, comment="灌溉前土壤湿度(%)")
+    moisture_after = Column(Float, comment="灌溉后土壤湿度(%)")
+
+
+# ============= 数字营销：电商订单 / 流量 =============
+
+class MarketingOrder(Base):
+    """电商订单"""
+    __tablename__ = "marketing_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_no = Column(String(40), unique=True, nullable=False, comment="订单号")
+    customer_name = Column(String(50), comment="客户")
+    member_id = Column(Integer, nullable=True, comment="会员ID")
+    product_id = Column(Integer, nullable=True, comment="商品ID(products.id)")
+    product_name = Column(String(200), comment="商品名称")
+    quantity = Column(Integer, default=1, comment="数量")
+    unit_price = Column(Float, default=0, comment="单价")
+    amount = Column(Float, default=0, comment="订单金额")
+    status = Column(String(20), default="待付款", comment="待付款/待发货/配送中/已完成/已取消")
+    channel = Column(String(20), comment="APP/小程序/网页/直播间")
+    created_at = Column(DateTime, nullable=False, index=True, comment="下单时间")
+
+
+class MarketingTrafficDaily(Base):
+    """营销渠道每日流量统计"""
+    __tablename__ = "marketing_traffic_daily"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String(10), unique=True, nullable=False, comment="日期 YYYY-MM-DD")
+    visitors = Column(Integer, default=0, comment="访客数")
+    followers_total = Column(Integer, default=0, comment="社交粉丝总数")
+    new_followers = Column(Integer, default=0, comment="新增粉丝")
+    push_sent = Column(Integer, default=0, comment="消息推送发送数")
+    push_opened = Column(Integer, default=0, comment="消息推送打开数")
+    live_sessions = Column(Integer, default=0, comment="直播场次")

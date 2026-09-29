@@ -11,6 +11,7 @@ import json
 from app.database import get_db
 from app.models.admin import AdminUser, Coupon, Activity
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import CouponCreate, CouponUpdate, ActivityCreate, ActivityUpdate, apply_update
 
 router = APIRouter()
 
@@ -96,45 +97,21 @@ def get_coupon(
 
 @router.post("/coupons")
 def create_coupon(
-    name: str,
-    code: str,
-    discount_value: float,
-    valid_from: str,
-    valid_until: str,
-    type: str = "discount",
-    min_amount: float = 0,
-    max_discount: Optional[float] = None,
-    total_count: int = 100,
-    per_user_limit: int = 1,
-    applicable_products: Optional[str] = None,
-    applicable_categories: Optional[str] = None,
+    body: CouponCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建优惠券"""
-    existing = db.query(Coupon).filter(Coupon.code == code).first()
+    existing = db.query(Coupon).filter(Coupon.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="优惠券代码已存在")
 
-    coupon = Coupon(
-        name=name,
-        code=code,
-        type=type,
-        discount_value=discount_value,
-        min_amount=min_amount,
-        max_discount=max_discount,
-        total_count=total_count,
-        per_user_limit=per_user_limit,
-        valid_from=datetime.fromisoformat(valid_from),
-        valid_until=datetime.fromisoformat(valid_until),
-        applicable_products=applicable_products,
-        applicable_categories=applicable_categories
-    )
+    coupon = Coupon(**body.model_dump())
     db.add(coupon)
     db.commit()
     db.refresh(coupon)
 
-    log_operation(db, current_admin.id, "create", "coupon", coupon.id, f"创建优惠券: {name}")
+    log_operation(db, current_admin.id, "create", "coupon", coupon.id, f"创建优惠券: {body.name}")
 
     return {"id": coupon.id, "message": "创建成功"}
 
@@ -142,18 +119,7 @@ def create_coupon(
 @router.put("/coupons/{coupon_id}")
 def update_coupon(
     coupon_id: int,
-    name: Optional[str] = None,
-    discount_value: Optional[float] = None,
-    valid_from: Optional[str] = None,
-    valid_until: Optional[str] = None,
-    type: Optional[str] = None,
-    min_amount: Optional[float] = None,
-    max_discount: Optional[float] = None,
-    total_count: Optional[int] = None,
-    per_user_limit: Optional[int] = None,
-    applicable_products: Optional[str] = None,
-    applicable_categories: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    body: CouponUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -162,35 +128,18 @@ def update_coupon(
     if not coupon:
         raise HTTPException(status_code=404, detail="优惠券不存在")
 
-    if name:
-        coupon.name = name
-    if discount_value is not None:
-        coupon.discount_value = discount_value
-    if valid_from:
-        coupon.valid_from = datetime.fromisoformat(valid_from)
-    if valid_until:
-        coupon.valid_until = datetime.fromisoformat(valid_until)
-    if type:
-        coupon.type = type
-    if min_amount is not None:
-        coupon.min_amount = min_amount
-    if max_discount is not None:
-        coupon.max_discount = max_discount
-    if total_count is not None:
-        coupon.total_count = total_count
-    if per_user_limit is not None:
-        coupon.per_user_limit = per_user_limit
-    if applicable_products:
-        coupon.applicable_products = applicable_products
-    if applicable_categories:
-        coupon.applicable_categories = applicable_categories
-    if is_active is not None:
-        coupon.is_active = is_active
+    changes = body.model_dump(exclude_unset=True)
+    valid_from = changes.get("valid_from", coupon.valid_from)
+    valid_until = changes.get("valid_until", coupon.valid_until)
+    if valid_from and valid_until and valid_until <= valid_from:
+        raise HTTPException(status_code=422, detail="valid_until 必须晚于 valid_from")
+
+    apply_update(coupon, body)
 
     coupon.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "coupon", coupon_id, f"更新优惠券: {name}")
+    log_operation(db, current_admin.id, "update", "coupon", coupon_id, f"更新优惠券: {coupon.name}")
 
     return {"message": "更新成功"}
 
@@ -286,31 +235,17 @@ def get_activity(
 
 @router.post("/activities")
 def create_activity(
-    name: str,
-    type: str,
-    start_time: str,
-    end_time: str,
-    description: Optional[str] = None,
-    rules: Optional[str] = None,
-    banner_url: Optional[str] = None,
+    body: ActivityCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建活动"""
-    activity = Activity(
-        name=name,
-        type=type,
-        start_time=datetime.fromisoformat(start_time),
-        end_time=datetime.fromisoformat(end_time),
-        description=description,
-        rules=rules,
-        banner_url=banner_url
-    )
+    activity = Activity(**body.model_dump())
     db.add(activity)
     db.commit()
     db.refresh(activity)
 
-    log_operation(db, current_admin.id, "create", "activity", activity.id, f"创建活动: {name}")
+    log_operation(db, current_admin.id, "create", "activity", activity.id, f"创建活动: {body.name}")
 
     return {"id": activity.id, "message": "创建成功"}
 
@@ -318,14 +253,7 @@ def create_activity(
 @router.put("/activities/{activity_id}")
 def update_activity(
     activity_id: int,
-    name: Optional[str] = None,
-    type: Optional[str] = None,
-    start_time: Optional[str] = None,
-    end_time: Optional[str] = None,
-    description: Optional[str] = None,
-    rules: Optional[str] = None,
-    banner_url: Optional[str] = None,
-    status: Optional[str] = None,
+    body: ActivityUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -334,27 +262,18 @@ def update_activity(
     if not activity:
         raise HTTPException(status_code=404, detail="活动不存在")
 
-    if name:
-        activity.name = name
-    if type:
-        activity.type = type
-    if start_time:
-        activity.start_time = datetime.fromisoformat(start_time)
-    if end_time:
-        activity.end_time = datetime.fromisoformat(end_time)
-    if description:
-        activity.description = description
-    if rules:
-        activity.rules = rules
-    if banner_url:
-        activity.banner_url = banner_url
-    if status:
-        activity.status = status
+    changes = body.model_dump(exclude_unset=True)
+    start_time = changes.get("start_time", activity.start_time)
+    end_time = changes.get("end_time", activity.end_time)
+    if start_time and end_time and end_time <= start_time:
+        raise HTTPException(status_code=422, detail="end_time 必须晚于 start_time")
+
+    apply_update(activity, body)
 
     activity.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "activity", activity_id, f"更新活动: {name}")
+    log_operation(db, current_admin.id, "update", "activity", activity_id, f"更新活动: {activity.name}")
 
     return {"message": "更新成功"}
 

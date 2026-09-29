@@ -1,512 +1,619 @@
 """
-数字冷链物联API
+数字冷链物联 API
+
+所有业务数据（运输、仓库、车辆、货主、温区、品控、库存预警、入库预约/入库单、作业任务、
+温度传感器读数与告警、运营成本）均持久化在数据库中，统计类接口由数据行实时计算，不使用随机数。
+温湿度曲线来自 cold_chain_temperature_readings 表（IoT 上报；默认数据为种子写入的固定读数），
+可通过 POST /monitoring/readings 写入新读数。
 """
-import sqlite3
-from fastapi import APIRouter
-from pydantic import BaseModel
-from typing import Optional, List
+import math
+import re
+from collections import defaultdict
 from datetime import datetime, timedelta
-import random
+from typing import List, Literal, Optional, Union
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, field_validator, model_validator
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.cold_chain import (
+    CargoOwner, Vehicle, Transport,
+    StorageZone, QualityInspection, InventoryRule, InventoryAlert,
+    InboundAppointment, InboundOrder, InboundOrderItem, Operator, OperationTask, OperationBatch,
+    TemperatureSensor, TemperatureReading, TemperatureAlert, OperatingCost,
+)
+from app.models.smart_agriculture import Warehouse, TraceabilityRecord
 
 router = APIRouter()
 
-def get_db():
-    import os
-    # 使用相对路径，与其他模块保持一致
-    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'funeng.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+UNITS_PER_PALLET = 50  # 1 个托位约容纳 50 件货物，用于温区容量换算
+OUTBOUND_TASK_TYPES = ("拣货", "复核", "打包", "发货")
+PRIORITY_ORDER = {"紧急": 0, "高": 1, "普通": 2, "低": 3}
+LEVEL_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+# 货物存储条件 -> (首选温区类型, 可替代温区类型)
+STORAGE_ZONE_TYPES = {"冷藏": ("冷藏区", "恒温区"), "冷冻": ("冷冻区", None), "常温": ("常温区", "恒温区")}
 
-# 冷链运输数据模型
-class TransportData(BaseModel):
-    id: str
-    vehicle_no: str  # 车牌号
-    driver: str
-    route: str
-    status: str  # 运输中/到达/等待
-    temperature: float
-    humidity: float
-    location: str
-    eta: str
 
-# 仓储数据模型
-class WarehouseData(BaseModel):
-    id: str
-    name: str
-    capacity: float  # 容量 吨
-    used: float  # 已用
-    temperature: float
-    humidity: float
-    products: list
+# ========== 通用工具 ==========
 
-# 温度告警模型
-class TemperatureAlert(BaseModel):
-    id: str
-    sensor_id: str
-    location: str
-    temperature: float
-    threshold: float
-    severity: str  # warning/critical
-    timestamp: str
+def _fmt(dt: Optional[datetime], seconds: bool = False) -> Optional[str]:
+    if dt is None:
+        return None
+    if isinstance(dt, str):  # 兼容旧库中的字符串时间
+        return dt
+    return dt.strftime("%Y-%m-%d %H:%M:%S" if seconds else "%Y-%m-%d %H:%M")
+
+
+def _next_id(db: Session, model, prefix: str, width: int) -> str:
+    """按前缀生成下一个顺序编号，例如 QC00021"""
+    max_no = 0
+    for (value,) in db.query(model.id).filter(model.id.like(f"{prefix}%")).all():
+        suffix = value[len(prefix):]
+        if suffix.isdigit():
+            max_no = max(max_no, int(suffix))
+    return f"{prefix}{max_no + 1:0{width}d}"
+
+
+def _get_or_404(db: Session, model, key, label: str):
+    obj = db.get(model, key)
+    if obj is None:
+        raise HTTPException(status_code=404, detail=f"{label}不存在")
+    return obj
+
+
+def _pct(part: float, whole: float) -> float:
+    return round(part / whole * 100, 1) if whole else 0.0
+
+
+# ========== 运输 ==========
+
+def _transport_dict(t: Transport) -> dict:
+    return {
+        "id": t.id,
+        "vehicle_no": t.vehicle_no,
+        "driver": t.driver,
+        "route": t.route,
+        "start_city": t.start_city,
+        "end_city": t.end_city,
+        "status": t.status,
+        "temperature": t.temperature,
+        "humidity": t.humidity,
+        "speed": t.speed,
+        "fuel": t.fuel,
+        "cargo": t.cargo,
+        "weight": t.weight,
+        "current_lat": t.current_lat,
+        "current_lng": t.current_lng,
+        "current_location": t.current_location,
+        "departure_time": _fmt(t.departure_time, seconds=True),
+        "eta": _fmt(t.eta, seconds=True),
+        "waypoints": t.waypoints,
+        "route_coords": t.route_coords,
+    }
+
 
 @router.get("/transport")
-def get_transports():
+def get_transports(db: Session = Depends(get_db)):
     """获取运输列表"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM transports ORDER BY created_at DESC")
-    rows = cursor.fetchall()
-    conn.close()
+    rows = db.query(Transport).order_by(Transport.created_at.desc(), Transport.id).all()
+    return [_transport_dict(t) for t in rows]
 
-    transports = []
-    for row in rows:
-        transports.append({
-            "id": row["id"],
-            "vehicle_no": row["vehicle_no"],
-            "driver": row["driver"],
-            "route": row["route"],
-            "start_city": row["start_city"],
-            "end_city": row["end_city"],
-            "status": row["status"],
-            "temperature": row["temperature"],
-            "humidity": row["humidity"],
-            "speed": row["speed"],
-            "fuel": row["fuel"],
-            "cargo": row["cargo"],
-            "weight": row["weight"],
-            "current_lat": row["current_lat"],
-            "current_lng": row["current_lng"],
-            "current_location": row["current_location"],
-            "departure_time": row["departure_time"],
-            "eta": row["eta"],
-            "waypoints": row["waypoints"],
-            "route_coords": row["route_coords"]
-        })
-    return transports
+
+def _route_points(t: Transport) -> list:
+    """根据途经点与车辆当前位置推导各节点状态，按出发/到达时间线性估算经过时间"""
+    points = t.waypoints if isinstance(t.waypoints, list) else []
+    if not points:
+        return []
+    n = len(points)
+    if t.current_lat is not None and t.current_lng is not None:
+        cur = min(range(n), key=lambda i: (points[i]["lat"] - t.current_lat) ** 2
+                  + (points[i]["lng"] - t.current_lng) ** 2)
+    else:
+        cur = 0
+    dep = t.departure_time if isinstance(t.departure_time, datetime) else None
+    eta = t.eta if isinstance(t.eta, datetime) else None
+    result = []
+    for i, p in enumerate(points):
+        if t.status == "arrived":
+            status = "已到达" if i == n - 1 else "已通过"
+        elif t.status == "waiting":
+            status = "待出发" if i == 0 else "预计"
+        else:
+            status = "已通过" if i < cur else ("当前位置" if i == cur else "预计")
+        time = None
+        if dep and eta and n > 1:
+            time = (dep + (eta - dep) * i / (n - 1)).strftime("%m-%d %H:%M")
+        result.append({"location": p.get("name"), "time": time, "status": status})
+    return result
+
 
 @router.get("/transport/{transport_id}")
-def get_transport_detail(transport_id: str):
+def get_transport_detail(transport_id: str, db: Session = Depends(get_db)):
     """获取运输详情"""
-    return {
-        "id": transport_id,
-        "vehicle_no": "京A12345",
-        "driver": "张师傅",
-        "driver_phone": "138****1234",
-        "route": "北京-上海",
-        "status": "运输中",
-        "temperature": round(random.uniform(-5, 8), 1),
-        "humidity": round(random.uniform(40, 80), 1),
-        "current_location": "天津",
-        "speed": round(random.uniform(60, 100), 0),
-        "fuel": round(random.uniform(30, 80), 0),
-        "eta": (datetime.now() + timedelta(hours=5)).strftime("%Y-%m-%d %H:%M"),
-        "departure_time": (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M"),
-        "cargo": "新鲜蔬菜",
-        "weight": round(random.uniform(10, 25), 1),
-        "route_points": [
-            {"location": "北京", "time": "08:00", "status": "已离开"},
-            {"location": "天津", "time": "10:30", "status": "已通过"},
-            {"location": "济南", "time": "14:00", "status": "预计"},
-            {"location": "南京", "time": "20:00", "status": "预计"},
-            {"location": "上海", "time": "24:00", "status": "预计"}
-        ],
-        "temperature_history": [
-            {"time": "08:00", "temp": 2.5},
-            {"time": "10:00", "temp": 2.8},
-            {"time": "12:00", "temp": 3.1},
-            {"time": "14:00", "temp": 2.9},
-            {"time": "16:00", "temp": 3.0}
-        ]
-    }
+    t = _get_or_404(db, Transport, transport_id, "运输记录")
+    vehicle = db.query(Vehicle).filter(Vehicle.plate == t.vehicle_no).first()
+    sensor = db.query(TemperatureSensor).filter(TemperatureSensor.name == f"冷藏车 {t.vehicle_no}").first()
+    history = []
+    if sensor:
+        readings = (db.query(TemperatureReading).filter(TemperatureReading.sensor_id == sensor.id)
+                    .order_by(TemperatureReading.recorded_at).all())
+        history = [{"time": r.recorded_at.strftime("%H:%M"), "temp": r.temperature} for r in readings]
+    data = _transport_dict(t)
+    data.update({
+        "driver_phone": vehicle.phone if vehicle else None,
+        "route_points": _route_points(t),
+        "temperature_history": history,
+    })
+    return data
+
+
+# ========== 仓库 ==========
+
+def _warehouse_key(warehouse_id: str):
+    # 旧库 warehouses.id 可能是字符串（迁移前），新库为整数
+    return int(warehouse_id) if warehouse_id.isdigit() else warehouse_id
+
 
 @router.get("/warehouse")
-def get_warehouses():
+def get_warehouses(db: Session = Depends(get_db)):
     """获取仓储列表"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM warehouses ORDER BY id")
-    rows = cursor.fetchall()
-    conn.close()
-
-    warehouses = []
-    for row in rows:
-        warehouses.append({
-            "id": row["id"],
-            "name": row["name"],
-            "address": row["address"],
-            "lat": row["lat"],
-            "lng": row["lng"],
-            "capacity": row["capacity"],
-            "used": row["used"],
-            "available": row["capacity"] - row["used"] if row["capacity"] else 0,
-            "utilization": round(row["used"] / row["capacity"] * 100, 1) if row["capacity"] else 0,
-            "temperature": row["temperature"],
-            "humidity": row["humidity"],
-            "status": row["status"],
-            "created_at": row["created_at"]
+    result = []
+    for w in db.query(Warehouse).order_by(Warehouse.id).all():
+        capacity, used = w.capacity or 0, w.used or 0
+        result.append({
+            "id": w.id,
+            "name": w.name,
+            "address": w.address,
+            "lat": w.lat,
+            "lng": w.lng,
+            "capacity": w.capacity,
+            "used": w.used,
+            "available": capacity - used if capacity else 0,
+            "utilization": round(used / capacity * 100, 1) if capacity else 0,
+            "temperature": w.temperature,
+            "humidity": w.humidity,
+            "status": w.status,
+            "created_at": _fmt(w.created_at, seconds=True),
         })
-    return warehouses
+    return result
+
 
 @router.get("/warehouse/{warehouse_id}")
-def get_warehouse_detail(warehouse_id: str):
-    """获取仓储详情"""
+def get_warehouse_detail(warehouse_id: str, db: Session = Depends(get_db)):
+    """获取仓储详情（温区与在库商品来自数据库）"""
+    w = db.query(Warehouse).filter(Warehouse.id == _warehouse_key(warehouse_id)).first()
+    if w is None:
+        raise HTTPException(status_code=404, detail="仓库不存在")
+    zones = db.query(StorageZone).filter(StorageZone.warehouse == w.name).order_by(StorageZone.id).all()
+    zone_names = {z.id: z.name for z in zones}
+    items = []
+    if zones:
+        items = (db.query(InboundOrderItem).join(InboundOrder)
+                 .filter(InboundOrderItem.zone_id.in_(list(zone_names)))
+                 .order_by(InboundOrderItem.id).all())
+    capacity, used = w.capacity or 0, w.used or 0
     return {
-        "id": warehouse_id,
-        "name": "北京中心仓库1",
-        "address": "北京市朝阳区",
-        "capacity": 1000,
-        "used": 650,
-        "available": 350,
-        "temperature": round(random.uniform(0, 8), 1),
-        "humidity": round(random.uniform(45, 65), 1),
-        "zones": [
-            {"name": "冷冻区", "temp_range": "-18~-25", "capacity": 300, "used": 250},
-            {"name": "冷藏区", "temp_range": "0~5", "capacity": 400, "used": 280},
-            {"name": "常温区", "temp_range": "10~25", "capacity": 300, "used": 120}
-        ],
-        "products": [
-            {"name": "有机蔬菜", "quantity": 150, "zone": "冷藏区", "shelf_date": "2026-02-10"},
-            {"name": "新鲜水果", "quantity": 200, "zone": "冷藏区", "shelf_date": "2026-02-15"},
-            {"name": "冷冻肉类", "quantity": 250, "zone": "冷冻区", "shelf_date": "2026-01-20"}
-        ]
+        "id": w.id,
+        "name": w.name,
+        "address": w.address,
+        "capacity": w.capacity,
+        "used": w.used,
+        "available": capacity - used,
+        "temperature": w.temperature,
+        "humidity": w.humidity,
+        "zones": [{"id": z.id, "name": z.name, "type": z.type,
+                   "temp_range": f"{z.temperature_min:g}~{z.temperature_max:g}",
+                   "capacity": z.capacity, "used": z.used, "status": z.status} for z in zones],
+        "products": [{"name": i.name, "sku": i.sku, "quantity": i.qualified_qty, "zone": zone_names[i.zone_id],
+                      "location": i.location, "shelf_date": i.order.inbound_date} for i in items],
     }
 
+
+class WarehouseIn(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    address: Optional[str] = Field(None, max_length=200)
+    capacity: Optional[float] = Field(None, ge=0)
+    area: Optional[float] = Field(None, ge=0)
+    temperature: Optional[float] = Field(None, ge=-60, le=40)
+    humidity: Optional[float] = Field(None, ge=0, le=100)
+    inventory: Optional[int] = Field(None, ge=0)
+    status: Optional[str] = Field(None, max_length=20)
+    manager: Optional[str] = Field(None, max_length=50)
+    phone: Optional[str] = Field(None, max_length=20)
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
+
+class WarehouseCreate(WarehouseIn):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+def _warehouse_list_dict(w: Warehouse) -> dict:
+    return {
+        "id": w.id,
+        "name": w.name,
+        "address": w.address,
+        "capacity": w.capacity,
+        "area": w.area,
+        "temperature": w.temperature,
+        "humidity": w.humidity,
+        "inventory": w.inventory,
+        "status": w.status,
+        "manager": w.manager,
+        "phone": w.phone,
+        "created_at": _fmt(w.created_at, seconds=True),
+        "updated_at": _fmt(w.updated_at, seconds=True),
+    }
+
+
+@router.get("/warehouses/list")
+def get_warehouses_list(db: Session = Depends(get_db)):
+    """获取仓库列表"""
+    return [_warehouse_list_dict(w) for w in db.query(Warehouse).order_by(Warehouse.id.desc()).all()]
+
+
+@router.post("/warehouses")
+def create_warehouse(data: WarehouseCreate, db: Session = Depends(get_db)):
+    """创建仓库"""
+    values = data.model_dump(exclude_none=True)
+    values.setdefault("inventory", 0)
+    values.setdefault("status", "正常")
+    w = Warehouse(**values)
+    db.add(w)
+    db.commit()
+    return {"success": True, "id": w.id, "message": "仓库创建成功"}
+
+
+def _get_warehouse(db: Session, warehouse_id: str) -> Warehouse:
+    w = db.query(Warehouse).filter(Warehouse.id == _warehouse_key(warehouse_id)).first()
+    if w is None:
+        raise HTTPException(status_code=404, detail="仓库不存在")
+    return w
+
+
+@router.put("/warehouses/{warehouse_id}")
+def update_warehouse(warehouse_id: str, data: WarehouseIn, db: Session = Depends(get_db)):
+    """更新仓库（只更新提交的字段）"""
+    w = _get_warehouse(db, warehouse_id)
+    for key, value in data.model_dump(exclude_unset=True).items():
+        if key == "name" and not value:
+            continue
+        setattr(w, key, value)
+    w.updated_at = datetime.now()
+    db.commit()
+    return {"success": True, "message": "仓库更新成功"}
+
+
+@router.delete("/warehouses/{warehouse_id}")
+def delete_warehouse(warehouse_id: str, db: Session = Depends(get_db)):
+    """删除仓库"""
+    db.delete(_get_warehouse(db, warehouse_id))
+    db.commit()
+    return {"success": True, "message": "仓库删除成功"}
+
+
+# ========== 温度监控（IoT） ==========
+
 @router.get("/monitoring/temperature")
-def get_temperature_monitoring():
-    """获取温度监控数据"""
-    locations = ["冷藏车1号", "冷藏车2号", "冷库1号", "冷库2号", "冷库3号"]
-    
+def get_temperature_monitoring(db: Session = Depends(get_db)):
+    """获取各传感器当前温度（最新读数）及区间极值"""
+    readings = defaultdict(list)
+    for r in db.query(TemperatureReading).order_by(TemperatureReading.recorded_at, TemperatureReading.id):
+        readings[r.sensor_id].append(r)
     data = []
-    for i, location in enumerate(locations):
-        base_temp = random.uniform(-20, 5)
+    for s in db.query(TemperatureSensor).order_by(TemperatureSensor.id).all():
+        rows = readings.get(s.id, [])
+        latest = rows[-1] if rows else None
+        temps = [r.temperature for r in rows]
+        if latest is None:
+            status = "离线"
+        else:
+            status = "正常" if abs(latest.temperature - s.target_temp) <= s.tolerance else "告警"
         data.append({
-            "id": i + 1,
-            "location": location,
-            "current_temp": round(base_temp, 1),
-            "target_temp": round(random.uniform(-20, 5), 1),
-            "min_temp": round(base_temp - random.uniform(1, 3), 1),
-            "max_temp": round(base_temp + random.uniform(1, 3), 1),
-            "humidity": round(random.uniform(40, 80), 1),
-            "status": "正常" if abs(base_temp - random.uniform(-20, 5)) < 3 else "告警",
-            "last_update": datetime.now().isoformat()
+            "id": s.id,
+            "sensor_id": s.id,
+            "location": s.name,
+            "address": s.location,
+            "kind": s.kind,
+            "current_temp": latest.temperature if latest else None,
+            "target_temp": s.target_temp,
+            "min_temp": min(temps) if temps else None,
+            "max_temp": max(temps) if temps else None,
+            "humidity": latest.humidity if latest else None,
+            "status": status,
+            "last_update": latest.recorded_at.isoformat() if latest else None,
         })
     return data
 
+
+class ReadingIn(BaseModel):
+    sensor_id: str = Field(..., min_length=1)
+    temperature: float = Field(..., ge=-60, le=60)
+    humidity: Optional[float] = Field(None, ge=0, le=100)
+    recorded_at: Optional[datetime] = None
+
+
+@router.post("/monitoring/readings")
+def create_reading(data: ReadingIn, db: Session = Depends(get_db)):
+    """IoT 设备上报温湿度读数；超出允许偏差时自动生成温度告警"""
+    sensor = _get_or_404(db, TemperatureSensor, data.sensor_id, "传感器")
+    reading = TemperatureReading(sensor_id=sensor.id, temperature=data.temperature, humidity=data.humidity,
+                                 recorded_at=data.recorded_at or datetime.now())
+    db.add(reading)
+    deviation = abs(data.temperature - sensor.target_temp)
+    alert_id = None
+    if deviation > sensor.tolerance:
+        severity = "critical" if deviation > 2 * sensor.tolerance else "warning"
+        upper = data.temperature > sensor.target_temp
+        alert_id = _next_id(db, TemperatureAlert, "A", 4)
+        db.add(TemperatureAlert(
+            id=alert_id, sensor_id=sensor.id, location=sensor.name, type="温度异常",
+            temperature=data.temperature,
+            threshold=sensor.target_temp + sensor.tolerance if upper else sensor.target_temp - sensor.tolerance,
+            severity=severity, status="未处理",
+            message="温度超过阈值" if severity == "warning" else "温度严重超标",
+            timestamp=reading.recorded_at))
+    db.commit()
+    return {"success": True, "id": reading.id, "status": "告警" if alert_id else "正常", "alert_id": alert_id}
+
+
 @router.get("/monitoring/alerts")
-def get_alerts():
+def get_alerts(db: Session = Depends(get_db)):
     """获取温度告警列表"""
-    alerts = []
-    severity_list = ["warning", "critical"]
-    locations = ["冷藏车1号", "冷库2号", "冷藏车3号", "冷库1号"]
-    
-    for i in range(10):
-        severity = random.choice(severity_list)
-        alerts.append({
-            "id": f"A{i+1:04d}",
-            "sensor_id": f"SEN{random.randint(100, 999)}",
-            "location": random.choice(locations),
-            "type": "温度异常",
-            "temperature": round(random.uniform(-10, 15), 1),
-            "threshold": round(random.uniform(-5, 10), 1),
-            "severity": severity,
-            "status": random.choice(["未处理", "处理中", "已解决"]),
-            "message": "温度超过阈值" if severity == "warning" else "温度严重超标",
-            "timestamp": (datetime.now() - timedelta(minutes=random.randint(0, 120))).isoformat()
-        })
-    return alerts
+    rows = db.query(TemperatureAlert).order_by(TemperatureAlert.timestamp.desc(), TemperatureAlert.id).all()
+    return [{
+        "id": a.id,
+        "sensor_id": a.sensor_id,
+        "location": a.location,
+        "type": a.type,
+        "temperature": a.temperature,
+        "threshold": a.threshold,
+        "severity": a.severity,
+        "status": a.status,
+        "message": a.message,
+        "timestamp": a.timestamp.isoformat() if a.timestamp else None,
+    } for a in rows]
+
+
+# ========== 质量追溯 ==========
 
 @router.get("/traceability")
-def get_traceability():
-    """获取质量追溯数据"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM traceability_records ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    
-    batches = []
-    for row in rows:
-        batches.append({
-            "batch_no": row["product_batch"],
-            "product": row["product_name"],
-            "source": row["origin_farm"],
-            "production_date": row["harvest_date"] or row["planting_date"],
-            "harvest_time": row["harvest_date"],
-            "warehouse_in": row["processing_date"],
-            "warehouse_out": row["sale_date"],
-            "transport_id": row["logistics_no"],
-            "retailer": row["retail_outlet"],
-            "status": row["status"],
+def get_traceability(db: Session = Depends(get_db)):
+    """获取质量追溯数据（关联同批次品控检查记录）"""
+    records = db.query(TraceabilityRecord).order_by(TraceabilityRecord.id.desc()).all()
+    batches = [r.product_batch for r in records if r.product_batch]
+    inspections = {}
+    if batches:
+        for q in (db.query(QualityInspection).filter(QualityInspection.batch_no.in_(batches))
+                  .order_by(QualityInspection.created_at)):
+            inspections[q.batch_no] = q  # 取同批次最新一次检查
+    result = []
+    for row in records:
+        q = inspections.get(row.product_batch)
+        result.append({
+            "batch_no": row.product_batch,
+            "product": row.product_name,
+            "source": row.origin_farm,
+            "production_date": row.harvest_date or row.planting_date,
+            "harvest_time": row.harvest_date,
+            "warehouse_in": row.processing_date,
+            "warehouse_out": row.sale_date,
+            "transport_id": row.logistics_no,
+            "retailer": row.retail_outlet,
+            "status": row.status,
             "quality_check": {
-                "passed": row["inspection_report"] is not None,
-                "temperature": random.uniform(0, 8),
-                "humidity": random.uniform(40, 70),
-                "inspector": "质检员A",
-                "result": "合格" if row["inspection_report"] else "待检"
-            }
+                "passed": q.result == "合格" if q else row.inspection_report is not None,
+                "temperature": q.temperature if q else None,
+                "humidity": q.humidity if q else None,
+                "inspector": q.inspector if q else None,
+                "result": q.result if q else ("合格" if row.inspection_report else "待检"),
+            },
         })
-    return batches
+    return result
+
 
 @router.get("/traceability/{batch_no}")
-def get_batch_detail(batch_no: str):
+def get_batch_detail(batch_no: str, db: Session = Depends(get_db)):
     """获取批次追溯详情"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM traceability_records WHERE product_batch = ?", (batch_no,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if not row:
-        return {
-            "batch_no": batch_no,
-            "product": "有机蔬菜",
-            "source": "基地A",
-            "production_date": "2026-02-01",
-            "trace_data": [
-                {"stage": "种植", "location": "基地A", "time": "2026-02-01 08:00", "detail": "播种完成", "operator": "农技师张三"},
-                {"stage": "采收", "location": "基地A", "time": "2026-02-10 06:00", "detail": "采收完成", "operator": "农户李四"},
-                {"stage": "初加工", "location": "基地A加工中心", "time": "2026-02-10 10:00", "detail": "清洗包装", "operator": "工人王五"},
-                {"stage": "入库", "location": "北京中心仓库", "time": "2026-02-10 18:00", "detail": "温度2°C入库", "operator": "仓管赵六"},
-                {"stage": "出库", "location": "北京中心仓库", "time": "2026-02-12 08:00", "detail": "装车运输", "operator": "司机张师傅"},
-                {"stage": "配送", "location": "门店1", "time": "2026-02-12 14:00", "detail": "已送达", "operator": "配送员钱七"}
-            ]
-        }
-    
+    row = db.query(TraceabilityRecord).filter(TraceabilityRecord.product_batch == batch_no).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="批次不存在")
+
+    def at(day, hm):
+        return f"{day} {hm}" if day else "无"
+
     return {
-        "batch_no": row["product_batch"],
-        "product": row["product_name"],
-        "source": row["origin_farm"],
-        "production_date": row["harvest_date"] or row["planting_date"],
-        "origin_address": row["origin_address"],
-        "planting_date": row["planting_date"],
-        "harvest_date": row["harvest_date"],
-        "processing_date": row["processing_date"],
-        "processing_factory": row["processing_factory"],
-        "logistics_company": row["logistics_company"],
-        "logistics_no": row["logistics_no"],
-        "warehouse": row["warehouse"],
-        "retail_outlet": row["retail_outlet"],
-        "sale_date": row["sale_date"],
-        "certifications": row["certifications"],
-        "inspection_report": row["inspection_report"],
-        "trace_code": row["trace_code"],
-        "status": row["status"],
+        "batch_no": row.product_batch,
+        "product": row.product_name,
+        "source": row.origin_farm,
+        "production_date": row.harvest_date or row.planting_date,
+        "origin_address": row.origin_address,
+        "planting_date": row.planting_date,
+        "harvest_date": row.harvest_date,
+        "processing_date": row.processing_date,
+        "processing_factory": row.processing_factory,
+        "logistics_company": row.logistics_company,
+        "logistics_no": row.logistics_no,
+        "warehouse": row.warehouse,
+        "retail_outlet": row.retail_outlet,
+        "sale_date": row.sale_date,
+        "certifications": row.certifications,
+        "inspection_report": row.inspection_report,
+        "trace_code": row.trace_code,
+        "status": row.status,
         "trace_data": [
-            {"stage": "种植", "location": row["origin_address"], "time": f"{row['planting_date']} 08:00" if row["planting_date"] else "未知", "detail": "播种/定植", "operator": "基地管理员"},
-            {"stage": "采收", "location": row["origin_farm"], "time": f"{row['harvest_date']} 06:00" if row["harvest_date"] else "未知", "detail": "采收完成", "operator": "采收工人"},
-            {"stage": "加工", "location": row["processing_factory"] or "无", "time": f"{row['processing_date']} 10:00" if row["processing_date"] else "无", "detail": "加工包装", "operator": "加工人员"},
-            {"stage": "入库", "location": row["warehouse"] or "无", "time": f"{row['processing_date']} 18:00" if row["processing_date"] else "无", "detail": "入库存储", "operator": "仓管人员"},
-            {"stage": "出库", "location": row["warehouse"] or "无", "time": f"{row['sale_date']} 08:00" if row["sale_date"] else "无", "detail": "装车运输", "operator": "物流司机"},
-            {"stage": "配送", "location": row["retail_outlet"] or "无", "time": f"{row['sale_date']} 14:00" if row["sale_date"] else "无", "detail": "已送达门店", "operator": "配送员"}
-        ]
+            {"stage": "种植", "location": row.origin_address, "time": at(row.planting_date, "08:00"), "detail": "播种/定植", "operator": "基地管理员"},
+            {"stage": "采收", "location": row.origin_farm, "time": at(row.harvest_date, "06:00"), "detail": "采收完成", "operator": "采收工人"},
+            {"stage": "加工", "location": row.processing_factory or "无", "time": at(row.processing_date, "10:00"), "detail": "加工包装", "operator": "加工人员"},
+            {"stage": "入库", "location": row.warehouse or "无", "time": at(row.processing_date, "18:00"), "detail": "入库存储", "operator": "仓管人员"},
+            {"stage": "出库", "location": row.warehouse or "无", "time": at(row.sale_date, "08:00"), "detail": "装车运输", "operator": "物流司机"},
+            {"stage": "配送", "location": row.retail_outlet or "无", "time": at(row.sale_date, "14:00"), "detail": "已送达门店", "operator": "配送员"},
+        ],
     }
+
+
+# ========== 数据分析 ==========
+
+def _compliance(db: Session, kind: Optional[str] = None) -> float:
+    """温度读数落在目标温度允许偏差内的比例（%）"""
+    q = db.query(TemperatureReading, TemperatureSensor).join(
+        TemperatureSensor, TemperatureReading.sensor_id == TemperatureSensor.id)
+    if kind:
+        q = q.filter(TemperatureSensor.kind == kind)
+    rows = q.all()
+    ok = sum(1 for r, s in rows if abs(r.temperature - s.target_temp) <= s.tolerance)
+    return _pct(ok, len(rows))
+
 
 @router.get("/analytics")
-def get_cold_chain_analytics():
-    """获取冷链分析数据"""
+def get_cold_chain_analytics(db: Session = Depends(get_db)):
+    """获取冷链分析数据（全部由数据库记录计算）"""
+    now = datetime.now()
+    vehicles = db.query(Vehicle).all()
+    transports = db.query(Transport).all()
+    # 准点：已到达，或仍在途/待发但尚未超过预计到达时间
+    on_time = sum(1 for t in transports
+                  if t.status == "arrived" or (isinstance(t.eta, datetime) and t.eta >= now))
+    warehouses = db.query(Warehouse).all()
+    total_capacity = sum(w.capacity or 0 for w in warehouses)
+    total_used = sum(w.used or 0 for w in warehouses)
+    inspections = db.query(QualityInspection).all()
+    failed = [q for q in inspections if q.result == "不合格"]
+    latest_month = db.query(OperatingCost.month).order_by(OperatingCost.month.desc()).first()
+    costs = {"electricity": 0.0, "fuel": 0.0, "maintenance": 0.0}
+    if latest_month:
+        for c in db.query(OperatingCost).filter(OperatingCost.month == latest_month[0]):
+            costs[c.category] = round(costs.get(c.category, 0) + c.amount, 2)
     return {
         "transport": {
-            "total_vehicles": random.randint(20, 50),
-            "active": random.randint(15, 40),
-            "on_time_rate": round(random.uniform(85, 99), 1),
-            "avg_temp_compliance": round(random.uniform(95, 99.5), 1)
+            "total_vehicles": len(vehicles),
+            "active": sum(1 for v in vehicles if v.status == "运输中"),
+            "on_time_rate": _pct(on_time, len(transports)),
+            "avg_temp_compliance": _compliance(db, "冷藏车"),
         },
         "warehouse": {
-            "total_capacity": random.randint(5000, 10000),
-            "utilization": round(random.uniform(60, 85), 1),
-            "avg_temp_stability": round(random.uniform(95, 99), 1)
+            "total_capacity": total_capacity,
+            "utilization": _pct(total_used, total_capacity),
+            "avg_temp_stability": _compliance(db, "冷库"),
         },
         "quality": {
-            "total_batches": random.randint(500, 2000),
-            "pass_rate": round(random.uniform(95, 99.5), 1),
-            "complaints": random.randint(0, 20),
-            "claims": random.randint(0, 10)
+            "total_batches": len({q.batch_no for q in inspections}),
+            "pass_rate": _pct(sum(1 for q in inspections if q.result == "合格"), len(inspections)),
+            # 不合格检查即计为质量投诉；其中货损类（温度超标 / 包装损坏）需要理赔
+            "complaints": len(failed),
+            "claims": sum(1 for q in failed if q.remark in ("温度超标", "包装损坏")),
         },
-        "cost": {
-            "electricity": round(random.uniform(50000, 150000), 2),
-            "fuel": round(random.uniform(30000, 80000), 2),
-            "maintenance": round(random.uniform(10000, 30000), 2)
-        }
+        "cost": {**costs, "month": latest_month[0] if latest_month else None},
     }
+
 
 # ========== 品控管理 ==========
+
+INSPECTION_TYPES = ("入库检查", "出库检查", "在库检查", "运输检查", "终端检查")
+
+
+def _inspection_dict(q: QualityInspection, detail: bool = False) -> dict:
+    data = {
+        "id": q.id,
+        "type": q.type,
+        "product": q.product,
+        "batch_no": q.batch_no,
+        "quantity": q.quantity,
+        "result": q.result,
+        "score": q.score,
+        "temperature": q.temperature,
+        "humidity": q.humidity,
+        "pesticide_residue": q.pesticide_residue,
+        "heavy_metal": q.heavy_metal,
+        "inspector": q.inspector,
+        "location": q.location,
+        "remark": q.remark,
+        "created_at": _fmt(q.created_at),
+    }
+    if detail:
+        data["items"] = q.items or []
+        data["images"] = []
+    return data
+
+
 @router.get("/quality/inspections")
-def get_quality_inspections():
+def get_quality_inspections(db: Session = Depends(get_db)):
     """获取品控检查记录列表"""
-    inspection_types = ["入库检查", "出库检查", "在库检查", "运输检查", "终端检查"]
-    results = ["合格", "待复检", "不合格"]
-    products = ["有机蔬菜", "新鲜水果", "土特产", "冷冻肉类", "乳制品"]
-    
-    inspections = []
-    for i in range(20):
-        inspection_id = f"QC{i+1:05d}"
-        insp_type = random.choice(inspection_types)
-        result = random.choice(results)
-        
-        inspections.append({
-            "id": inspection_id,
-            "type": insp_type,
-            "product": random.choice(products),
-            "batch_no": f"BATCH{datetime.now().strftime('%Y%m')}{random.randint(1, 999):04d}",
-            "quantity": round(random.uniform(10, 500), 1),
-            "result": result,
-            "score": round(random.uniform(60, 100), 1) if result == "合格" else round(random.uniform(40, 70), 1),
-            "temperature": round(random.uniform(-5, 10), 1),
-            "humidity": round(random.uniform(35, 75), 1),
-            "pesticide_residue": round(random.uniform(0, 0.5), 3),
-            "heavy_metal": round(random.uniform(0, 0.1), 3),
-            "inspector": f"质检员{random.randint(1, 10)}",
-            "location": random.choice(["北京中心仓库", "上海中心仓库", "广州中心仓库", "成都中心仓库"]),
-            "remark": "无异常" if result == "合格" else random.choice(["温度超标", "农药残留超标", "包装损坏", "需要复检"]),
-            "created_at": (datetime.now() - timedelta(hours=random.randint(1, 168))).strftime("%Y-%m-%d %H:%M")
-        })
-    return inspections
+    rows = db.query(QualityInspection).order_by(QualityInspection.created_at.desc(), QualityInspection.id.desc())
+    return [_inspection_dict(q) for q in rows]
+
 
 @router.get("/quality/inspections/{inspection_id}")
-def get_quality_inspection_detail(inspection_id: str):
+def get_quality_inspection_detail(inspection_id: str, db: Session = Depends(get_db)):
     """获取品控检查详情"""
-    return {
-        "id": inspection_id,
-        "type": "入库检查",
-        "product": "有机蔬菜",
-        "batch_no": "QC20260200001",
-        "quantity": 150.5,
-        "result": "合格",
-        "score": 92.5,
-        "temperature": 3.2,
-        "humidity": 65.0,
-        "pesticide_residue": 0.12,
-        "heavy_metal": 0.02,
-        "inspector": "质检员张三",
-        "location": "北京中心仓库",
-        "remark": "无异常",
-        "items": [
-            {"name": "外观检查", "result": "合格", "score": 95},
-            {"name": "色泽检查", "result": "合格", "score": 90},
-            {"name": "气味检查", "result": "合格", "score": 92},
-            {"name": "温度检测", "result": "合格", "score": 88},
-            {"name": "农残检测", "result": "合格", "score": 98},
-            {"name": "重金属检测", "result": "合格", "score": 96}
-        ],
-        "images": [
-            "https://via.placeholder.com/200x150?text=sample1",
-            "https://via.placeholder.com/200x150?text=sample2"
-        ],
-        "created_at": (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M")
-    }
+    return _inspection_dict(_get_or_404(db, QualityInspection, inspection_id, "品控检查记录"), detail=True)
+
+
+class InspectionItem(BaseModel):
+    name: str = Field(..., min_length=1)
+    result: Literal["合格", "待复检", "不合格"]
+    score: float = Field(..., ge=0, le=100)
+
+
+class InspectionCreate(BaseModel):
+    type: Literal["入库检查", "出库检查", "在库检查", "运输检查", "终端检查"]
+    product: str = Field(..., min_length=1, max_length=100)
+    batch_no: str = Field(..., min_length=1, max_length=50)
+    quantity: float = Field(..., gt=0)
+    result: Literal["合格", "待复检", "不合格"]
+    score: float = Field(..., ge=0, le=100)
+    temperature: Optional[float] = Field(None, ge=-60, le=60)
+    humidity: Optional[float] = Field(None, ge=0, le=100)
+    pesticide_residue: Optional[float] = Field(None, ge=0)
+    heavy_metal: Optional[float] = Field(None, ge=0)
+    inspector: Optional[str] = Field(None, max_length=50)
+    location: Optional[str] = Field(None, max_length=100)
+    remark: Optional[str] = Field(None, max_length=200)
+    items: List[InspectionItem] = []
+
 
 @router.post("/quality/inspections")
-def create_quality_inspection(data: dict):
+def create_quality_inspection(data: InspectionCreate, db: Session = Depends(get_db)):
     """创建品控检查记录"""
-    return {
-        "success": True,
-        "id": f"QC{datetime.now().strftime('%Y%m%d')}{random.randint(1000, 9999)}",
-        "message": "品控检查记录创建成功"
-    }
+    q = QualityInspection(id=_next_id(db, QualityInspection, "QC", 5), created_at=datetime.now(), **data.model_dump())
+    db.add(q)
+    db.commit()
+    return {"success": True, "id": q.id, "message": "品控检查记录创建成功"}
+
 
 @router.get("/quality/standards")
 def get_quality_standards():
-    """获取品控标准"""
+    """获取品控标准（行业参考标准，静态配置）"""
     return {
         "standards": [
-            {
-                "id": "QS001",
-                "name": "新鲜蔬菜品控标准",
-                "category": "蔬菜",
-                "temperature": {"min": 0, "max": 8, "unit": "°C"},
-                "humidity": {"min": 85, "max": 95, "unit": "%"},
-                "pesticide_residue_max": 0.5,
-                "heavy_metal_max": 0.1,
-                "shelf_days": 7
-            },
-            {
-                "id": "QS002",
-                "name": "水果品控标准",
-                "category": "水果",
-                "temperature": {"min": 0, "max": 12, "unit": "°C"},
-                "humidity": {"min": 80, "max": 90, "unit": "%"},
-                "pesticide_residue_max": 0.3,
-                "heavy_metal_max": 0.05,
-                "shelf_days": 14
-            },
-            {
-                "id": "QS003",
-                "name": "冷冻食品品控标准",
-                "category": "冷冻食品",
-                "temperature": {"min": -25, "max": -18, "unit": "°C"},
-                "humidity": {"min": 70, "max": 85, "unit": "%"},
-                "pesticide_residue_max": 0.1,
-                "heavy_metal_max": 0.02,
-                "shelf_days": 180
-            },
-            {
-                "id": "QS004",
-                "name": "肉类品控标准",
-                "category": "肉类",
-                "temperature": {"min": -2, "max": 4, "unit": "°C"},
-                "humidity": {"min": 75, "max": 85, "unit": "%"},
-                "pesticide_residue_max": 0.2,
-                "heavy_metal_max": 0.05,
-                "shelf_days": 5
-            }
+            {"id": "QS001", "name": "新鲜蔬菜品控标准", "category": "蔬菜",
+             "temperature": {"min": 0, "max": 8, "unit": "°C"}, "humidity": {"min": 85, "max": 95, "unit": "%"},
+             "pesticide_residue_max": 0.5, "heavy_metal_max": 0.1, "shelf_days": 7},
+            {"id": "QS002", "name": "水果品控标准", "category": "水果",
+             "temperature": {"min": 0, "max": 12, "unit": "°C"}, "humidity": {"min": 80, "max": 90, "unit": "%"},
+             "pesticide_residue_max": 0.3, "heavy_metal_max": 0.05, "shelf_days": 14},
+            {"id": "QS003", "name": "冷冻食品品控标准", "category": "冷冻食品",
+             "temperature": {"min": -25, "max": -18, "unit": "°C"}, "humidity": {"min": 70, "max": 85, "unit": "%"},
+             "pesticide_residue_max": 0.1, "heavy_metal_max": 0.02, "shelf_days": 180},
+            {"id": "QS004", "name": "肉类品控标准", "category": "肉类",
+             "temperature": {"min": -2, "max": 4, "unit": "°C"}, "humidity": {"min": 75, "max": 85, "unit": "%"},
+             "pesticide_residue_max": 0.2, "heavy_metal_max": 0.05, "shelf_days": 5},
         ]
     }
 
+
 # ========== 库存预警 ==========
-@router.get("/inventory/alerts")
-def get_inventory_alerts():
-    """获取库存预警列表"""
-    alert_types = ["库存不足", "库存过多", "临期预警", "温度异常", "湿度异常"]
-    alert_levels = ["low", "medium", "high", "critical"]
-    products = ["有机蔬菜", "新鲜水果", "土特产", "冷冻肉类", "乳制品"]
-    warehouses = ["北京中心仓库1", "上海中心仓库", "广州中心仓库", "成都中心仓库"]
-    
-    alerts = []
-    for i in range(25):
-        alert_type = random.choice(alert_types)
-        level = random.choice(alert_levels)
-        
-        # 根据类型生成相关数据
-        if alert_type == "库存不足":
-            current = random.randint(0, 50)
-            min_stock = random.randint(80, 200)
-            status = "待处理"
-        elif alert_type == "库存过多":
-            current = random.randint(800, 1500)
-            max_stock = random.randint(500, 800)
-            status = random.choice(["待处理", "已确认"])
-        elif alert_type == "临期预警":
-            days_left = random.randint(1, 15)
-            current = random.randint(50, 200)
-            status = random.choice(["待处理", "处理中"])
-        elif alert_type == "温度异常":
-            current = round(random.uniform(-10, 15), 1)
-            target = round(random.uniform(-5, 5), 1)
-            status = random.choice(["待处理", "处理中", "已解决"])
-        else:
-            current = round(random.uniform(20, 95), 1)
-            target = round(random.uniform(40, 70), 1)
-            status = random.choice(["待处理", "已解决"])
-        
-        alerts.append({
-            "id": f"IA{i+1:04d}",
-            "type": alert_type,
-            "level": level,
-            "product": random.choice(products),
-            "warehouse": random.choice(warehouses),
-            "current_value": current,
-            "threshold": min_stock if alert_type == "库存不足" else (max_stock if alert_type == "库存过多" else (days_left if alert_type == "临期预警" else target)),
-            "unit": "件" if alert_type in ["库存不足", "库存过多"] else ("天" if alert_type == "临期预警" else "°C" if "温度" in alert_type else "%"),
-            "status": status,
-            "message": get_alert_message(alert_type, current),
-            "created_at": (datetime.now() - timedelta(hours=random.randint(1, 72))).strftime("%Y-%m-%d %H:%M")
-        })
-    
-    # 按级别排序
-    level_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    alerts.sort(key=lambda x: level_order.get(x["level"], 4))
-    return alerts
+
+ALERT_TYPES = ("库存不足", "库存过多", "临期预警", "温度异常", "湿度异常")
+_ALERT_SUGGESTIONS = {
+    "库存不足": ["建议立即补货", "检查供应链是否有延迟", "考虑提高安全库存量"],
+    "库存过多": ["暂停该商品入库预约", "安排促销或调拨至其他仓库"],
+    "临期预警": ["优先安排出库（先进先出）", "联系货主确认处理方式"],
+    "温度异常": ["检查制冷设备运行状态", "必要时将货物转移至备用温区"],
+    "湿度异常": ["检查除湿/加湿设备", "检查库门密封情况"],
+}
+
 
 def get_alert_message(alert_type: str, current: float) -> str:
     """生成预警消息"""
@@ -514,662 +621,932 @@ def get_alert_message(alert_type: str, current: float) -> str:
         "库存不足": f"当前库存{current:.0f}件，低于安全库存",
         "库存过多": f"当前库存{current:.0f}件，超过最大库存",
         "临期预警": f"还有{int(current)}天到期，请及时处理",
-        "温度异常": f"当前温度{current}°C，超出正常范围",
-        "湿度异常": f"当前湿度{current}%，超出正常范围"
+        "温度异常": f"当前温度{current:g}°C，超出正常范围",
+        "湿度异常": f"当前湿度{current:g}%，超出正常范围",
     }
     return messages.get(alert_type, "")
 
-@router.get("/inventory/alerts/{alert_id}")
-def get_inventory_alert_detail(alert_id: str):
-    """获取库存预警详情"""
+
+def _alert_dict(a: InventoryAlert) -> dict:
     return {
-        "id": alert_id,
-        "type": "库存不足",
-        "level": "high",
-        "product": "有机蔬菜",
-        "product_code": "SKU001",
-        "warehouse": "北京中心仓库1",
-        "zone": "冷藏区A",
-        "current_stock": 45,
-        "min_stock": 150,
-        "max_stock": 800,
-        "unit": "件",
-        "history": [
-            {"date": "2026-02-15", "stock": 180},
-            {"date": "2026-02-16", "stock": 120},
-            {"date": "2026-02-17", "stock": 80},
-            {"date": "2026-02-18", "stock": 45}
-        ],
-        "suggestions": [
-            "建议立即补货",
-            "检查供应链是否有延迟",
-            "考虑增加安全库存量"
-        ],
-        "status": "待处理",
-        "created_at": "2026-02-18 10:30:00",
-        "updated_at": "2026-02-18 11:00:00"
+        "id": a.id,
+        "type": a.type,
+        "level": a.level,
+        "product": a.product,
+        "warehouse": a.warehouse,
+        "current_value": a.current_value,
+        "threshold": a.threshold,
+        "unit": a.unit,
+        "status": a.status,
+        "message": get_alert_message(a.type, a.current_value),
+        "created_at": _fmt(a.created_at),
     }
+
+
+@router.get("/inventory/alerts")
+def get_inventory_alerts(db: Session = Depends(get_db)):
+    """获取库存预警列表（按级别、时间排序）"""
+    rows = db.query(InventoryAlert).all()
+    rows.sort(key=lambda a: (LEVEL_ORDER.get(a.level, 4), -a.created_at.timestamp(), a.id))
+    return [_alert_dict(a) for a in rows]
+
+
+@router.get("/inventory/alerts/{alert_id}")
+def get_inventory_alert_detail(alert_id: str, db: Session = Depends(get_db)):
+    """获取库存预警详情"""
+    a = _get_or_404(db, InventoryAlert, alert_id, "预警")
+    data = _alert_dict(a)
+    data.update({
+        "product_code": a.product_code,
+        "zone": a.zone,
+        "current_stock": a.current_value if a.type in ("库存不足", "库存过多") else None,
+        "min_stock": a.threshold if a.type == "库存不足" else None,
+        "max_stock": a.threshold if a.type == "库存过多" else None,
+        "history": [],
+        "suggestions": _ALERT_SUGGESTIONS.get(a.type, []),
+        "resolve_remark": a.resolve_remark,
+        "updated_at": _fmt(a.resolved_at or a.created_at, seconds=True),
+    })
+    return data
+
+
+class ResolveIn(BaseModel):
+    remark: Optional[str] = Field(None, max_length=200)
+
 
 @router.post("/inventory/alerts/{alert_id}/resolve")
-def resolve_inventory_alert(alert_id: str, data: dict = {}):
+def resolve_inventory_alert(alert_id: str, data: Optional[ResolveIn] = None, db: Session = Depends(get_db)):
     """处理库存预警"""
+    a = _get_or_404(db, InventoryAlert, alert_id, "预警")
+    if a.status == "已解决":
+        raise HTTPException(status_code=409, detail="预警已处理")
+    a.status = "已解决"
+    a.resolved_at = datetime.now()
+    a.resolve_remark = data.remark if data else None
+    db.commit()
+    return {"success": True, "message": f"预警 {alert_id} 已标记为已处理"}
+
+
+def _rule_dict(r: InventoryRule) -> dict:
     return {
-        "success": True,
-        "message": f"预警 {alert_id} 已标记为已处理"
+        "id": r.id,
+        "name": r.name,
+        "type": r.type,
+        "enabled": bool(r.enabled),
+        "threshold": r.threshold,
+        "unit": r.unit,
+        "product_categories": r.product_categories or [],
+        "notify_channels": r.notify_channels or [],
     }
+
 
 @router.get("/inventory/rules")
-def get_inventory_rules():
+def get_inventory_rules(db: Session = Depends(get_db)):
     """获取库存预警规则"""
-    return {
-        "rules": [
-            {
-                "id": "RULE001",
-                "name": "安全库存预警",
-                "type": "库存不足",
-                "enabled": True,
-                "threshold": 150,
-                "unit": "件",
-                "product_categories": ["蔬菜", "水果", "肉类"],
-                "notify_channels": ["短信", "邮件", "APP"]
-            },
-            {
-                "id": "RULE002",
-                "name": "临期预警",
-                "type": "临期预警",
-                "enabled": True,
-                "threshold": 7,
-                "unit": "天",
-                "product_categories": ["全部"],
-                "notify_channels": ["短信", "APP"]
-            },
-            {
-                "id": "RULE003",
-                "name": "库容预警",
-                "type": "库存过多",
-                "enabled": True,
-                "threshold": 90,
-                "unit": "%",
-                "product_categories": ["全部"],
-                "notify_channels": ["邮件"]
-            },
-            {
-                "id": "RULE004",
-                "name": "温度监控预警",
-                "type": "温度异常",
-                "enabled": True,
-                "threshold": 5,
-                "unit": "°C",
-                "product_categories": ["冷冻食品", "冷藏品"],
-                "notify_channels": ["短信", "邮件", "APP", "电话"]
-            }
-        ]
-    }
+    return {"rules": [_rule_dict(r) for r in db.query(InventoryRule).order_by(InventoryRule.id)]}
+
+
+class RuleCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    type: Literal["库存不足", "库存过多", "临期预警", "温度异常", "湿度异常"]
+    threshold: float
+    unit: str = Field(..., min_length=1, max_length=10)
+    enabled: bool = True
+    product_categories: List[str] = ["全部"]
+    notify_channels: List[str] = Field(default_factory=lambda: ["APP"], min_length=1)
+
+
+class RuleUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    threshold: Optional[float] = None
+    unit: Optional[str] = Field(None, min_length=1, max_length=10)
+    enabled: Optional[bool] = None
+    product_categories: Optional[List[str]] = None
+    notify_channels: Optional[List[str]] = Field(None, min_length=1)
+
 
 @router.post("/inventory/rules")
-def create_inventory_rule(data: dict):
+def create_inventory_rule(data: RuleCreate, db: Session = Depends(get_db)):
     """创建库存预警规则"""
-    return {
-        "success": True,
-        "id": f"RULE{datetime.now().strftime('%Y%m%d')}{random.randint(100, 999)}",
-        "message": "预警规则创建成功"
-    }
+    rule = InventoryRule(id=_next_id(db, InventoryRule, "RULE", 3), **data.model_dump())
+    db.add(rule)
+    db.commit()
+    return {"success": True, "id": rule.id, "message": "预警规则创建成功"}
+
+
+@router.put("/inventory/rules/{rule_id}")
+def update_inventory_rule(rule_id: str, data: RuleUpdate, db: Session = Depends(get_db)):
+    """更新预警规则（如启用/停用）"""
+    rule = _get_or_404(db, InventoryRule, rule_id, "预警规则")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(rule, key, value)
+    db.commit()
+    return {"success": True, "rule": _rule_dict(rule)}
+
 
 @router.get("/inventory/stats")
-def get_inventory_stats():
-    """获取库存统计概览"""
+def get_inventory_stats(db: Session = Depends(get_db)):
+    """获取库存统计概览（由温区、入库明细与预警记录计算）"""
+    alerts = db.query(InventoryAlert).all()
+    open_alerts = [a for a in alerts if a.status != "已解决"]
+    now = datetime.now()
+    week_start = now - timedelta(days=7)
+    this_week = [a for a in alerts if a.created_at >= week_start]
+    skus = {sku for (sku,) in db.query(InboundOrderItem.sku).distinct()}
+    total_pallets = sum(z.used or 0 for z in db.query(StorageZone).all())
+
+    def count_open(t):
+        return sum(1 for a in open_alerts if a.type == t)
+
+    week_resolved = sum(1 for a in this_week if a.status == "已解决")
     return {
-        "total_products": random.randint(500, 1500),
-        "total_stock": random.randint(50000, 100000),
-        "low_stock_count": random.randint(5, 20),
-        "overstock_count": random.randint(3, 15),
-        "expiring_soon_count": random.randint(10, 30),
-        "temp_alert_count": random.randint(0, 5),
-        "today_resolved": random.randint(5, 15),
+        "total_products": len(skus),
+        "total_stock": total_pallets * UNITS_PER_PALLET,
+        "low_stock_count": count_open("库存不足"),
+        "overstock_count": count_open("库存过多"),
+        "expiring_soon_count": count_open("临期预警"),
+        "temp_alert_count": count_open("温度异常"),
+        "today_resolved": sum(1 for a in alerts if a.resolved_at and a.resolved_at.date() == now.date()),
         "this_week": {
-            "total_alerts": random.randint(30, 80),
-            "resolved": random.randint(25, 70),
-            "pending": random.randint(5, 20)
-        }
+            "total_alerts": len(this_week),
+            "resolved": week_resolved,
+            "pending": len(this_week) - week_resolved,
+        },
     }
 
 
 # ========== 货主管理 ==========
+
+def _owner_zone_stats(db: Session) -> dict:
+    stats = defaultdict(lambda: {"warehouses": set(), "zones": 0, "pallets": 0})
+    for z in db.query(StorageZone).filter(StorageZone.owner_code.isnot(None)):
+        s = stats[z.owner_code]
+        s["warehouses"].add(z.warehouse)
+        s["zones"] += 1
+        s["pallets"] += z.used or 0
+    return stats
+
+
 @router.get("/owner/list")
-def get_owner_list():
-    """获取货主列表"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM cargo_owners ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    
-    owners = []
-    for row in rows:
-        owners.append({
-            "id": row["id"],
-            "code": row["code"],
-            "name": row["name"],
-            "contact": row["contact"],
-            "phone": row["phone"],
-            "email": row["email"],
-            "address": row["address"],
-            "status": row["status"],
-            "created_at": row["created_at"],
-            "warehouse_count": random.randint(1, 5),
-            "zone_count": random.randint(2, 10),
-            "total_stock": random.randint(1000, 50000)
+def get_owner_list(db: Session = Depends(get_db)):
+    """获取货主列表（仓库数/温区数/库存量由其租用的温区计算）"""
+    stats = _owner_zone_stats(db)
+    result = []
+    for o in db.query(CargoOwner).order_by(CargoOwner.id.desc()).all():
+        s = stats.get(o.code, {"warehouses": set(), "zones": 0, "pallets": 0})
+        result.append({
+            "id": o.id,
+            "code": o.code,
+            "name": o.name,
+            "contact": o.contact,
+            "phone": o.phone,
+            "email": o.email,
+            "address": o.address,
+            "status": o.status,
+            "created_at": _fmt(o.created_at, seconds=True),
+            "warehouse_count": len(s["warehouses"]),
+            "zone_count": s["zones"],
+            "total_stock": s["pallets"] * UNITS_PER_PALLET,
         })
-    return owners
+    return result
+
 
 @router.get("/owner/{owner_id}")
-def get_owner_detail(owner_id: int):
+def get_owner_detail(owner_id: int, db: Session = Depends(get_db)):
     """获取货主详情"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM cargo_owners WHERE id = ?", (owner_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if not row:
-        return {"error": "货主不存在"}
-    
+    o = _get_or_404(db, CargoOwner, owner_id, "货主")
+    by_wh = defaultdict(int)
+    for z in db.query(StorageZone).filter(StorageZone.owner_code == o.code):
+        by_wh[z.warehouse] += 1
+    wh_ids = {w.name: w.id for w in db.query(Warehouse).filter(Warehouse.name.in_(list(by_wh)))} if by_wh else {}
     return {
-        "id": row["id"],
-        "code": row["code"],
-        "name": row["name"],
-        "contact": row["contact"],
-        "phone": row["phone"],
-        "email": row["email"],
-        "address": row["address"],
-        "status": row["status"],
-        "warehouses": [
-            {"id": "WH001", "name": "北京中心仓", "zones": 5},
-            {"id": "WH002", "name": "上海中心仓", "zones": 3}
-        ],
-        "pricing_model": "按件计费+固定月租",
-        "contracts": [
-            {"no": "CT202601001", "start": "2026-01-01", "end": "2026-12-31", "status": "生效中"}
-        ]
+        "id": o.id,
+        "code": o.code,
+        "name": o.name,
+        "contact": o.contact,
+        "phone": o.phone,
+        "email": o.email,
+        "address": o.address,
+        "status": o.status,
+        "warehouses": [{"id": wh_ids.get(name), "name": name, "zones": n} for name, n in sorted(by_wh.items())],
+        "pricing_model": None,
+        "contracts": [],
     }
 
+
+class OwnerIn(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    contact: Optional[str] = Field(None, max_length=50)
+    phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=100)
+    address: Optional[str] = Field(None, max_length=200)
+    status: Optional[Literal["正常", "暂停"]] = None
+
+
+class OwnerCreate(OwnerIn):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
 @router.post("/owner")
-def create_owner(data: dict):
+def create_owner(data: OwnerCreate, db: Session = Depends(get_db)):
     """创建货主"""
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # 生成货主编码
-    cursor.execute("SELECT MAX(id) as max_id FROM cargo_owners")
-    result = cursor.fetchone()
-    new_id = (result["max_id"] or 0) + 1
-    code = f"OW{1000 + new_id}"
-    
-    cursor.execute("""
-        INSERT INTO cargo_owners (code, name, contact, phone, email, address, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (code, data.get("name"), data.get("contact"), data.get("phone"), 
-          data.get("email"), data.get("address"), data.get("status", "正常")))
-    conn.commit()
-    new_owner_id = cursor.lastrowid
-    conn.close()
-    
-    return {"success": True, "id": new_owner_id, "code": code}
+    max_id = db.query(CargoOwner.id).order_by(CargoOwner.id.desc()).first()
+    code = f"OW{1000 + (max_id[0] if max_id else 0) + 1}"
+    values = data.model_dump(exclude_none=True)
+    values.setdefault("status", "正常")
+    owner = CargoOwner(code=code, **values)
+    db.add(owner)
+    db.commit()
+    return {"success": True, "id": owner.id, "code": code}
+
 
 @router.put("/owner/{owner_id}")
-def update_owner(owner_id: int, data: dict):
-    """更新货主信息"""
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        UPDATE cargo_owners 
-        SET name = ?, contact = ?, phone = ?, email = ?, address = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (data.get("name"), data.get("contact"), data.get("phone"), 
-          data.get("email"), data.get("address"), data.get("status"), owner_id))
-    conn.commit()
-    conn.close()
-    
+def update_owner(owner_id: int, data: OwnerIn, db: Session = Depends(get_db)):
+    """更新货主信息（只更新提交的字段）"""
+    owner = _get_or_404(db, CargoOwner, owner_id, "货主")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        if key in ("name", "status") and value is None:
+            continue
+        setattr(owner, key, value)
+    db.commit()
     return {"success": True, "message": f"货主 {owner_id} 更新成功"}
 
+
 @router.delete("/owner/{owner_id}")
-def delete_owner(owner_id: int):
+def delete_owner(owner_id: int, db: Session = Depends(get_db)):
     """删除货主"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM cargo_owners WHERE id = ?", (owner_id,))
-    conn.commit()
-    conn.close()
-    
+    db.delete(_get_or_404(db, CargoOwner, owner_id, "货主"))
+    db.commit()
     return {"success": True, "message": f"货主 {owner_id} 删除成功"}
 
 
 # ========== 温区管理 ==========
+
 @router.get("/zone/list")
-def get_zone_list():
+def get_zone_list(db: Session = Depends(get_db)):
     """获取温区列表"""
-    zones = []
-    zone_types = ["冷藏区", "冷冻区", "常温区", "恒温区"]
-    for i in range(20):
-        zones.append({
-            "id": f"Z{i+1:04d}",
-            "name": f"{zone_types[i%4]}{chr(65+i//4)}",
-            "type": zone_types[i%4],
-            "temperature_min": random.choice([-18, 0, 5, 15]),
-            "temperature_max": random.choice([-12, 5, 10, 25]),
-            "warehouse": f"仓库{random.randint(1, 5)}",
-            "capacity": random.randint(100, 1000),
-            "used": random.randint(10, 500),
-            "status": random.choice(["正常", "正常", "维护中"])
-        })
-    return zones
+    return [{
+        "id": z.id,
+        "code": z.code,
+        "name": z.name,
+        "type": z.type,
+        "temperature_min": z.temperature_min,
+        "temperature_max": z.temperature_max,
+        "warehouse": z.warehouse,
+        "owner_code": z.owner_code,
+        "capacity": z.capacity,
+        "used": z.used,
+        "available": z.capacity - (z.used or 0),
+        "distance_to_pick": z.distance_to_pick,
+        "status": z.status,
+    } for z in db.query(StorageZone).order_by(StorageZone.id).all()]
 
 
-# ========== 入库管理 ==========
+# ========== 入库预约 ==========
+
+def _appointment_dict(a: InboundAppointment, detail: bool = False) -> dict:
+    items = a.items or []
+    data = {
+        "id": a.id,
+        "owner": a.owner,
+        "owner_code": a.owner_code,
+        "vehicle_no": a.vehicle_no,
+        "driver": a.driver,
+        "driver_phone": a.driver_phone,
+        "estimated_arrival": _fmt(a.estimated_arrival),
+        "actual_arrival": _fmt(a.actual_arrival),
+        "appointment_date": a.estimated_arrival.strftime("%Y-%m-%d") if a.estimated_arrival else None,
+        "expected_items": len(items),
+        "expected_quantity": sum(i["quantity"] for i in items),
+        "status": a.status,
+        "dock": a.dock,
+        "zone": a.zone,
+        "cargo_type": a.cargo_type,
+        "remark": a.remark or "",
+    }
+    if detail:
+        data["items"] = items
+    return data
+
+
 @router.get("/inbound/appointments")
-def get_inbound_appointments():
+def get_inbound_appointments(db: Session = Depends(get_db)):
     """获取入库预约列表"""
-    appointments = []
-    for i in range(15):
-        appt_id = f"INB{datetime.now().strftime('%Y%m')}{i+1:04d}"
-        appointments.append({
-            "id": appt_id,
-            "owner": f"货主{random.randint(1, 15)}",
-            "owner_code": f"OW{1000+random.randint(0, 14)}",
-            "vehicle_no": f"京A{random.randint(10000, 99999)}",
-            "driver": f"司机{random.randint(1, 10)}",
-            "driver_phone": f"138{random.randint(10000000, 99999999)}",
-            "estimated_arrival": (datetime.now() + timedelta(hours=random.randint(1, 48))).strftime("%Y-%m-%d %H:%M"),
-            "actual_arrival": None,
-            "appointment_date": (datetime.now() + timedelta(days=random.randint(0, 7))).strftime("%Y-%m-%d"),
-            "expected_items": random.randint(5, 50),
-            "expected_quantity": random.randint(100, 5000),
-            "status": random.choice(["已预约", "已到货", "收货中", "已完成"]),
-            "dock": f"D{random.randint(1, 10)}",
-            "zone": random.choice(["冷藏区", "冷冻区", "常温区"]),
-            "remark": random.choice(["", "加急", "需要叉车", "散货"])
-        })
-    return appointments
+    rows = db.query(InboundAppointment).order_by(InboundAppointment.estimated_arrival.desc(),
+                                                 InboundAppointment.id.desc())
+    return [_appointment_dict(a) for a in rows]
+
 
 @router.get("/inbound/appointments/{appointment_id}")
-def get_appointment_detail(appointment_id: str):
+def get_appointment_detail(appointment_id: str, db: Session = Depends(get_db)):
     """获取预约详情"""
-    return {
-        "id": appointment_id,
-        "owner": "货主A",
-        "owner_code": "OW1000",
-        "vehicle_no": "京A12345",
-        "driver": "司机张三",
-        "driver_phone": "13812345678",
-        "estimated_arrival": (datetime.now() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
-        "appointment_date": datetime.now().strftime("%Y-%m-%d"),
-        "expected_items": 20,
-        "expected_quantity": 2000,
-        "items": [
-            {"sku": "SKU001", "name": "有机蔬菜", "quantity": 500, "unit": "件", "barcode": "6901234567890"},
-            {"sku": "SKU002", "name": "新鲜水果", "quantity": 300, "unit": "件", "barcode": "6901234567891"},
-            {"sku": "SKU003", "name": "冷冻肉类", "quantity": 200, "unit": "件", "barcode": "6901234567892"}
-        ],
-        "status": "已到货",
-        "dock": "D1",
-        "zone": "冷藏区A"
-    }
+    return _appointment_dict(_get_or_404(db, InboundAppointment, appointment_id, "预约"), detail=True)
+
+
+class AppointmentItem(BaseModel):
+    sku: str = Field(..., min_length=1, max_length=20)
+    name: str = Field(..., min_length=1, max_length=100)
+    quantity: int = Field(..., gt=0)
+    unit: str = "件"
+    barcode: Optional[str] = Field(None, max_length=30)
+    storage_type: Literal["冷藏", "冷冻", "常温"] = "冷藏"
+
+
+class AppointmentCreate(BaseModel):
+    owner_code: Optional[str] = Field(None, max_length=20)
+    owner: Optional[str] = Field(None, min_length=1, max_length=100)
+    vehicle_no: str = Field(..., min_length=1, max_length=20)
+    driver: Optional[str] = Field(None, max_length=50)
+    driver_phone: Optional[str] = Field(None, max_length=20)
+    estimated_arrival: datetime
+    dock: Optional[str] = Field(None, max_length=10)
+    zone: Optional[str] = Field(None, max_length=50)
+    cargo_type: Optional[str] = Field(None, max_length=50)
+    remark: Optional[str] = Field(None, max_length=200)
+    items: List[AppointmentItem] = Field(..., min_length=1)
+
+    @model_validator(mode="after")
+    def _owner_given(self):
+        if not self.owner_code and not self.owner:
+            raise ValueError("owner_code 与 owner 至少提供一个")
+        return self
+
 
 @router.post("/inbound/appointments")
-def create_appointment(data: dict):
+def create_appointment(data: AppointmentCreate, db: Session = Depends(get_db)):
     """创建入库预约"""
-    return {"success": True, "id": f"INB{datetime.now().strftime('%Y%m%d')}{random.randint(100, 999)}"}
+    owner_name = data.owner
+    if data.owner_code:
+        owner = db.query(CargoOwner).filter(CargoOwner.code == data.owner_code).first()
+        if owner is None:
+            raise HTTPException(status_code=404, detail="货主不存在")
+        owner_name = owner.name
+    appt = InboundAppointment(
+        id=_next_id(db, InboundAppointment, f"INB{datetime.now():%Y%m}", 4),
+        owner=owner_name, owner_code=data.owner_code, vehicle_no=data.vehicle_no, driver=data.driver,
+        driver_phone=data.driver_phone, estimated_arrival=data.estimated_arrival.replace(tzinfo=None),
+        dock=data.dock, zone=data.zone, cargo_type=data.cargo_type, remark=data.remark,
+        items=[i.model_dump() for i in data.items], status="待签到", created_at=datetime.now())
+    db.add(appt)
+    db.commit()
+    return {"success": True, "id": appt.id}
+
 
 @router.put("/inbound/appointments/{appointment_id}/checkin")
-def checkin_appointment(appointment_id: str):
-    """签到确认到货"""
-    return {"success": True, "message": f"预约 {appointment_id} 已签到"}
+def checkin_appointment(appointment_id: str, db: Session = Depends(get_db)):
+    """签到确认到货：待签到 -> 已签到"""
+    appt = _get_or_404(db, InboundAppointment, appointment_id, "预约")
+    if appt.status != "待签到":
+        raise HTTPException(status_code=409, detail=f"当前状态为{appt.status}，不能签到")
+    appt.status = "已签到"
+    appt.actual_arrival = datetime.now()
+    db.commit()
+    return {"success": True, "message": f"预约 {appointment_id} 已签到", "status": appt.status}
+
+
+@router.put("/inbound/appointments/{appointment_id}/receive")
+def start_receive(appointment_id: str, db: Session = Depends(get_db)):
+    """开始收货：已签到 -> 收货中，并按预约货物生成入库单"""
+    appt = _get_or_404(db, InboundAppointment, appointment_id, "预约")
+    if appt.status != "已签到":
+        raise HTTPException(status_code=409, detail=f"当前状态为{appt.status}，不能开始收货")
+    zone = db.query(StorageZone).filter(StorageZone.name == appt.zone).first() if appt.zone else None
+    now = datetime.now()
+    order = InboundOrder(
+        id=_next_id(db, InboundOrder, f"IOR{now:%Y%m}", 4), appointment_id=appt.id, owner=appt.owner,
+        warehouse=zone.warehouse if zone else None, inbound_date=now.strftime("%Y-%m-%d"), status="待收货",
+        dock=appt.dock, created_at=now)
+    for i in appt.items or []:
+        order.items.append(InboundOrderItem(
+            sku=i["sku"], name=i["name"], barcode=i.get("barcode"), storage_type=i.get("storage_type", "冷藏"),
+            expected_qty=i["quantity"], received_qty=0, qualified_qty=0))
+    appt.status = "收货中"
+    db.add(order)
+    db.commit()
+    return {"success": True, "status": appt.status, "order_id": order.id}
 
 
 # ========== 入库单 ==========
-@router.get("/inbound/orders")
-def get_inbound_orders():
-    """获取入库单列表"""
-    orders = []
-    for i in range(20):
-        order_id = f"IOR{datetime.now().strftime('%Y%m')}{i+1:04d}"
-        orders.append({
-            "id": order_id,
-            "appointment_id": f"INB{datetime.now().strftime('%Y%m')}{random.randint(1,15):04d}",
-            "owner": f"货主{random.randint(1, 15)}",
-            "inbound_date": (datetime.now() - timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d"),
-            "status": random.choice(["待收货", "收货中", "已入库", "已质检"]),
-            "total_items": random.randint(5, 50),
-            "total_quantity": random.randint(100, 5000),
-            "received_quantity": 0,
-            "qualified_quantity": 0,
-            "unqualified_quantity": 0,
-            "dock": f"D{random.randint(1, 10)}",
-            "receiver": f"收货员{random.randint(1, 5)}",
-            "created_at": (datetime.now() - timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d %H:%M")
-        })
-    return orders
 
-@router.get("/inbound/orders/{order_id}")
-def get_inbound_order_detail(order_id: str):
-    """获取入库单详情"""
+def _item_status(i: InboundOrderItem) -> str:
+    if not i.received_qty:
+        return "待收货"
+    return "已完成" if i.received_qty >= i.expected_qty else "部分收货"
+
+
+def _item_dict(i: InboundOrderItem) -> dict:
+    received, qualified = i.received_qty or 0, i.qualified_qty or 0
     return {
-        "id": order_id,
-        "appointment_id": "INB2026020001",
-        "owner": "货主A",
-        "inbound_date": datetime.now().strftime("%Y-%m-%d"),
-        "status": "收货中",
-        "total_items": 20,
-        "total_quantity": 2000,
-        "received_quantity": 1500,
-        "qualified_quantity": 1450,
-        "unqualified_quantity": 50,
-        "dock": "D1",
-        "receiver": "收货员张三",
-        "items": [
-            {"sku": "SKU001", "name": "有机蔬菜", "expected": 500, "received": 480, "qualified": 475, "unqualified": 5, "location": "A01-01-01"},
-            {"sku": "SKU002", "name": "新鲜水果", "expected": 300, "received": 300, "qualified": 295, "unqualified": 5, "location": "A01-01-02"},
-            {"sku": "SKU003", "name": "冷冻肉类", "expected": 200, "received": 200, "qualified": 200, "unqualified": 0, "location": "B02-03-05"}
-        ],
-        "quality_check": {"status": "已完成", "passed": True, "score": 92}
+        "id": i.id,
+        "sku": i.sku,
+        "name": i.name,
+        "barcode": i.barcode,
+        "storage_type": i.storage_type,
+        "expected_qty": i.expected_qty,
+        "received_qty": received,
+        "qualified_qty": qualified,
+        "status": _item_status(i),
+        "zone_id": i.zone_id,
+        "location": i.location,
+        # 兼容旧字段
+        "expected": i.expected_qty,
+        "received": received,
+        "qualified": qualified,
+        "unqualified": received - qualified,
     }
 
 
+def _order_dict(o: InboundOrder) -> dict:
+    items = o.items
+    received = sum(i.received_qty or 0 for i in items)
+    qualified = sum(i.qualified_qty or 0 for i in items)
+    return {
+        "id": o.id,
+        "appointment_id": o.appointment_id,
+        "owner": o.owner,
+        "warehouse": o.warehouse,
+        "inbound_date": o.inbound_date,
+        "status": o.status,
+        "total_items": len(items),
+        "total_quantity": sum(i.expected_qty for i in items),
+        "received_quantity": received,
+        "qualified_quantity": qualified,
+        "unqualified_quantity": received - qualified,
+        "dock": o.dock,
+        "receiver": o.receiver,
+        "created_at": _fmt(o.created_at),
+        "items": [_item_dict(i) for i in items],
+    }
+
+
+@router.get("/inbound/orders")
+def get_inbound_orders(db: Session = Depends(get_db)):
+    """获取入库单列表（含货物明细）"""
+    rows = db.query(InboundOrder).order_by(InboundOrder.created_at.desc(), InboundOrder.id.desc()).all()
+    return [_order_dict(o) for o in rows]
+
+
+@router.get("/inbound/orders/{order_id}")
+def get_inbound_order_detail(order_id: str, db: Session = Depends(get_db)):
+    """获取入库单详情"""
+    o = _get_or_404(db, InboundOrder, order_id, "入库单")
+    data = _order_dict(o)
+    received, qualified = data["received_quantity"], data["qualified_quantity"]
+    data["quality_check"] = {
+        "status": "已完成" if o.status == "已质检" else "未完成",
+        "passed": received > 0 and received == qualified,
+        "qualified_rate": round(qualified / received, 4) if received else None,
+    }
+    return data
+
+
+class ReceiveIn(BaseModel):
+    sku: str = Field(..., min_length=1)
+    quantity: int = Field(..., gt=0)
+    qualified_qty: int = Field(..., ge=0)
+    remark: Optional[str] = Field(None, max_length=200)
+
+    @model_validator(mode="after")
+    def _qualified_le_quantity(self):
+        if self.qualified_qty > self.quantity:
+            raise ValueError("合格数量不能大于收货数量")
+        return self
+
+
+@router.post("/inbound/orders/{order_id}/receive")
+def receive_goods(order_id: str, data: ReceiveIn, db: Session = Depends(get_db)):
+    """收货登记：累加 SKU 的已收/合格数量，全部收齐后入库单变为已入库"""
+    order = _get_or_404(db, InboundOrder, order_id, "入库单")
+    if order.status not in ("待收货", "收货中"):
+        raise HTTPException(status_code=409, detail=f"入库单状态为{order.status}，不能收货")
+    item = next((i for i in order.items if i.sku == data.sku), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="入库单中不存在该 SKU")
+    remaining = item.expected_qty - (item.received_qty or 0)
+    if data.quantity > remaining:
+        raise HTTPException(status_code=400, detail=f"收货数量超过待收数量 {remaining}")
+    item.received_qty = (item.received_qty or 0) + data.quantity
+    item.qualified_qty = (item.qualified_qty or 0) + data.qualified_qty
+    if all((i.received_qty or 0) >= i.expected_qty for i in order.items):
+        order.status = "已入库"
+        if order.appointment_id:
+            appt = db.get(InboundAppointment, order.appointment_id)
+            if appt:
+                appt.status = "已完成"
+    else:
+        order.status = "收货中"
+    db.commit()
+    return {"success": True, "order": _order_dict(order)}
+
+
 # ========== 上架建议 ==========
+
+def _pallets(qty: int) -> int:
+    return math.ceil(qty / UNITS_PER_PALLET)
+
+
+def _slot_location(zone: StorageZone, position: int) -> str:
+    """按托位序号生成货位号：{库区字母}{排}-{层}-{位}"""
+    p = position - 1
+    return f"{zone.code}{p // 60 + 1:02d}-{(p // 20) % 3 + 1:02d}-{p % 20 + 1:02d}"
+
+
 @router.get("/inbound/suggestions/{order_id}")
-def get_putaway_suggestions(order_id: str):
-    """获取智能上架建议"""
+def get_putaway_suggestions(order_id: str, db: Session = Depends(get_db)):
+    """智能上架建议：按温度匹配、温区剩余容量与距出库口距离打分（确定性计算）"""
+    order = _get_or_404(db, InboundOrder, order_id, "入库单")
+    zones = db.query(StorageZone).filter(StorageZone.status == "正常").order_by(StorageZone.id).all()
+    reserved = defaultdict(int)  # 本次建议已预占的托位，避免多个 SKU 挤进同一个满温区
     suggestions = []
-    zones = ["冷藏区A", "冷藏区B", "冷冻区A", "常温区A"]
-    for i in range(10):
+    for item in order.items:
+        if item.zone_id:
+            continue  # 已上架
+        qty = item.qualified_qty if item.received_qty else item.expected_qty
+        if not qty:
+            continue
+        need = _pallets(qty)
+        primary, fallback = STORAGE_ZONE_TYPES.get(item.storage_type, (None, None))
+        best = None
+        for z in zones:
+            if z.type == primary:
+                temp_match = 1.0
+            elif fallback and z.type == fallback:
+                temp_match = 0.8
+            else:
+                continue
+            free = z.capacity - (z.used or 0) - reserved[z.id]
+            if free < need:
+                continue
+            balance = (free - need) / z.capacity
+            proximity = 1 - min(z.distance_to_pick or 0, 50) / 50
+            score = 0.5 * temp_match + 0.3 * balance + 0.2 * proximity
+            if order.warehouse and z.warehouse != order.warehouse:
+                score -= 0.1  # 跨仓调拨扣分
+            key = (round(score, 6), -int(z.id[1:]) if z.id[1:].isdigit() else 0)
+            if best is None or key > best[0]:
+                best = (key, z, temp_match, balance, score)
+        if best is None:
+            suggestions.append({"order_id": order.id, "item_id": item.id, "sku": item.sku, "name": item.name,
+                                "quantity": qty, "suggested_location": None, "zone": None, "zone_id": None,
+                                "reason": "无可用温区", "distance_to_pick": None, "confidence": 0.0})
+            continue
+        _, z, temp_match, balance, score = best
+        position = (z.used or 0) + reserved[z.id] + 1
+        reserved[z.id] += need
+        reasons = ["温度匹配" if temp_match == 1.0 else "温度兼容"]
+        if balance >= 0.5:
+            reasons.append("库存均衡")
+        if (z.distance_to_pick or 0) <= 10:
+            reasons.append("靠近出库口")
         suggestions.append({
-            "sku": f"SKU{str(i+1).zfill(3)}",
-            "name": f"商品{i+1}",
-            "quantity": random.randint(50, 200),
-            "suggested_location": f"{chr(65+i//10)}{i%10+1:02d}-{random.randint(1,20):02d}-{random.randint(1,30):02d}",
-            "zone": random.choice(zones),
-            "reason": random.choice(["温度匹配", "库存均衡", "靠近同类商品", "靠近出库口"]),
-            "distance_to_pick": random.randint(5, 50),
-            "confidence": round(random.uniform(0.7, 0.99), 2)
+            "order_id": order.id,
+            "item_id": item.id,
+            "sku": item.sku,
+            "name": item.name,
+            "quantity": qty,
+            "suggested_location": _slot_location(z, position),
+            "zone": z.name,
+            "zone_id": z.id,
+            "warehouse": z.warehouse,
+            "reason": " + ".join(reasons),
+            "distance_to_pick": z.distance_to_pick,
+            "confidence": round(max(score, 0), 4),
         })
     return suggestions
 
 
+class PutawayIn(BaseModel):
+    sku: str = Field(..., min_length=1)
+    zone_id: str = Field(..., min_length=1)
+    location: str = Field(..., min_length=1, max_length=30)
+
+
+@router.post("/inbound/orders/{order_id}/putaway")
+def confirm_putaway(order_id: str, data: PutawayIn, db: Session = Depends(get_db)):
+    """确认上架：记录货位并占用温区托位"""
+    order = _get_or_404(db, InboundOrder, order_id, "入库单")
+    item = next((i for i in order.items if i.sku == data.sku and not i.zone_id), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="入库单中不存在待上架的该 SKU")
+    zone = _get_or_404(db, StorageZone, data.zone_id, "温区")
+    if zone.status != "正常":
+        raise HTTPException(status_code=409, detail=f"温区{zone.name}{zone.status}，不能上架")
+    qty = item.qualified_qty if item.received_qty else item.expected_qty
+    need = _pallets(qty)
+    if zone.capacity - (zone.used or 0) < need:
+        raise HTTPException(status_code=400, detail="温区剩余容量不足")
+    item.zone_id, item.location = zone.id, data.location
+    zone.used = (zone.used or 0) + need
+    db.commit()
+    return {"success": True, "message": f"{item.sku} 已上架到 {data.location}"}
+
+
 # ========== 作业管理 ==========
+
+def _task_dict(t: OperationTask, detail: bool = False) -> dict:
+    data = {
+        "id": t.id,
+        "type": t.type,
+        "priority": t.priority,
+        "status": t.status,
+        "owner": t.owner,
+        "location": t.location,
+        "quantity": t.quantity,
+        "assigned_to": t.assigned_to,
+        "assigned_at": _fmt(t.assigned_at),
+        "started_at": _fmt(t.started_at),
+        "completed_at": _fmt(t.completed_at),
+        "barcode": t.barcode,
+        "batch_id": t.batch_id,
+    }
+    if detail:
+        data.update({"items": t.items or [], "target_location": t.target_location, "history": t.history or []})
+    return data
+
+
 @router.get("/operation/tasks")
-def get_operation_tasks():
+def get_operation_tasks(db: Session = Depends(get_db)):
     """获取作业任务列表"""
-    tasks = []
-    task_types = ["收货", "质检", "上架", "拣货", "复核", "打包", "发货", "补货", "移库", "盘点"]
-    for i in range(30):
-        task_id = f"TSK{i+1:05d}"
-        task_type = random.choice(task_types)
-        tasks.append({
-            "id": task_id,
-            "type": task_type,
-            "priority": random.choice(["紧急", "高", "普通", "低"]),
-            "status": random.choice(["待执行", "执行中", "已完成", "已取消"]),
-            "owner": f"货主{random.randint(1, 10)}",
-            "location": f"{chr(65+random.randint(0,5))}{random.randint(1,20):02d}-{random.randint(1,30):02d}",
-            "quantity": random.randint(10, 500),
-            "assigned_to": f"员工{random.randint(1, 20)}",
-            "assigned_at": (datetime.now() - timedelta(hours=random.randint(0, 24))).strftime("%Y-%m-%d %H:%M"),
-            "started_at": None,
-            "completed_at": None,
-            "barcode": f"BC{random.randint(100000, 999999)}"
-        })
-    return tasks
+    return [_task_dict(t) for t in db.query(OperationTask).order_by(OperationTask.id.desc()).all()]
+
 
 @router.get("/operation/tasks/{task_id}")
-def get_task_detail(task_id: str):
+def get_task_detail(task_id: str, db: Session = Depends(get_db)):
     """获取作业任务详情"""
-    return {
-        "id": task_id,
-        "type": "上架",
-        "priority": "高",
-        "status": "执行中",
-        "owner": "货主A",
-        "items": [
-            {"sku": "SKU001", "name": "有机蔬菜", "barcode": "6901234567890", "quantity": 100, "location": "A01-05-10"},
-            {"sku": "SKU002", "name": "新鲜水果", "barcode": "6901234567891", "quantity": 50, "location": "A01-05-11"}
-        ],
-        "target_location": "A01-06-15",
-        "assigned_to": "员工张三",
-        "assigned_at": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
-        "started_at": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M"),
-        "history": [
-            {"action": "任务分配", "operator": "系统", "time": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")},
-            {"action": "开始执行", "operator": "员工张三", "time": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M")},
-            {"action": "扫描商品", "operator": "员工张三", "time": (datetime.now() - timedelta(minutes=25)).strftime("%Y-%m-%d %H:%M"), "detail": "SKU001 x100"}
-        ]
-    }
+    return _task_dict(_get_or_404(db, OperationTask, task_id, "任务"), detail=True)
+
+
+class TaskActionIn(BaseModel):
+    operator: Optional[str] = Field(None, max_length=50)
+    error_count: Optional[int] = Field(None, ge=0)
+
+
+class ScanIn(BaseModel):
+    barcode: str = Field(..., min_length=1, max_length=30)
+    operator: Optional[str] = Field(None, max_length=50)
+
+
+def _log(task: OperationTask, action: str, operator: str, detail: Optional[str] = None):
+    entry = {"action": action, "operator": operator, "time": _fmt(datetime.now())}
+    if detail:
+        entry["detail"] = detail
+    task.history = [*(task.history or []), entry]  # 重新赋值以便 JSON 列被标记为已修改
+
 
 @router.post("/operation/tasks/{task_id}/start")
-def start_task(task_id: str, data: dict = {}):
-    """开始执行任务"""
-    return {"success": True, "message": f"任务 {task_id} 开始执行", "started_at": datetime.now().strftime("%Y-%m-%d %H:%M")}
+def start_task(task_id: str, data: Optional[TaskActionIn] = None, db: Session = Depends(get_db)):
+    """开始执行任务：待执行 -> 执行中"""
+    task = _get_or_404(db, OperationTask, task_id, "任务")
+    if task.status != "待执行":
+        raise HTTPException(status_code=409, detail=f"任务状态为{task.status}，不能开始")
+    task.status = "执行中"
+    task.started_at = datetime.now()
+    _log(task, "开始执行", (data.operator if data and data.operator else None) or task.assigned_to or "系统")
+    db.commit()
+    return {"success": True, "message": f"任务 {task_id} 开始执行", "started_at": _fmt(task.started_at)}
+
 
 @router.post("/operation/tasks/{task_id}/complete")
-def complete_task(task_id: str, data: dict = {}):
-    """完成任务"""
-    return {"success": True, "message": f"任务 {task_id} 已完成", "completed_at": datetime.now().strftime("%Y-%m-%d %H:%M")}
+def complete_task(task_id: str, data: Optional[TaskActionIn] = None, db: Session = Depends(get_db)):
+    """完成任务：执行中 -> 已完成"""
+    task = _get_or_404(db, OperationTask, task_id, "任务")
+    if task.status != "执行中":
+        raise HTTPException(status_code=409, detail=f"任务状态为{task.status}，不能完成")
+    task.status = "已完成"
+    task.completed_at = datetime.now()
+    if data and data.error_count is not None:
+        task.error_count = data.error_count
+    _log(task, "完成任务", (data.operator if data and data.operator else None) or task.assigned_to or "系统")
+    db.commit()
+    return {"success": True, "message": f"任务 {task_id} 已完成", "completed_at": _fmt(task.completed_at)}
+
 
 @router.post("/operation/tasks/{task_id}/scan")
-def scan_item(task_id: str, data: dict):
-    """扫描条码"""
-    barcode = data.get("barcode", "")
-    return {"success": True, "scanned": True, "item": {"sku": "SKU001", "name": "有机蔬菜", "quantity": 100, "location": "A01-05-10"}}
+def scan_item(task_id: str, data: ScanIn, db: Session = Depends(get_db)):
+    """扫描条码（任务条码或任务内商品条码），仅执行中的任务可扫描"""
+    task = _get_or_404(db, OperationTask, task_id, "任务")
+    if task.status != "执行中":
+        raise HTTPException(status_code=409, detail=f"任务状态为{task.status}，不能扫描")
+    items = task.items or []
+    item = next((i for i in items if i.get("barcode") == data.barcode), None)
+    if item is None and data.barcode == task.barcode and items:
+        item = items[0]
+    if item is None:
+        raise HTTPException(status_code=404, detail="条码不属于该任务")
+    _log(task, "扫描商品", data.operator or task.assigned_to or "系统", f"{item['sku']} x{item['quantity']}")
+    db.commit()
+    return {"success": True, "scanned": True, "item": {k: item.get(k) for k in ("sku", "name", "quantity", "location")}}
 
 
 # ========== 人员绩效 ==========
+
 @router.get("/operation/performance")
-def get_operator_performance():
-    """获取人员绩效数据"""
-    performances = []
-    for i in range(20):
-        performances.append({
-            "employee_id": f"EMP{str(i+1).zfill(4)}",
-            "name": f"员工{chr(65+i)}",
-            "department": random.choice(["收货组", "上架组", "拣货组", "复核组", "发货组"]),
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "tasks_completed": random.randint(10, 50),
-            "tasks_handled": random.randint(10, 50),
-            "error_count": random.randint(0, 5),
-            "accuracy_rate": round(random.uniform(0.85, 0.99), 3),
-            "avg_task_time": round(random.uniform(5, 30), 1),
-            "working_hours": round(random.uniform(6, 10), 1),
-            "score": random.randint(60, 100)
+def get_operator_performance(db: Session = Depends(get_db)):
+    """人员绩效：由作业任务记录统计"""
+    tasks_by_person = defaultdict(list)
+    for t in db.query(OperationTask).all():
+        tasks_by_person[t.assigned_to].append(t)
+    today = datetime.now().strftime("%Y-%m-%d")
+    result = []
+    for op in db.query(Operator).order_by(Operator.employee_id).all():
+        tasks = tasks_by_person.get(op.name, [])
+        done = [t for t in tasks if t.status == "已完成"]
+        minutes = [(t.completed_at - t.started_at).total_seconds() / 60 for t in done
+                   if t.completed_at and t.started_at]
+        errors = sum(t.error_count or 0 for t in done)
+        accuracy = round(sum(1 for t in done if not t.error_count) / len(done), 3) if done else 1.0
+        result.append({
+            "employee_id": op.employee_id,
+            "name": op.name,
+            "department": op.department,
+            "date": today,
+            "tasks_completed": len(done),
+            "tasks_handled": len([t for t in tasks if t.status != "已取消"]),
+            "error_count": errors,
+            "accuracy_rate": accuracy,
+            "avg_task_time": round(sum(minutes) / len(minutes), 1) if minutes else 0,
+            "working_hours": round(sum(minutes) / 60, 1),
+            # 评分 = 准确率 60 分 + 完成量（每单 8 分，封顶 40 分）
+            "score": min(100, round(accuracy * 60 + min(len(done), 5) * 8)),
         })
-    return performances
+    result.sort(key=lambda r: (-r["score"], r["employee_id"]))
+    return result
 
 
 # ========== 智能批次调度 ==========
+
+TASK_SETUP_MINUTES = 5  # 单个拣货任务的准备/走动时间
+PICK_RATE_PER_MINUTE = 10  # 每分钟拣货件数
+
+
+def _pending_outbound(db: Session) -> List[OperationTask]:
+    return (db.query(OperationTask)
+            .filter(OperationTask.status == "待执行", OperationTask.type.in_(OUTBOUND_TASK_TYPES),
+                    OperationTask.batch_id.is_(None))
+            .order_by(OperationTask.id).all())
+
+
 @router.get("/operation/batch/suggestions")
-def get_batch_suggestions():
-    """获取智能批次合并建议"""
+def get_batch_suggestions(db: Session = Depends(get_db)):
+    """智能批次合并建议：同库区的待执行出库类任务合并为一个批次，节省重复的准备/走动时间"""
+    pending = _pending_outbound(db)
+    groups = defaultdict(list)
+    for t in pending:
+        groups[(t.location or "?")[0]].append(t)
+    suggestions, saved = [], 0
+    for letter in sorted(groups):
+        tasks = groups[letter]
+        if len(tasks) < 2:
+            continue
+        total = sum(t.quantity for t in tasks)
+        first = min(t.assigned_at for t in tasks if t.assigned_at) if any(t.assigned_at for t in tasks) else None
+        saved += (len(tasks) - 1) * TASK_SETUP_MINUTES
+        suggestions.append({
+            "id": f"BS-{letter}",
+            "type": "智能合并",
+            "description": f"将{len(tasks)}个{letter}区待执行任务合并为一批次",
+            "orders": [t.id for t in tasks],
+            "total_items": total,
+            "estimated_pick_time": round(TASK_SETUP_MINUTES + total / PICK_RATE_PER_MINUTE),
+            "zone": f"{letter}区",
+            "priority": min((t.priority for t in tasks), key=lambda p: PRIORITY_ORDER.get(p, 9)),
+            "time_window": f"{first:%H}:00-{(first.hour + 2) % 24:02d}:00" if first else None,
+            "rules_applied": ["同区域", "时间窗口匹配"],
+        })
+    individual = sum(TASK_SETUP_MINUTES + t.quantity / PICK_RATE_PER_MINUTE for t in pending)
     return {
-        "suggestions": [
-            {
-                "id": "BATCH001",
-                "type": "智能合并",
-                "description": "将3个零散出库订单合并为一批次",
-                "orders": ["OUT20260215001", "OUT20260215002", "OUT20260215003"],
-                "total_items": 45,
-                "estimated_pick_time": 25,
-                "zone": "A区",
-                "priority": "高",
-                "time_window": "14:00-16:00",
-                "rules_applied": ["同区域", "同配送要求", "时间窗口匹配"]
-            },
-            {
-                "id": "BATCH002",
-                "type": "顺序优化",
-                "description": "优化拣货路径，预计节省30%时间",
-                "orders": ["OUT20260215004", "OUT20260215005"],
-                "total_items": 120,
-                "estimated_pick_time": 40,
-                "zone": "B区",
-                "priority": "普通",
-                "time_window": "10:00-12:00",
-                "rules_applied": ["路径优化", "重量平衡"]
-            }
-        ],
+        "suggestions": suggestions,
         "stats": {
-            "pending_orders": 15,
-            "suggested_batches": 5,
-            "estimated_time_saved": "35%"
-        }
+            "pending_orders": len(pending),
+            "suggested_batches": len(suggestions),
+            "estimated_time_saved": f"{round(saved / individual * 100) if individual else 0}%",
+        },
     }
 
+
+class BatchCreate(BaseModel):
+    task_ids: List[str] = Field(..., min_length=1)
+
+    @field_validator("task_ids")
+    @classmethod
+    def _unique(cls, v):
+        if len(set(v)) != len(v):
+            raise ValueError("task_ids 不能重复")
+        return v
+
+
 @router.post("/operation/batch/create")
-def create_batch(data: dict):
-    """创建批次任务"""
-    return {"success": True, "batch_id": f"BATCH{datetime.now().strftime('%Y%m%d%H%M')}", "message": "批次创建成功"}
+def create_batch(data: BatchCreate, db: Session = Depends(get_db)):
+    """创建批次任务：把待执行的出库类任务归入同一批次"""
+    tasks = []
+    for tid in data.task_ids:
+        t = _get_or_404(db, OperationTask, tid, f"任务 {tid} ")
+        if t.status != "待执行" or t.batch_id:
+            raise HTTPException(status_code=409, detail=f"任务 {tid} 已开始或已在批次中")
+        tasks.append(t)
+    now = datetime.now()
+    batch = OperationBatch(id=_next_id(db, OperationBatch, f"BATCH{now:%Y%m%d}", 4),
+                           zone=(tasks[0].location or "?")[0] + "区", task_ids=data.task_ids,
+                           status="待执行", created_at=now)
+    db.add(batch)
+    for t in tasks:
+        t.batch_id = batch.id
+        _log(t, "加入批次", "系统", batch.id)
+    db.commit()
+    return {"success": True, "batch_id": batch.id, "message": "批次创建成功"}
 
 
-# ========== 仓库管理（真实数据库） ==========
-@router.get("/warehouses/list")
-def get_warehouses_list():
-    """获取仓库列表 - 从数据库"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM warehouses ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
+# ========== 车辆管理 ==========
 
-    warehouses = []
-    for row in rows:
-        warehouses.append({
-            "id": row["id"],
-            "name": row["name"],
-            "address": row["address"],
-            "capacity": row["capacity"],
-            "area": row["area"],
-            "temperature": row["temperature"],
-            "humidity": row["humidity"],
-            "inventory": row["inventory"],
-            "status": row["status"],
-            "manager": row["manager"] if "manager" in row.keys() else None,
-            "phone": row["phone"] if "phone" in row.keys() else None,
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"]
-        })
-    return warehouses
+class VehicleIn(BaseModel):
+    plate: Optional[str] = Field(None, min_length=1, max_length=20)
+    vehicleType: Optional[str] = Field(None, max_length=50)
+    driver: Optional[str] = Field(None, max_length=50)
+    phone: Optional[str] = Field(None, max_length=20)
+    loadCapacity: Optional[float] = Field(None, ge=0)
+    volume: Optional[Union[float, str]] = None
+    gpsDevice: Optional[str] = Field(None, max_length=50)
+    tempRange: Optional[str] = Field(None, max_length=20)
+    status: Optional[str] = Field(None, max_length=20)
+    location: Optional[str] = Field(None, max_length=100)
+    temperature: Optional[float] = Field(None, ge=-60, le=40)
+    battery: Optional[float] = Field(None, ge=0, le=100)
 
-@router.post("/warehouses")
-def create_warehouse(data: dict):
-    """创建仓库"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO warehouses (name, address, capacity, area, temperature, humidity, inventory, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (data.get("name"), data.get("address"), data.get("capacity"), data.get("area"),
-          data.get("temperature"), data.get("humidity"), data.get("inventory", 0), data.get("status", "正常")))
-    conn.commit()
-    new_id = cursor.lastrowid
-    conn.close()
-    return {"success": True, "id": new_id, "message": "仓库创建成功"}
-
-@router.put("/warehouses/{warehouse_id}")
-def update_warehouse(warehouse_id: int, data: dict):
-    """更新仓库"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE warehouses
-        SET name = ?, address = ?, capacity = ?, area = ?, temperature = ?, humidity = ?,
-            inventory = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (data.get("name"), data.get("address"), data.get("capacity"), data.get("area"),
-          data.get("temperature"), data.get("humidity"), data.get("inventory"), data.get("status"), warehouse_id))
-    conn.commit()
-    conn.close()
-    return {"success": True, "message": "仓库更新成功"}
-
-@router.delete("/warehouses/{warehouse_id}")
-def delete_warehouse(warehouse_id: int):
-    """删除仓库"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM warehouses WHERE id = ?", (warehouse_id,))
-    conn.commit()
-    conn.close()
-    return {"success": True, "message": "仓库删除成功"}
+    @field_validator("volume")
+    @classmethod
+    def _parse_volume(cls, v):
+        """前端容积输入框允许 “50立方米” 这类文本，提取其中的数字"""
+        if v is None or isinstance(v, (int, float)):
+            return v
+        m = re.search(r"\d+(\.\d+)?", v)
+        if not v.strip():
+            return None
+        if not m:
+            raise ValueError("容积必须是数字")
+        return float(m.group())
 
 
-# ========== 车辆管理（真实数据库） ==========
+class VehicleCreate(VehicleIn):
+    plate: str = Field(..., min_length=1, max_length=20)
+
+
+_VEHICLE_FIELDS = {"plate": "plate", "vehicleType": "vehicle_type", "driver": "driver", "phone": "phone",
+                   "loadCapacity": "load_capacity", "volume": "volume", "gpsDevice": "gps_device",
+                   "tempRange": "temp_range", "status": "status", "location": "location",
+                   "temperature": "temperature", "battery": "battery"}
+
+
 @router.get("/vehicles/list")
-def get_vehicles_list():
-    """获取车辆列表 - 从数据库"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM vehicles ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
+def get_vehicles_list(db: Session = Depends(get_db)):
+    """获取车辆列表"""
+    return [{
+        "id": v.id,
+        "plate": v.plate,
+        "vehicleType": v.vehicle_type or "冷藏车",
+        "driver": v.driver,
+        "phone": v.phone,
+        "loadCapacity": v.load_capacity if v.load_capacity is not None else 5,
+        "volume": v.volume,
+        "gpsDevice": v.gps_device,
+        "tempRange": v.temp_range or "-25°C~5°C",
+        "status": v.status,
+        "location": v.location,
+        "temperature": v.temperature,
+        "battery": v.battery,
+        "created_at": _fmt(v.created_at, seconds=True),
+        "updated_at": _fmt(v.updated_at, seconds=True),
+    } for v in db.query(Vehicle).order_by(Vehicle.id.desc()).all()]
 
-    vehicles = []
-    for row in rows:
-        vehicles.append({
-            "id": row["id"],
-            "plate": row["plate"],
-            "vehicleType": row["vehicle_type"] if "vehicle_type" in row.keys() else "冷藏车",
-            "driver": row["driver"],
-            "phone": row["phone"],
-            "loadCapacity": row["load_capacity"] if "load_capacity" in row.keys() else 5,
-            "volume": row["volume"] if "volume" in row.keys() else None,
-            "gpsDevice": row["gps_device"] if "gps_device" in row.keys() else None,
-            "tempRange": row["temp_range"] if "temp_range" in row.keys() else "-25°C~5°C",
-            "status": row["status"],
-            "location": row["location"],
-            "temperature": row["temperature"],
-            "battery": row["battery"],
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"]
-        })
-    return vehicles
 
 @router.post("/vehicles")
-def create_vehicle(data: dict):
+def create_vehicle(data: VehicleCreate, db: Session = Depends(get_db)):
     """创建车辆"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO vehicles (plate, vehicle_type, driver, phone, load_capacity, volume, gps_device, temp_range, status, location, temperature, battery)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (data.get("plate"), data.get("vehicleType", "冷藏车"), data.get("driver"), data.get("phone"),
-          data.get("loadCapacity", 5), data.get("volume"), data.get("gpsDevice"), data.get("tempRange", "-25°C~5°C"),
-          data.get("status", "空闲"), data.get("location", ""), data.get("temperature", -18), data.get("battery", 100)))
-    conn.commit()
-    new_id = cursor.lastrowid
-    conn.close()
-    return {"success": True, "id": new_id, "message": "车辆创建成功"}
+    values = {_VEHICLE_FIELDS[k]: v for k, v in data.model_dump(exclude_none=True).items()}
+    defaults = {"vehicle_type": "冷藏车", "load_capacity": 5, "temp_range": "-25°C~5°C", "status": "空闲",
+                "location": "", "temperature": -18, "battery": 100}
+    vehicle = Vehicle(**{**defaults, **values})
+    db.add(vehicle)
+    db.commit()
+    return {"success": True, "id": vehicle.id, "message": "车辆创建成功"}
+
 
 @router.put("/vehicles/{vehicle_id}")
-def update_vehicle(vehicle_id: int, data: dict):
-    """更新车辆"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE vehicles
-        SET plate = ?, vehicle_type = ?, driver = ?, phone = ?, load_capacity = ?,
-            volume = ?, gps_device = ?, temp_range = ?, status = ?, location = ?,
-            temperature = ?, battery = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (data.get("plate"), data.get("vehicleType"), data.get("driver"), data.get("phone"),
-          data.get("loadCapacity"), data.get("volume"), data.get("gpsDevice"), data.get("tempRange"),
-          data.get("status"), data.get("location"), data.get("temperature"), data.get("battery"), vehicle_id))
-    conn.commit()
-    conn.close()
+def update_vehicle(vehicle_id: int, data: VehicleIn, db: Session = Depends(get_db)):
+    """更新车辆（只更新提交的字段）"""
+    vehicle = _get_or_404(db, Vehicle, vehicle_id, "车辆")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        if key == "plate" and not value:
+            continue
+        setattr(vehicle, _VEHICLE_FIELDS[key], value)
+    vehicle.updated_at = datetime.now()
+    db.commit()
     return {"success": True, "message": "车辆更新成功"}
 
+
 @router.delete("/vehicles/{vehicle_id}")
-def delete_vehicle(vehicle_id: int):
+def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
     """删除车辆"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM vehicles WHERE id = ?", (vehicle_id,))
-    conn.commit()
-    conn.close()
+    db.delete(_get_or_404(db, Vehicle, vehicle_id, "车辆"))
+    db.commit()
     return {"success": True, "message": "车辆删除成功"}

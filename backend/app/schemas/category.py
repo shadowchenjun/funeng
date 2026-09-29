@@ -1,7 +1,7 @@
 """
 分类相关的Schema
 """
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 from typing import Optional, List
 from datetime import datetime
 
@@ -31,8 +31,7 @@ class CategoryResponse(BaseModel):
     parent_id: Optional[int] = None
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # 带产品数的分类响应
 class CategoryWithCount(CategoryResponse):

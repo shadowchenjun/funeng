@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models.admin import AdminUser, UserGroup, AdoptionOrder, RentalOrder
 from app.models.user import User
 from app.api.admin.auth import get_current_admin
+from app.schemas.admin import UserStatusUpdate, UserGroupCreate, UserGroupUpdate, apply_update
 
 router = APIRouter()
 
@@ -139,7 +140,7 @@ def get_user(
 @router.put("/users/{user_id}/status")
 def update_user_status(
     user_id: int,
-    is_active: bool,
+    body: UserStatusUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -148,7 +149,7 @@ def update_user_status(
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    user.is_active = is_active
+    user.is_active = body.is_active
     user.updated_at = datetime.now()
     db.commit()
 
@@ -180,24 +181,16 @@ def list_groups(
 
 @router.post("/groups")
 def create_group(
-    name: str,
-    code: str,
-    description: Optional[str] = None,
-    criteria: Optional[str] = None,
+    body: UserGroupCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建用户分组"""
-    existing = db.query(UserGroup).filter(UserGroup.code == code).first()
+    existing = db.query(UserGroup).filter(UserGroup.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="分组代码已存在")
 
-    group = UserGroup(
-        name=name,
-        code=code,
-        description=description,
-        criteria=criteria
-    )
+    group = UserGroup(**body.model_dump())
     db.add(group)
     db.commit()
     db.refresh(group)
@@ -208,10 +201,7 @@ def create_group(
 @router.put("/groups/{group_id}")
 def update_group(
     group_id: int,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    criteria: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    body: UserGroupUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -220,14 +210,7 @@ def update_group(
     if not group:
         raise HTTPException(status_code=404, detail="分组不存在")
 
-    if name:
-        group.name = name
-    if description:
-        group.description = description
-    if criteria:
-        group.criteria = criteria
-    if is_active is not None:
-        group.is_active = is_active
+    apply_update(group, body)
 
     group.updated_at = datetime.now()
     db.commit()

@@ -4,20 +4,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt
 import bcrypt
 
+from app.config import ADMIN_SECRET_KEY as SECRET_KEY, JWT_ALGORITHM as ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.database import get_db
 from app.models.admin import AdminUser, AdminOperationLog
+from app.schemas.admin import ProfileUpdate, PasswordChange, apply_update
 
 router = APIRouter()
 
-# JWT配置
-SECRET_KEY = "funeng-admin-secret-key-change-in-production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/admin/auth/login")
 
@@ -25,9 +23,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/admin/auth/login")
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -64,6 +62,18 @@ def get_current_admin(token: str = Depends(verify_token), db: Session = Depends(
             detail="管理员账号已被禁用"
         )
     return admin
+
+
+def serialize_role(role) -> Optional[dict]:
+    """登录与 profile 接口统一的角色结构"""
+    if role is None:
+        return None
+    return {
+        "id": role.id,
+        "name": role.name,
+        "code": role.code,
+        "permissions": role.permissions
+    }
 
 
 def log_operation(db: Session, admin_id: int, action: str, resource: str, resource_id: int = None, detail: str = None):
@@ -108,7 +118,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             "full_name": admin.full_name,
             "email": admin.email,
             "avatar": admin.avatar,
-            "role": admin.role.name if admin.role else None
+            "role": serialize_role(admin.role)
         }
     }
 
@@ -130,12 +140,7 @@ def get_profile(current_admin: AdminUser = Depends(get_current_admin), db: Sessi
         "email": admin.email,
         "phone": admin.phone,
         "avatar": admin.avatar,
-        "role": {
-            "id": admin.role.id,
-            "name": admin.role.name,
-            "code": admin.role.code,
-            "permissions": admin.role.permissions
-        } if admin.role else None,
+        "role": serialize_role(admin.role),
         "last_login": admin.last_login,
         "created_at": admin.created_at
     }
@@ -143,24 +148,18 @@ def get_profile(current_admin: AdminUser = Depends(get_current_admin), db: Sessi
 
 @router.put("/profile")
 def update_profile(
-    full_name: Optional[str] = None,
-    email: Optional[str] = None,
-    phone: Optional[str] = None,
-    avatar: Optional[str] = None,
+    body: ProfileUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """更新管理员信息"""
     admin = db.query(AdminUser).filter(AdminUser.id == current_admin.id).first()
 
-    if full_name:
-        admin.full_name = full_name
-    if email:
-        admin.email = email
-    if phone:
-        admin.phone = phone
-    if avatar:
-        admin.avatar = avatar
+    if body.email:
+        existing = db.query(AdminUser).filter(AdminUser.email == body.email, AdminUser.id != admin.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="邮箱已被使用")
+    apply_update(admin, body)
 
     admin.updated_at = datetime.now()
     db.commit()
@@ -170,18 +169,17 @@ def update_profile(
 
 @router.post("/change-password")
 def change_password(
-    old_password: str,
-    new_password: str,
+    body: PasswordChange,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """修改密码"""
     admin = db.query(AdminUser).filter(AdminUser.id == current_admin.id).first()
 
-    if not bcrypt.checkpw(old_password.encode('utf-8'), admin.hashed_password.encode('utf-8')):
+    if not bcrypt.checkpw(body.old_password.encode('utf-8'), admin.hashed_password.encode('utf-8')):
         raise HTTPException(status_code=400, detail="原密码错误")
 
-    admin.hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    admin.hashed_password = bcrypt.hashpw(body.new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     admin.updated_at = datetime.now()
     db.commit()
 

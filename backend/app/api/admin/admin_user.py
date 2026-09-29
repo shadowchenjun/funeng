@@ -11,6 +11,7 @@ import bcrypt
 from app.database import get_db
 from app.models.admin import AdminUser, AdminRole
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import AdminCreate, AdminUpdate, PasswordReset, RoleCreate, RoleUpdate, apply_update
 
 router = APIRouter()
 
@@ -95,40 +96,34 @@ def get_admin(
 
 @router.post("/admins")
 def create_admin(
-    username: str,
-    password: str,
-    email: Optional[str] = None,
-    full_name: Optional[str] = None,
-    phone: Optional[str] = None,
-    role_id: Optional[int] = None,
+    body: AdminCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建管理员"""
-    existing = db.query(AdminUser).filter(AdminUser.username == username).first()
+    existing = db.query(AdminUser).filter(AdminUser.username == body.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="用户名已存在")
 
-    if email:
-        existing_email = db.query(AdminUser).filter(AdminUser.email == email).first()
+    if body.email:
+        existing_email = db.query(AdminUser).filter(AdminUser.email == body.email).first()
         if existing_email:
             raise HTTPException(status_code=400, detail="邮箱已被使用")
 
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    if body.role_id is not None and not db.query(AdminRole).filter(AdminRole.id == body.role_id).first():
+        raise HTTPException(status_code=404, detail="角色不存在")
+
+    hashed_password = bcrypt.hashpw(body.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     admin = AdminUser(
-        username=username,
         hashed_password=hashed_password,
-        email=email,
-        full_name=full_name,
-        phone=phone,
-        role_id=role_id
+        **body.model_dump(exclude={"password"})
     )
     db.add(admin)
     db.commit()
     db.refresh(admin)
 
-    log_operation(db, current_admin.id, "create", "admin_user", admin.id, f"创建管理员: {username}")
+    log_operation(db, current_admin.id, "create", "admin_user", admin.id, f"创建管理员: {body.username}")
 
     return {"id": admin.id, "message": "创建成功"}
 
@@ -136,12 +131,7 @@ def create_admin(
 @router.put("/admins/{admin_id}")
 def update_admin(
     admin_id: int,
-    email: Optional[str] = None,
-    full_name: Optional[str] = None,
-    phone: Optional[str] = None,
-    avatar: Optional[str] = None,
-    role_id: Optional[int] = None,
-    is_active: Optional[bool] = None,
+    body: AdminUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -150,21 +140,16 @@ def update_admin(
     if not admin:
         raise HTTPException(status_code=404, detail="管理员不存在")
 
-    if email:
-        existing = db.query(AdminUser).filter(AdminUser.email == email, AdminUser.id != admin_id).first()
+    if body.email:
+        existing = db.query(AdminUser).filter(AdminUser.email == body.email, AdminUser.id != admin_id).first()
         if existing:
             raise HTTPException(status_code=400, detail="邮箱已被使用")
-        admin.email = email
-    if full_name:
-        admin.full_name = full_name
-    if phone:
-        admin.phone = phone
-    if avatar:
-        admin.avatar = avatar
-    if role_id is not None:
-        admin.role_id = role_id
-    if is_active is not None:
-        admin.is_active = is_active
+    if body.role_id is not None and not db.query(AdminRole).filter(AdminRole.id == body.role_id).first():
+        raise HTTPException(status_code=404, detail="角色不存在")
+    if body.is_active is False and admin.id == current_admin.id:
+        raise HTTPException(status_code=400, detail="不能禁用自己")
+
+    apply_update(admin, body)
 
     admin.updated_at = datetime.now()
     db.commit()
@@ -177,7 +162,7 @@ def update_admin(
 @router.put("/admins/{admin_id}/password")
 def reset_password(
     admin_id: int,
-    password: str,
+    body: PasswordReset,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -186,7 +171,7 @@ def reset_password(
     if not admin:
         raise HTTPException(status_code=404, detail="管理员不存在")
 
-    admin.hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    admin.hashed_password = bcrypt.hashpw(body.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     admin.updated_at = datetime.now()
     db.commit()
 
@@ -242,29 +227,23 @@ def list_roles(
 
 @router.post("/roles")
 def create_role(
-    name: str,
-    code: str,
-    description: Optional[str] = None,
-    permissions: Optional[str] = None,
+    body: RoleCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建角色"""
-    existing = db.query(AdminRole).filter(AdminRole.code == code).first()
+    existing = db.query(AdminRole).filter(AdminRole.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="角色代码已存在")
+    if db.query(AdminRole).filter(AdminRole.name == body.name).first():
+        raise HTTPException(status_code=400, detail="角色名称已存在")
 
-    role = AdminRole(
-        name=name,
-        code=code,
-        description=description,
-        permissions=permissions
-    )
+    role = AdminRole(**body.model_dump())
     db.add(role)
     db.commit()
     db.refresh(role)
 
-    log_operation(db, current_admin.id, "create", "admin_role", role.id, f"创建角色: {name}")
+    log_operation(db, current_admin.id, "create", "admin_role", role.id, f"创建角色: {body.name}")
 
     return {"id": role.id, "message": "创建成功"}
 
@@ -272,10 +251,7 @@ def create_role(
 @router.put("/roles/{role_id}")
 def update_role(
     role_id: int,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    permissions: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    body: RoleUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -284,19 +260,15 @@ def update_role(
     if not role:
         raise HTTPException(status_code=404, detail="角色不存在")
 
-    if name:
-        role.name = name
-    if description:
-        role.description = description
-    if permissions:
-        role.permissions = permissions
-    if is_active is not None:
-        role.is_active = is_active
+    if body.name and db.query(AdminRole).filter(AdminRole.name == body.name, AdminRole.id != role_id).first():
+        raise HTTPException(status_code=400, detail="角色名称已存在")
+
+    apply_update(role, body)
 
     role.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "admin_role", role_id, f"更新角色: {name}")
+    log_operation(db, current_admin.id, "update", "admin_role", role_id, f"更新角色: {role.name}")
 
     return {"message": "更新成功"}
 

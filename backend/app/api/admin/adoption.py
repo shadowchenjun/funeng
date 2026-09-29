@@ -13,6 +13,10 @@ from app.models.admin import (
     AdminUser, AdoptionCategory, AdoptionConfig, AdoptionOrder, LandParcel
 )
 from app.api.admin.auth import get_current_admin, log_operation
+from app.schemas.admin import (
+    AdoptionCategoryCreate, AdoptionCategoryUpdate, AdoptionConfigCreate, AdoptionConfigUpdate,
+    LandAllocate, StatusUpdate, apply_update,
+)
 
 router = APIRouter()
 
@@ -43,31 +47,21 @@ def list_categories(
 
 @router.post("/categories")
 def create_category(
-    name: str,
-    code: str,
-    icon: Optional[str] = None,
-    description: Optional[str] = None,
-    sort_order: int = 0,
+    body: AdoptionCategoryCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建认养分类"""
-    existing = db.query(AdoptionCategory).filter(AdoptionCategory.code == code).first()
+    existing = db.query(AdoptionCategory).filter(AdoptionCategory.code == body.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="分类代码已存在")
 
-    category = AdoptionCategory(
-        name=name,
-        code=code,
-        icon=icon,
-        description=description,
-        sort_order=sort_order
-    )
+    category = AdoptionCategory(**body.model_dump())
     db.add(category)
     db.commit()
     db.refresh(category)
 
-    log_operation(db, current_admin.id, "create", "adoption_category", category.id, f"创建认养分类: {name}")
+    log_operation(db, current_admin.id, "create", "adoption_category", category.id, f"创建认养分类: {body.name}")
 
     return {"id": category.id, "message": "创建成功"}
 
@@ -75,11 +69,7 @@ def create_category(
 @router.put("/categories/{category_id}")
 def update_category(
     category_id: int,
-    name: Optional[str] = None,
-    icon: Optional[str] = None,
-    description: Optional[str] = None,
-    sort_order: Optional[int] = None,
-    is_active: Optional[bool] = None,
+    body: AdoptionCategoryUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -88,21 +78,12 @@ def update_category(
     if not category:
         raise HTTPException(status_code=404, detail="分类不存在")
 
-    if name:
-        category.name = name
-    if icon:
-        category.icon = icon
-    if description:
-        category.description = description
-    if sort_order is not None:
-        category.sort_order = sort_order
-    if is_active is not None:
-        category.is_active = is_active
+    apply_update(category, body)
 
     category.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "adoption_category", category_id, f"更新认养分类: {name}")
+    log_operation(db, current_admin.id, "update", "adoption_category", category_id, f"更新认养分类: {category.name}")
 
     return {"message": "更新成功"}
 
@@ -199,39 +180,21 @@ def get_config(
 
 @router.post("/configs")
 def create_config(
-    category_id: int,
-    name: str,
-    price: float,
-    duration_days: int,
-    description: Optional[str] = None,
-    unit: str = "year",
-    benefits: Optional[str] = None,
-    images: Optional[str] = None,
-    stock: int = 0,
+    body: AdoptionConfigCreate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建认养配置"""
-    category = db.query(AdoptionCategory).filter(AdoptionCategory.id == category_id).first()
+    category = db.query(AdoptionCategory).filter(AdoptionCategory.id == body.category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="分类不存在")
 
-    config = AdoptionConfig(
-        category_id=category_id,
-        name=name,
-        price=price,
-        duration_days=duration_days,
-        description=description,
-        unit=unit,
-        benefits=benefits,
-        images=images,
-        stock=stock
-    )
+    config = AdoptionConfig(**body.model_dump())
     db.add(config)
     db.commit()
     db.refresh(config)
 
-    log_operation(db, current_admin.id, "create", "adoption_config", config.id, f"创建认养配置: {name}")
+    log_operation(db, current_admin.id, "create", "adoption_config", config.id, f"创建认养配置: {body.name}")
 
     return {"id": config.id, "message": "创建成功"}
 
@@ -239,15 +202,7 @@ def create_config(
 @router.put("/configs/{config_id}")
 def update_config(
     config_id: int,
-    name: Optional[str] = None,
-    price: Optional[float] = None,
-    duration_days: Optional[int] = None,
-    description: Optional[str] = None,
-    unit: Optional[str] = None,
-    benefits: Optional[str] = None,
-    images: Optional[str] = None,
-    stock: Optional[int] = None,
-    is_active: Optional[bool] = None,
+    body: AdoptionConfigUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -256,29 +211,12 @@ def update_config(
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
 
-    if name:
-        config.name = name
-    if price is not None:
-        config.price = price
-    if duration_days is not None:
-        config.duration_days = duration_days
-    if description:
-        config.description = description
-    if unit:
-        config.unit = unit
-    if benefits:
-        config.benefits = benefits
-    if images:
-        config.images = images
-    if stock is not None:
-        config.stock = stock
-    if is_active is not None:
-        config.is_active = is_active
+    apply_update(config, body)
 
     config.updated_at = datetime.now()
     db.commit()
 
-    log_operation(db, current_admin.id, "update", "adoption_config", config_id, f"更新认养配置: {name}")
+    log_operation(db, current_admin.id, "update", "adoption_config", config_id, f"更新认养配置: {config.name}")
 
     return {"message": "更新成功"}
 
@@ -402,8 +340,7 @@ def get_order(
 @router.put("/orders/{order_id}/status")
 def update_order_status(
     order_id: int,
-    status: str,
-    remark: Optional[str] = None,
+    body: StatusUpdate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -412,9 +349,10 @@ def update_order_status(
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
+    status = body.status
     order.status = status
-    if remark:
-        order.remark = remark
+    if body.remark:
+        order.remark = body.remark
 
     if status == "active" and order.start_date is None:
         order.start_date = datetime.now()
@@ -433,7 +371,7 @@ def update_order_status(
 @router.put("/orders/{order_id}/allocate")
 def allocate_land(
     order_id: int,
-    land_parcel_id: int,
+    body: LandAllocate,
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -442,6 +380,7 @@ def allocate_land(
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
+    land_parcel_id = body.land_parcel_id
     land = db.query(LandParcel).filter(LandParcel.id == land_parcel_id).first()
     if not land:
         raise HTTPException(status_code=404, detail="土地不存在")

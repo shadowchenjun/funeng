@@ -1,7 +1,7 @@
 """
 产品相关的Schema
 """
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 from typing import Optional
 from datetime import datetime
 
@@ -47,5 +47,4 @@ class ProductResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
