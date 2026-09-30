@@ -54,3 +54,4 @@ dist/
 .coverage
 htmlcov/
 backend/exports/
+.superpowers/
