@@ -16,6 +16,8 @@
       </div>
     </header>
 
+    <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" class="load-error" />
+
     <!-- 分类网格 -->
     <div class="categories-grid">
       <div
@@ -60,7 +62,7 @@
       </div>
 
       <!-- 空状态 -->
-      <div v-if="categories.length === 0" class="empty-state">
+      <div v-if="categories.length === 0 && !loadError" class="empty-state">
         <div class="empty-icon">📂</div>
         <h3>暂无分类</h3>
         <p>点击上方按钮添加第一个分类</p>
@@ -146,44 +148,25 @@ const isEmoji = (str: string) => {
 }
 
 const categories = ref<Category[]>([])
+const loadError = ref('')
 
 // 加载分类和产品数量
 const fetchCategories = async () => {
+  loadError.value = ''
   try {
-    // 并行获取分类和产品数据
-    const [catRes, prodRes] = await Promise.all([
-      axios.get('/api/categories/'),
-      axios.get('/api/products/', { params: { limit: 1000 } })
-    ])
-
-    // 统计每个分类的产品数量
-    const productCounts: Record<number, number> = {}
-    const products = prodRes.data.items || prodRes.data || []
-    products.forEach((p: any) => {
-      const catId = p.category_id
-      if (catId) {
-        productCounts[catId] = (productCounts[catId] || 0) + 1
-      }
-    })
-
-    categories.value = catRes.data.map((c: any) => ({
+    const response = await axios.get('/api/categories/with-count')
+    categories.value = response.data.map((c: any) => ({
       id: c.id,
       name: c.name,
       icon: c.icon || 'Box',
       color: c.color || '#409eff',
-      productCount: productCounts[c.id] || 0,
+      productCount: c.product_count,
       status: 'active'
     }))
   } catch (e) {
     console.error('加载分类失败', e)
-    // 使用模拟数据
-    categories.value = [
-      { id: 1, name: '水果', icon: 'Apple', color: '#f56c6c', productCount: 25, status: 'active' },
-      { id: 2, name: '蔬菜', icon: 'Food', color: '#67c23a', productCount: 42, status: 'active' },
-      { id: 3, name: '粮食', icon: 'Rice', color: '#e6a23c', productCount: 18, status: 'active' },
-      { id: 4, name: '畜牧', icon: 'Chicken', color: '#909399', productCount: 12, status: 'active' },
-      { id: 5, name: '其他', icon: 'Box', color: '#409eff', productCount: 8, status: 'active' }
-    ]
+    categories.value = []
+    loadError.value = '分类加载失败，请稍后重试'
   }
 }
 
