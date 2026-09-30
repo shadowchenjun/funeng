@@ -7,12 +7,14 @@
       
       <el-form :model="loginForm" :rules="rules" ref="formRef" label-position="top">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="loginForm.username" prefix-icon="User" placeholder="请输入用户名" />
+          <el-input v-model="loginForm.username" prefix-icon="User" placeholder="请输入用户名" @input="errorMessage = ''" />
         </el-form-item>
         
         <el-form-item label="密码" prop="password">
-          <el-input v-model="loginForm.password" type="password" prefix-icon="Lock" placeholder="请输入密码" show-password />
+          <el-input v-model="loginForm.password" type="password" prefix-icon="Lock" placeholder="请输入密码" show-password @input="errorMessage = ''" />
         </el-form-item>
+
+        <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" style="margin-bottom: 16px" />
         
         <el-form-item>
           <el-button type="primary" @click="handleLogin" :loading="loading" style="width: 100%">
@@ -42,6 +44,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const errorMessage = ref('')
 
 const loginForm = reactive({
   username: '',
@@ -72,6 +75,7 @@ const handleLogin = async () => {
   await formRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
+      errorMessage.value = ''
       try {
         const result = await authStore.login(loginForm.username, loginForm.password)
         
@@ -81,10 +85,10 @@ const handleLogin = async () => {
           const redirect = route.query.redirect as string
           router.push(redirect || '/dashboard')
         } else {
-          ElMessage.error(result.message || '登录失败')
+          errorMessage.value = typeof result.message === 'string' ? result.message : '登录失败，请检查用户名和密码'
         }
       } catch (error) {
-        ElMessage.error('登录失败，请稍后重试')
+        errorMessage.value = '登录失败，请稍后重试'
       } finally {
         loading.value = false
       }
