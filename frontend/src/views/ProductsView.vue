@@ -42,15 +42,18 @@
       </el-select>
     </div>
 
+    <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" />
+
     <!-- 产品列表 -->
     <div class="products-content">
       <!-- 桌面端：表格视图 -->
       <div class="products-table-desktop">
-        <el-table :data="products" stripe style="width: 100%" v-loading="loading">
+        <el-table :data="products" stripe style="width: 100%" v-loading="loading" :empty-text="loading ? '正在加载产品…' : '暂无产品'">
           <el-table-column prop="name" label="产品名称" min-width="150">
             <template #default="{ row }">
               <div class="product-name-cell">
-                <el-image :src="row.image_url" fit="cover" class="product-thumb" />
+                <el-image v-if="row.image_url" :src="row.image_url" fit="cover" class="product-thumb" />
+                <span v-else class="product-thumb product-thumb-empty">暂无图片</span>
                 <span class="product-name">{{ row.name }}</span>
               </div>
             </template>
@@ -84,7 +87,7 @@
           </el-table-column>
         </el-table>
 
-        <div class="pagination-wrapper">
+        <div v-if="!loading && !loadError" class="pagination-wrapper">
           <el-pagination
             v-model:current-page="currentPage"
             :page-size="pageSize"
@@ -97,6 +100,8 @@
 
       <!-- 移动端：卡片视图 -->
       <div class="products-cards-mobile">
+        <div v-if="loading" class="mobile-state">正在加载产品…</div>
+        <div v-else-if="!loadError && products.length === 0" class="mobile-state">暂无产品</div>
         <div
           v-for="product in products"
           :key="product.id"
@@ -104,7 +109,8 @@
           :class="{ 'clickable': isAdmin }"
           @click="isAdmin && editProduct(product)"
         >
-          <el-image :src="product.image_url" fit="cover" class="card-thumb" />
+          <el-image v-if="product.image_url" :src="product.image_url" fit="cover" class="card-thumb" />
+          <span v-else class="card-thumb product-thumb-empty">暂无图片</span>
           <div class="card-info">
             <h3 class="card-name">{{ product.name }}</h3>
             <div class="card-meta">
@@ -120,7 +126,7 @@
           </div>
         </div>
 
-        <div class="pagination-mobile">
+        <div v-if="!loading && !loadError" class="pagination-mobile">
           <el-pagination
             v-model:current-page="currentPage"
             :page-size="pageSize"
@@ -221,7 +227,8 @@ interface Category {
 
 const products = ref<Product[]>([])
 const categories = ref<Category[]>([])
-const loading = ref(false)
+const loading = ref(true)
+const loadError = ref('')
 const saving = ref(false)
 const searchQuery = ref('')
 const categoryFilter = ref<number | undefined>(undefined)
@@ -255,6 +262,9 @@ onMounted(() => {
 
 const fetchProducts = async () => {
   loading.value = true
+  loadError.value = ''
+  products.value = []
+  total.value = 0
   try {
     const params: any = {
       skip: (currentPage.value - 1) * pageSize.value,
@@ -272,6 +282,9 @@ const fetchProducts = async () => {
     total.value = response.data.total
   } catch (error) {
     console.error('获取产品列表失败:', error)
+    products.value = []
+    total.value = 0
+    loadError.value = '产品加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -502,6 +515,22 @@ const deleteProduct = async (product: Product) => {
   height: 44px;
   border-radius: 8px;
   object-fit: cover;
+}
+
+.product-thumb-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #F8FAFC);
+  color: var(--text-tertiary, #94A3B8);
+  font-size: 10px;
+  text-align: center;
+}
+
+.mobile-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary, #475569);
 }
 
 .product-name {
