@@ -1,74 +1,79 @@
 <template>
-  <div
-    class="stat-card"
-    :style="{ '--accent': accentColor }"
-  >
-    <div class="stat-icon" v-if="icon">
-      <el-icon :size="28" :color="accentColor">
-        <component :is="icon" />
-      </el-icon>
-    </div>
-    <div class="stat-content">
-      <div class="stat-value">{{ value }}</div>
-      <div class="stat-title">{{ title }}</div>
-      <div class="stat-trend" v-if="trend !== undefined" :class="trend >= 0 ? 'up' : 'down'">
-        <span class="trend-icon">{{ trend >= 0 ? '↑' : '↓' }}</span>
-        <span>{{ Math.abs(trend) }}%</span>
+  <div class="ui-stat-card" :style="{ '--accent': accent }">
+    <div class="accent-bar"></div>
+    <div class="stat-body">
+      <div class="stat-content">
+        <div class="stat-value">
+          {{ value }}<span v-if="unit" class="stat-unit">{{ unit }}</span>
+        </div>
+        <div class="stat-title">{{ title }}</div>
+        <div v-if="trend !== undefined" class="stat-trend" :class="trend >= 0 ? 'up' : 'down'">
+          <span>{{ trend >= 0 ? '↑' : '↓' }} {{ Math.abs(trend) }}%</span>
+        </div>
+      </div>
+      <div v-if="icon" class="stat-icon">
+        <el-icon :size="24" :color="accent">
+          <component :is="icon" />
+        </el-icon>
       </div>
     </div>
-    <div class="accent-bar"></div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Component } from 'vue'
 
-defineProps<{
+/** 唯一统计卡：顶部 4px 语义色条 + 数值 + 标签 + 可选图标 chip / 趋势 pill */
+const props = withDefaults(defineProps<{
   value: string | number
   title: string
+  unit?: string
+  /** 同比/环比百分比，正数为升 */
   trend?: number
   icon?: Component
-  accentColor?: string
-}>()
+  /** 语义色，决定色条与图标颜色 */
+  type?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+}>(), {
+  type: 'primary'
+})
+
+const accent = computed(() =>
+  props.type === 'primary' ? 'var(--primary)' : `var(--color-${props.type})`
+)
 </script>
 
 <style scoped>
-.stat-card {
+.ui-stat-card {
   position: relative;
-  background: var(--bg-primary, #FFFFFF);
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  height: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.stat-card:hover {
+.ui-stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  box-shadow: var(--shadow-lg);
 }
 
 .accent-bar {
   position: absolute;
-  left: 0;
   top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--accent, #3B82F6);
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--accent);
 }
 
-.stat-icon {
-  width: 52px;
-  height: 52px;
+.stat-body {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--accent, #3B82F6) 10%, transparent);
-  border-radius: 12px;
-  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 20px 20px;
 }
 
 .stat-content {
@@ -77,45 +82,59 @@ defineProps<{
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: var(--font-xl);
   font-weight: 700;
-  color: var(--text-primary, #0F172A);
+  color: var(--text-primary);
   letter-spacing: -0.02em;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-unit {
+  margin-left: 4px;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .stat-title {
-  font-size: 13px;
-  color: var(--text-secondary, #475569);
-  margin-top: 4px;
+  margin-top: 6px;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 
 .stat-trend {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  margin-top: 8px;
+  margin-top: 10px;
   padding: 2px 8px;
-  border-radius: 100px;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  border-radius: var(--radius-pill);
 }
 
 .stat-trend.up {
-  color: #67C23A;
-  background: rgba(103, 194, 58, 0.1);
+  color: var(--color-success);
+  background: var(--color-success-bg);
 }
 
 .stat-trend.down {
-  color: #F56C6C;
-  background: rgba(245, 108, 108, 0.1);
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
 }
 
-.trend-icon {
-  font-size: 10px;
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stat-card {
+  .ui-stat-card {
     transition: none;
   }
 }

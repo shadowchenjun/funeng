@@ -229,6 +229,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import axios from 'axios'
+import { formatMoneyCompact as formatMoney } from '../utils/format'
 
 const API = '/api/supply-chain-finance'
 
@@ -314,11 +315,6 @@ const receivables = ref<Receivable[]>([])
 const insurances = ref<Insurance[]>([])
 const creditScore = ref<CreditAssessment | null>(null)
 
-const formatMoney = (value: number) => {
-  if (value >= 100000000) return `¥${(value / 100000000).toFixed(2)}亿`
-  if (value >= 10000) return `¥${(value / 10000).toFixed(1)}万`
-  return `¥${value.toLocaleString()}`
-}
 
 const fetchData = async () => {
   loading.value = true

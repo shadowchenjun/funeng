@@ -323,6 +323,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, User, Present, ChatDotRound, VideoCamera, ShoppingCart, Message } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { formatMoneyExact as formatMoney } from '../utils/format'
 
 const activeTab = ref('stats')
 const setActiveTab = (tab: string) => { activeTab.value = tab }
@@ -384,7 +385,6 @@ const loadCampaigns = async () => {
 
 // 营销数据（来自 /analytics：今日指标及与昨日对比）
 const formatNumber = (n: number) => Number(n || 0).toLocaleString('zh-CN')
-const formatMoney = (n: number) => `¥${Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`
 
 const marketingStats = ref([
   { title: '今日销售额', value: '--', color: '#67C23A', trend: 0 },

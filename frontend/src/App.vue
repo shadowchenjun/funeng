@@ -63,9 +63,45 @@
               <template v-else>
                 <el-button type="primary" @click="goToLogin" class="login-btn">登录</el-button>
               </template>
+              <button class="menu-toggle" aria-label="打开导航菜单" @click="drawerVisible = true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
             </div>
           </div>
         </header>
+
+        <!-- <1200px 导航抽屉 -->
+        <el-drawer
+          v-model="drawerVisible"
+          direction="rtl"
+          size="280px"
+          :with-header="false"
+          class="nav-drawer"
+        >
+          <nav class="drawer-nav">
+            <router-link
+              v-for="item in allNavItems"
+              :key="item.path"
+              :to="item.path"
+              class="drawer-item"
+              :class="{ active: isActive(item.path) }"
+            >
+              {{ item.label }}
+            </router-link>
+          </nav>
+          <div class="drawer-user">
+            <template v-if="authStore.isLoggedIn">
+              <div class="drawer-username">
+                <el-avatar :size="28" :icon="User" />
+                <span>{{ authStore.userInfo?.username || authStore.user?.username }}</span>
+              </div>
+              <el-button @click="handleUserCommand('logout')">退出登录</el-button>
+            </template>
+            <el-button v-else type="primary" @click="goToLogin">登录</el-button>
+          </div>
+        </el-drawer>
 
         <!-- 主内容区域 -->
         <main class="app-main" :class="{ 'no-header': !showHeader }">
@@ -97,13 +133,26 @@ const loadingBarRef = ref<InstanceType<typeof LoadingBar> | null>(null)
 const showPageSkeleton = ref(false)
 
 // 需要缓存的视图（保留状态，避免重复加载）
-const cachedViews = ['Products', 'Categories', 'Dashboard']
+// include 匹配组件名（<script setup> 由文件名推断），不是路由名
+const cachedViews = ['ProductsView', 'CategoriesView', 'DashboardView']
 
 const navItems = [
   { path: '/', label: '首页' },
   { path: '/products', label: '产品' },
-  { path: '/categories', label: '分类' }
+  { path: '/categories', label: '分类' },
+  { path: '/dashboard', label: '看板' },
+  { path: '/smart-agriculture', label: '智慧农业' },
+  { path: '/digital-marketing', label: '数字营销' },
+  { path: '/cold-chain', label: '冷链物流' },
+  { path: '/supply-chain-finance', label: '供应链金融' }
 ]
+
+// 抽屉内含全部入口（含 admin-only 的管理后台）
+const allNavItems = computed(() =>
+  authStore.isAdmin ? [...navItems, { path: '/admin', label: '管理后台' }] : navItems
+)
+
+const drawerVisible = ref(false)
 
 // 不需要显示 header 的页面
 const noHeaderRoutes = ['Login', 'Register', 'ClaudeCodeAssistant']
@@ -120,6 +169,7 @@ const isActive = (path: string) => {
 watch(
   () => route.path,
   () => {
+    drawerVisible.value = false
     loadingBarRef.value?.start()
     // 路由组件加载是异步的，不需要骨架屏
     setTimeout(() => {
@@ -158,10 +208,22 @@ const handleUserCommand = (command: string) => {
   --primary: #165DFF;
   --primary-light: rgba(22, 93, 255, 0.08);
   --primary-dark: #0F4AE6;
-  --accent-green: #10B981;
-  --accent-amber: #F59E0B;
   --accent-blue: #3B82F6;
-  --accent-red: #EF4444;
+
+  /* 语义色（正源）：彩色仅用于状态，不做板块身份色 */
+  --color-success: #10B981;
+  --color-success-bg: rgba(16, 185, 129, 0.1);
+  --color-warning: #F59E0B;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-danger: #EF4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.1);
+  --color-info: #64748B;
+  --color-info-bg: #F1F5F9;
+
+  /* 已废弃：语义色别名，新代码请用 --color-* */
+  --accent-green: var(--color-success);
+  --accent-amber: var(--color-warning);
+  --accent-red: var(--color-danger);
 
   --bg-primary: #FFFFFF;
   --bg-secondary: #F8FAFC;
@@ -179,6 +241,15 @@ const handleUserCommand = (command: string) => {
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-pill: 100px;
+
+  /* 字阶（6 档收死，首页 hero 除外） */
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-md: 16px;
+  --font-lg: 20px;
+  --font-xl: 24px;
+  --font-2xl: 28px;
 }
 
 * {
@@ -366,6 +437,67 @@ body {
   border-radius: var(--radius-sm);
 }
 
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: 8px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.menu-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawer-item {
+  padding: 12px 16px;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.drawer-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.drawer-item.active {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.drawer-user {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.drawer-username {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
 .app-main {
   flex: 1;
   padding: 0;
@@ -374,6 +506,17 @@ body {
 
 .app-main.no-header {
   padding: 0;
+}
+
+/* <1200px：平铺导航收进抽屉 */
+@media (max-width: 1199px) {
+  .nav-menu {
+    display: none;
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+  }
 }
 
 /* 移动端适配 */
@@ -386,18 +529,13 @@ body {
     height: 56px;
   }
 
+  .logo-icon {
+    width: 56px;
+    height: 56px;
+  }
+
   .logo-text {
     display: none;
-  }
-
-  .nav-menu {
-    display: flex;
-    gap: 2px;
-  }
-
-  .nav-item {
-    padding: 8px 10px;
-    font-size: 13px;
   }
 
   .username {

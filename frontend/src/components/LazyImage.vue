@@ -10,6 +10,7 @@
  * - Error fallback
  */
 import { ref, computed, onMounted } from 'vue'
+import { Picture } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   src: string
@@ -104,7 +105,8 @@ onMounted(() => {
 
     <!-- Error fallback -->
     <div v-else class="error-fallback">
-      <span>🖼️ 图片加载失败</span>
+      <el-icon :size="20"><Picture /></el-icon>
+      <span>图片加载失败</span>
     </div>
 
     <!-- Loaded state overlay -->
@@ -153,8 +155,9 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   min-height: 60px;
-  background: #f5f7fa;
-  color: #909399;
+  gap: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 

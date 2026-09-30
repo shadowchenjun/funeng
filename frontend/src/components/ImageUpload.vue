@@ -191,8 +191,8 @@ defineExpose({
 }
 
 .upload-area:hover {
-  border-color: #409eff;
-  background: #f0f7ff;
+  border-color: var(--primary);
+  background: var(--primary-light);
 }
 
 .upload-icon {

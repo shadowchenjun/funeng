@@ -1,5 +1,5 @@
 <template>
-  <div class="empty-state">
+  <div class="ui-empty-state">
     <div class="empty-icon">
       <el-icon :size="48" :color="iconColor">
         <component :is="icon" />
@@ -25,14 +25,14 @@ const props = withDefaults(defineProps<{
   iconColor?: string
 }>(), {
   icon: Folder,
-  iconColor: '#94A3B8'
+  iconColor: 'var(--text-tertiary)'
 })
 
 const icon = computed(() => props.icon)
 </script>
 
 <style scoped>
-.empty-state {
+.ui-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -53,14 +53,14 @@ const icon = computed(() => props.icon)
 }
 
 .empty-title {
-  font-size: 16px;
+  font-size: var(--font-md);
   font-weight: 600;
   color: var(--text-primary, #0F172A);
   margin: 0 0 8px;
 }
 
 .empty-description {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-secondary, #475569);
   margin: 0;
   max-width: 300px;

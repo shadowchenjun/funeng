@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 
 // Global styles
+import './styles/element-theme.css'
 import './assets/responsive.css'
 
 // 业务接口均需登录：统一附带 token，token 失效时清理并跳转登录页

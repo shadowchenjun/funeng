@@ -2,28 +2,30 @@
   <div class="register-container">
     <el-card class="register-card">
       <template #header>
+        <img class="auth-logo" src="/logo-transparent.png" alt="FunEng Logo" @click="$router.push('/')" />
         <h2>用户注册</h2>
+        <p class="auth-subtitle">创建账户，开始使用赋能平台</p>
       </template>
       
       <el-form :model="registerForm" :rules="rules" ref="formRef" label-position="top">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="registerForm.username" prefix-icon="User" placeholder="请输入用户名" />
+          <el-input v-model="registerForm.username" :prefix-icon="User" placeholder="请输入用户名" />
         </el-form-item>
         
         <el-form-item label="邮箱" prop="email">
-          <el-input v-model="registerForm.email" prefix-icon="Message" placeholder="请输入邮箱" />
+          <el-input v-model="registerForm.email" :prefix-icon="Message" placeholder="请输入邮箱" />
         </el-form-item>
         
         <el-form-item label="密码" prop="password">
-          <el-input v-model="registerForm.password" type="password" prefix-icon="Lock" placeholder="请输入密码" show-password />
+          <el-input v-model="registerForm.password" type="password" :prefix-icon="Lock" placeholder="请输入密码" show-password />
         </el-form-item>
         
         <el-form-item label="确认密码" prop="confirmPassword">
-          <el-input v-model="registerForm.confirmPassword" type="password" prefix-icon="Lock" placeholder="请确认密码" show-password />
+          <el-input v-model="registerForm.confirmPassword" type="password" :prefix-icon="Lock" placeholder="请确认密码" show-password />
         </el-form-item>
         
         <el-form-item>
-          <el-button type="primary" @click="handleRegister" :loading="loading" style="width: 100%">
+          <el-button type="primary" @click="handleRegister" :loading="loading" class="auth-btn">
             注册
           </el-button>
         </el-form-item>
@@ -42,6 +44,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { User, Message, Lock } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 
@@ -121,31 +124,68 @@ const handleRegister = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(22, 93, 255, 0.10), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08), transparent 40%),
+    var(--bg-secondary);
 }
 
 .register-card {
   width: 100%;
   max-width: 400px;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --el-card-border-radius: var(--radius-lg);
+  --el-card-padding: 32px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 40px -16px rgba(15, 23, 42, 0.16);
 }
 
 .register-card :deep(.el-card__header) {
+  padding: 32px 32px 0;
+  border-bottom: none;
   text-align: center;
-  padding: 30px 20px;
-  border-bottom: 1px solid #ebeef5;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  cursor: pointer;
 }
 
 .register-card h2 {
-  color: white;
-  margin: 0;
-  font-size: 24px;
+  margin: 8px 0 0;
+  font-size: var(--font-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.auth-subtitle {
+  margin: 6px 0 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
 }
 
 .register-card :deep(.el-form-item__label) {
   font-weight: 500;
+}
+
+.auth-btn {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .register-container {
+    padding: 16px;
+  }
+
+  .register-card {
+    --el-card-padding: 24px;
+  }
+
+  .register-card :deep(.el-card__header) {
+    padding: 24px 24px 0;
+  }
 }
 </style>

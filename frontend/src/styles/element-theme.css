@@ -1,0 +1,134 @@
+/*
+ * Element Plus 主题接管 —— 全站唯一覆盖点
+ * 规范：docs/superpowers/specs/2026-10-01-frontend-ui-unification-design.md §3.2
+ *
+ * 注意权重：EP 样式由 unplugin-vue-components 按需注入，会晚于本文件加载。
+ * 同权重下后加载者胜，所以全局变量用 :root:root、组件变量用 :root .el-xxx（均为 0,2,0），
+ * 保证不论哪个路由先加载都以本文件为准。
+ * 色阶由脚本按 EP 规则生成：light-N = mix(#fff, 基色, N×10%)，dark-2 = mix(#000, 基色, 20%)。
+ */
+
+:root:root {
+  --el-color-primary: #165DFF;
+  --el-color-primary-rgb: 22,93,255;
+  --el-color-primary-light-3: #5C8EFF;
+  --el-color-primary-light-5: #8AAEFF;
+  --el-color-primary-light-7: #B9CEFF;
+  --el-color-primary-light-8: #D0DFFF;
+  --el-color-primary-light-9: #E8EFFF;
+  --el-color-primary-dark-2: #124ACC;
+
+  --el-color-success: #10B981;
+  --el-color-success-rgb: 16,185,129;
+  --el-color-success-light-3: #58CEA7;
+  --el-color-success-light-5: #88DCC0;
+  --el-color-success-light-7: #B7EAD9;
+  --el-color-success-light-8: #CFF1E6;
+  --el-color-success-light-9: #E7F8F2;
+  --el-color-success-dark-2: #0D9467;
+
+  --el-color-warning: #F59E0B;
+  --el-color-warning-rgb: 245,158,11;
+  --el-color-warning-light-3: #F8BB54;
+  --el-color-warning-light-5: #FACE85;
+  --el-color-warning-light-7: #FCE2B6;
+  --el-color-warning-light-8: #FDECCE;
+  --el-color-warning-light-9: #FEF5E7;
+  --el-color-warning-dark-2: #C47E09;
+
+  --el-color-danger: #EF4444;
+  --el-color-danger-rgb: 239,68,68;
+  --el-color-danger-light-3: #F47C7C;
+  --el-color-danger-light-5: #F7A2A2;
+  --el-color-danger-light-7: #FAC7C7;
+  --el-color-danger-light-8: #FCDADA;
+  --el-color-danger-light-9: #FDECEC;
+  --el-color-danger-dark-2: #BF3636;
+
+  --el-color-error: #EF4444;
+  --el-color-error-rgb: 239,68,68;
+  --el-color-error-light-3: #F47C7C;
+  --el-color-error-light-5: #F7A2A2;
+  --el-color-error-light-7: #FAC7C7;
+  --el-color-error-light-8: #FCDADA;
+  --el-color-error-light-9: #FDECEC;
+  --el-color-error-dark-2: #BF3636;
+
+  --el-color-info: #64748B;
+  --el-color-info-rgb: 100,116,139;
+  --el-color-info-light-3: #929EAE;
+  --el-color-info-light-5: #B2BAC5;
+  --el-color-info-light-7: #D0D5DC;
+  --el-color-info-light-8: #E0E3E8;
+  --el-color-info-light-9: #F0F1F3;
+  --el-color-info-dark-2: #505D6F;
+
+  --el-text-color-primary: #0F172A;
+  --el-text-color-regular: #475569;
+  --el-text-color-secondary: #64748B;
+  --el-text-color-placeholder: #94A3B8;
+  --el-border-color: #E2E8F0;
+  --el-border-color-light: #E2E8F0;
+  --el-border-color-lighter: #F1F5F9;
+  --el-fill-color-light: #F8FAFC;
+  --el-fill-color-lighter: #F8FAFC;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-font-family: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ====== 弹窗：16px 圆角 · 白底平头 · 标题 16px/600 + 底分隔线 · 底部右对齐 ====== */
+:root .el-dialog {
+  --el-dialog-border-radius: var(--radius-lg, 16px);
+  --el-dialog-padding-primary: 24px;
+  --el-dialog-title-font-size: var(--font-md, 16px);
+  --el-dialog-box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.18);
+}
+
+:root .el-dialog__header {
+  margin: -24px -24px 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color, #E2E8F0);
+}
+
+:root .el-dialog__headerbtn {
+  top: 6px;
+  right: 6px;
+}
+
+:root .el-dialog__title {
+  font-weight: 600;
+  color: var(--text-primary, #0F172A);
+}
+
+:root .el-dialog__footer {
+  margin: 20px -24px -24px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #E2E8F0);
+  text-align: right;
+}
+
+/* 宽度三档：在 el-dialog 上加 class="dialog-sm|md|lg"，全屏类用 dialog-full */
+:root .el-dialog.dialog-sm { --el-dialog-width: 480px; }
+:root .el-dialog.dialog-md { --el-dialog-width: 640px; }
+:root .el-dialog.dialog-lg { --el-dialog-width: 800px; }
+:root .el-dialog.dialog-full { --el-dialog-width: 90%; }
+
+/* ====== 表格：表头 #F8FAFC + #475569/600 · 行 hover #F8FAFC · 外框圆角 8px ====== */
+:root .el-table {
+  --el-table-header-bg-color: var(--bg-secondary, #F8FAFC);
+  --el-table-header-text-color: var(--text-secondary, #475569);
+  --el-table-row-hover-bg-color: var(--bg-secondary, #F8FAFC);
+  --el-table-border-color: var(--border-color, #E2E8F0);
+  border-radius: var(--radius-sm, 8px);
+}
+
+:root .el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+/* ====== 卡片：裸 el-card 至少对齐 16px 圆角（U3 起由 SectionCard 取代） ====== */
+:root .el-card {
+  --el-card-border-radius: var(--radius-lg, 16px);
+  --el-card-border-color: var(--border-color, #E2E8F0);
+}

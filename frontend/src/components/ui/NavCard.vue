@@ -1,59 +1,69 @@
 <template>
-  <div
-    class="nav-card"
-    :style="{ '--accent': accentColor }"
-    :class="{ 'is-hovered': isHovered }"
-    @mouseenter="isHovered = true"
-    @mouseleave="isHovered = false"
+  <button
+    type="button"
+    class="ui-nav-card"
+    :class="{ active }"
+    :aria-pressed="active"
     @click="$emit('click')"
   >
-    <div class="nav-card-glow"></div>
-    <div class="nav-card-content">
-      <div class="nav-icon-wrapper">
-        <el-icon :size="28" :color="accentColor">
-          <component :is="icon" />
-        </el-icon>
-      </div>
-      <span class="nav-label">{{ label }}</span>
-    </div>
-  </div>
+    <span class="nav-card-glow"></span>
+    <span class="nav-icon-wrapper">
+      <el-icon :size="26">
+        <component :is="icon" />
+      </el-icon>
+    </span>
+    <span class="nav-label">{{ label }}</span>
+  </button>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { Component } from 'vue'
 
+/** 板块内导航卡：hover/选中时出现 4px 顶光条，全站统一品牌蓝 */
 defineProps<{
   icon: Component
   label: string
-  accentColor?: string
+  active?: boolean
 }>()
 
 defineEmits<{
   click: []
 }>()
-
-const isHovered = ref(false)
 </script>
 
 <style scoped>
-.nav-card {
+.ui-nav-card {
   position: relative;
-  background: var(--bg-primary, #FFFFFF);
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
   padding: 20px 16px;
+  font: inherit;
   text-align: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   overflow: hidden;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   user-select: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
-.nav-card:hover {
+.ui-nav-card:hover,
+.ui-nav-card.active {
+  border-color: var(--primary);
+}
+
+.ui-nav-card:hover {
   transform: translateY(-4px);
-  border-color: var(--accent, #3B82F6);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.ui-nav-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .nav-card-glow {
@@ -61,49 +71,48 @@ const isHovered = ref(false)
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: var(--accent, #3B82F6);
+  height: 4px;
+  background: var(--primary);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.3s ease;
 }
 
-.nav-card:hover .nav-card-glow {
+.ui-nav-card:hover .nav-card-glow,
+.ui-nav-card.active .nav-card-glow {
   transform: scaleX(1);
 }
 
-.nav-card-content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
 .nav-icon-wrapper {
-  width: 52px;
-  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary, #F8FAFC);
-  border-radius: 12px;
-  transition: background 0.3s ease, transform 0.3s ease;
+  width: 52px;
+  height: 52px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-.nav-card:hover .nav-icon-wrapper {
-  background: color-mix(in srgb, var(--accent, #3B82F6) 10%, transparent);
-  transform: scale(1.05);
+.ui-nav-card:hover .nav-icon-wrapper,
+.ui-nav-card.active .nav-icon-wrapper {
+  color: var(--primary);
+  background: var(--primary-light);
 }
 
 .nav-label {
-  font-size: 13px;
+  font-size: var(--font-sm);
   font-weight: 500;
-  color: var(--text-primary, #0F172A);
+  color: var(--text-primary);
+}
+
+.ui-nav-card.active .nav-label {
+  color: var(--primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-card,
+  .ui-nav-card,
   .nav-card-glow,
   .nav-icon-wrapper {
     transition: none;
