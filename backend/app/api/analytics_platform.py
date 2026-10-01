@@ -568,9 +568,9 @@ def get_analytics_summary(
     online_devices = db.query(func.count(Device.id)).filter(Device.status == "online").scalar()
     
     # 6. 产品分析
-    total_products = db.query(func.count(Product.id)).filter(Product.is_active == True).scalar()
+    total_products = db.query(func.count(Product.id)).filter(Product.is_active == 1).scalar()
     low_stock_count = db.query(func.count(Product.id)).filter(
-        and_(Product.is_active == True, Product.stock < 10)
+        and_(Product.is_active == 1, Product.stock < 10)
     ).scalar()
     
     # 7. 用户购买力分析 (有订单的用户占比)

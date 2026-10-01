@@ -52,3 +52,13 @@
 - FastAPI `BackgroundTasks` 在无状态函数中无法保证任务完成，因此导出改为在请求内生成并持久化。大批量导出需要后续改为持久任务队列。
 - 当前源代码仍包含大量随机生成的演示响应；这些响应本身不代表持久化业务记录。
 - 独立 `admin/` Vue 应用尚无已核实的 Vercel 项目，管理员界面部署需单独验收。
+
+## 业务模块补充迁移（2026-10-01）
+
+合入 `optimize/full-pass` 后 ORM 新增 23 张表（冷链 WMS 14、供应链金融 4、智慧农业环境/灌溉 3、数字营销 2），线上经 `to_regclass` 核查均不存在。生产不执行 `create_all`，需按顺序：
+
+1. 应用 [`20261001120000_funeng_business_module_tables.sql`](../supabase/migrations/20261001120000_funeng_business_module_tables.sql)：仅 `CREATE TABLE/INDEX IF NOT EXISTS`，不触碰已有表；全部启用 RLS，并收回 `anon`/`authenticated` 权限。由 [`generate_supabase_delta.py`](../backend/migrations/generate_supabase_delta.py) 按「ORM − 已有迁移」生成。
+2. 可选：执行 [`supabase/seeds/20261001_business_module_demo_data.sql`](../supabase/seeds/20261001_business_module_demo_data.sql) 写入演示数据（1054 行，仅新表，`ON CONFLICT DO NOTHING`，可重复执行）。不执行则对应页面为空态。
+3. 部署后端。
+
+本地验证：嵌入式 Postgres 依次应用全部迁移（新迁移重复应用一次），后端以迁移建出的表结构运行，`create_all` 未补建任何表；后端测试在该库上 242 项通过（排除 2 个依赖仓库相对路径的未跟踪测试文件）。

@@ -407,6 +407,9 @@ def seed_cold_chain(db: Session) -> bool:
         for s in _SENSORS:
             sid, name, loc, kind, target, tol, _, _ = s
             db.add(TemperatureSensor(id=sid, name=name, location=loc, kind=kind, target_temp=target, tolerance=tol))
+        # 两表间无 relationship，unit of work 不保证插入顺序；先落传感器，否则 Postgres 外键报错（SQLite 默认不校验）
+        db.flush()
+        for s in _SENSORS:
             db.add_all(_readings_for(s))
         created = True
 
