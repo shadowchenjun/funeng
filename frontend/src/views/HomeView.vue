@@ -140,7 +140,7 @@
           <span class="footer-divider">|</span>
           <a href="#">联系我们</a>
         </div>
-        <p class="footer-copyright">© 2026 🌾. All rights reserved.</p>
+        <p class="footer-copyright">© 2026 FunEng. All rights reserved.</p>
       </div>
     </footer>
   </div>
@@ -285,8 +285,9 @@ const goToModule = (path: string) => {
   router.push(path)
 }
 
+// 已登录进入看板（控制台），未登录先去登录
 const handleHeroAction = () => {
-  router.push('/products')
+  router.push(isLoggedIn.value ? '/dashboard' : '/login')
 }
 </script>
 
@@ -303,107 +304,6 @@ const handleHeroAction = () => {
   font-family: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text-primary);
   line-height: 1.6;
-}
-
-/* ========== 导航栏 ========== */
-.main-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  height: 56px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.brand-icon {
-  font-size: 0;  /* 隐藏 emoji */
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-}
-
-.brand-text {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-blue) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.nav-links {
-  display: flex;
-  gap: 8px;
-}
-
-.nav-link {
-  padding: 10px 18px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
-}
-
-.nav-link:hover {
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-}
-
-.nav-link.active {
-  color: var(--primary);
-  background: var(--primary-light);
-}
-
-.nav-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.btn-nav-outline,
-.btn-nav-primary {
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-nav-outline {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-}
-
-.btn-nav-outline:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.btn-nav-primary {
-  background: var(--primary);
-  border: 1px solid var(--primary);
-  color: white;
-}
-
-.btn-nav-primary:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
 }
 
 /* ========== Hero 区域 ========== */
@@ -855,14 +755,6 @@ const handleHeroAction = () => {
 
 /* ========== 响应式 ========== */
 @media (max-width: 1024px) {
-  .main-nav {
-    padding: 0 24px;
-  }
-
-  .nav-links {
-    display: none;
-  }
-
   .hero-section {
     padding: 90px 24px 50px;
   }

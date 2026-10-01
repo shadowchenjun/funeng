@@ -49,8 +49,8 @@ if grep -rnE "SECRET_KEY\s*=\s*['\"]" backend/app backend/main.py --include='*.p
 fi
 
 # Rule 5/6: 前台 UI 统一（docs/superpowers/specs/2026-10-01-frontend-ui-unification-design.md §7）
-# 迁移期（U1–U4）为警告；U5 起设 UI_STRICT=1 升级为 error
-UI_STRICT="${UI_STRICT:-0}"
+# U5 起默认为 error；临时排查可用 UI_STRICT=0 降级为警告
+UI_STRICT="${UI_STRICT:-1}"
 ui_violation() {
   if [ "$UI_STRICT" = "1" ]; then
     echo "LINT ERROR [$1]: $2"

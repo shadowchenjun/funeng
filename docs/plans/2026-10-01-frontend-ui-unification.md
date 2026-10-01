@@ -1,6 +1,6 @@
 # Execution Plan: 前台 UI 统一设计系统
 
-## Status: In Progress（U1 完成，待 Evaluator 评估）
+## Status: Review（U1–U5 全部完成，待 Evaluator 评估）
 ## Complexity: High
 ## Packages affected: frontend, scripts
 
@@ -121,8 +121,43 @@
 | **总分** | **88/100** | |
 
 ### Sprint U4: 世代②③收尾（DigitalMarketing、Dashboard、Products、Categories）
-- [ ] 列表模式统一；去 emoji；删 `:header-cell-style`；自定义按钮 → el-button；弹窗 `:deep` 覆盖删除、套宽度档
+
+**实现清单：**
+- [x] 数字营销：ModuleNav（单组 4 项）+ v-show；统计 → StatCard（带趋势）；渠道/会员/活动 → tile；空列表用 EmptyState；会员头像与等级标签去掉自定义色值
+- [x] 看板：PageHeader（标题与导航一致为「数据看板」）+ StatCard + SectionCard；删 3 处 `:header-cell-style`；库存徽标 → el-tag；分类占比条改品牌蓝；金额用共享 `formatMoneyCompact`
+- [x] 产品：PageHeader + el-button；手写搜索框 → el-input；分类/状态徽标 → el-tag；操作按钮 → link 按钮；弹窗 `dialog-md`、删 `:deep(.product-dialog)`；保留桌面表格/移动卡片双视图
+- [x] 分类：PageHeader + el-button；空态/错误态 → EmptyState（含重试）；图标选择器 emoji → EP 图标；弹窗 `dialog-sm`；默认色 `#409eff` → `#165DFF`
+- 说明：分类卡片中的 emoji 来自数据库 `categories.icon` 字段（用户数据），非模板文字；编辑时选择图标即替换为 EP 图标
 
 ### Sprint U5: 清扫 + 回归
-- [ ] HomeView 死 CSS、hero CTA；删 `critical.css`；responsive.css `!important` 清零
-- [ ] agent-lint `UI_STRICT=1` 设为默认；全路由前后截图对比
+
+**实现清单：**
+- [x] HomeView 删除 101 行死 CSS（旧顶栏 `.main-nav/.nav-*`/`.btn-nav-*`）；hero CTA：已登录 → `/dashboard`，未登录 → `/login`；页脚去 emoji
+- [x] 删除 `critical.css`（无引用）
+- [x] responsive.css 重写：`!important` 106 → 0；移除已无匹配的旧容器/统计卡规则及强改 EP 组件尺寸的紧凑规则（含把 `.el-image` 强制为 40px 导致移动端产品缩略图变小的问题）；窄屏弹窗统一满宽减 32px
+- [x] agent-lint：旧色/emoji 检查默认 error（`UI_STRICT=1`）
+
+**最终回归（2026-10-01，headless Chrome）：**
+- 9 路由 × 1440/1200/390px：无横向溢出；标题无 emoji；页面实际渲染中无 `#409EFF` / `#667eea`（遍历计算样式）
+- hero CTA：未登录 → /login，已登录 → /dashboard
+- 弹窗：产品 640（md）、分类 480（sm）、会员 640（md）；手机端 358px
+- 移动端产品缩略图 72×72（此前被全局规则压为 40）
+- 控制台 0 错误；`vue-tsc`、`npm run build` ✅；`agent-lint`（UI 检查为 error 级）0 error，后端 258 passed；`: any` 106 → 104
+
+**整体验收（spec §7）：**
+| 项 | 结果 |
+|----|------|
+| vue-tsc / build / agent-lint 全绿 | ✅ |
+| `grep -riE "409eff\|667eea\|764ba2\|64, ?158, ?255" frontend/src` 为 0 | ✅（lint 强制） |
+| 模板无 emoji（ClaudeCodeAssistant 除外） | ✅（lint 强制） |
+| 8 项导航可达、<1200px 抽屉 | ✅ |
+| ≤768px 逐页无破版 | ✅ |
+
+**自评估（U4+U5）：**
+| 维度 | 自评分 | 说明 |
+|------|--------|------|
+| 功能完整性 | 37/40 | 全部视图迁移完成；业务接口未改；CTA 行为按 spec 调整 |
+| 代码质量 | 27/30 | `!important` 清零、死代码删除、共享格式化/组件复用 |
+| 视觉设计 | 18/20 | 全站同代；分类卡片 emoji 图标为存量数据 |
+| 测试覆盖 | 7/10 | 类型/构建/lint/三档宽度浏览器回归；前端无单测 |
+| **总分** | **89/100** | |
