@@ -64,3 +64,18 @@
 本次生产核验：23 张表的 259 个字段、23 个二级索引及 ORM 主键/外键/唯一约束匹配；有效权限满足后端专用访问。原有 47 张表共 1376 行的数据及结构指纹未改变。新表为空，演示数据尚未执行。本地门禁 258 项测试通过、0 lint 错误。[执行计划与验收](plans/2026-10-01-business-module-production-migration.md)，[核验记录](data/business-module-migration-2026-10-01.json)。此次仅更新数据库，未进行应用生产发布。
 
 本地验证：嵌入式 Postgres 依次应用全部迁移（新迁移重复应用一次），后端以迁移建出的表结构运行，`create_all` 未补建任何表；后端测试在该库上 242 项通过（排除 2 个依赖仓库相对路径的未跟踪测试文件）。
+
+## 收回 Data API 角色的 public 表权限（2026-10-01 起草，待执行）
+
+基线迁移沿用了 Supabase 默认授权：82 张既有表对 `anon` / `authenticated` 开放全部权限。均启用 RLS 且无策略，目前默认拒绝；收回是纵深防御，防止日后误加宽松策略即对外暴露。本平台前端与管理后台不直连 Supabase，后端以 `postgres` 角色经 pooler 访问、Storage 用 `service_role`，均不受影响。
+
+| 步骤 | 文件 | 说明 |
+|------|------|------|
+| 1. 执行前核查（只读） | [`supabase/checks/public_api_grants.sql`](../supabase/checks/public_api_grants.sql) | 记录 anon/authenticated 的表、序列、默认权限；**确认 public 对象属主均为 `postgres`**（否则迁移会报错并整体回滚） |
+| 2. 应用迁移 | [`20261001150000_revoke_public_api_grants.sql`](../supabase/migrations/20261001150000_revoke_public_api_grants.sql) | 单事务：REVOKE 存量表/视图/序列 + 修改 `postgres` 的默认权限；末尾自检有残留即回滚；可重复执行 |
+| 3. 执行后核查 | 同步骤 1 | 预期 table/sequence 两类为空，默认权限只剩 `service_role` |
+| 回滚 | [`supabase/rollback/…rollback.sql`](../supabase/rollback/20261001150000_revoke_public_api_grants.rollback.sql) | 仅在确需 Data API 直连且已配 RLS 策略时使用 |
+
+影响：之后如需 Supabase Data API（anon key 直连），须对具体表显式 GRANT 并配置 RLS 策略。未改动 schema USAGE、函数 EXECUTE、`service_role`、RLS 开关及任何数据。
+
+本地验证（嵌入式 Postgres，模拟 Supabase 默认授权）：执行前 40 张表、49 个序列对 anon/authenticated 有授权 → 执行后 0；`service_role` 仍覆盖 69 张表；新建表不再自动授予 anon/authenticated；重复执行、回滚后再执行均正常；以非属主角色执行时报错并整体回滚、无部分生效；后端测试在收回后的库上 242 项通过（以 `postgres` 运行）。
