@@ -1,101 +1,94 @@
 <template>
-  <div class="admin-container">
-    <div class="header">
-      <h2>⚙️ 管理后台</h2>
-      <el-button type="primary" :loading="loading" @click="refreshData">
-        刷新数据
-      </el-button>
-    </div>
-
-    <!-- 功能模块入口 -->
-    <el-card class="section-card">
-      <template #header>
-        <h3>📦 功能模块</h3>
+  <div class="page-container">
+    <PageHeader title="管理后台" subtitle="用户管理与平台运营概览">
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="refreshData">刷新数据</el-button>
       </template>
-      <div class="module-grid">
-        <div
-          v-for="module in modules"
-          :key="module.path"
-          class="module-card"
-          :style="{ '--accent': module.color }"
-          @click="goToModule(module.path)"
-        >
-          <div class="module-icon" :style="{ background: `${module.color}15` }">
-            <el-icon :size="28" :color="module.color">
-              <component :is="module.icon" />
-            </el-icon>
-          </div>
-          <div class="module-info">
-            <h4>{{ module.name }}</h4>
-            <p>{{ module.desc }}</p>
-          </div>
-          <el-icon class="module-arrow"><ArrowRight /></el-icon>
-        </div>
-      </div>
-    </el-card>
+    </PageHeader>
 
-    <!-- 统计概览 -->
-    <el-row :gutter="20" class="stat-cards">
-      <el-col :span="6" v-for="stat in stats" :key="stat.title">
-        <el-card class="stat-card" :style="{ borderLeft: `4px solid ${stat.color}` }">
-          <div class="stat-info">
-            <h3>{{ stat.value }}</h3>
-            <p>{{ stat.title }}</p>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-    
-    <!-- 用户管理 -->
-    <el-card class="section-card">
-      <template #header>
-        <div class="card-header">
-          <h3>👥 用户管理</h3>
+    <div class="section-stack">
+      <!-- 功能模块入口 -->
+      <SectionCard title="业务板块" :icon="Grid">
+        <div class="module-grid">
+          <button
+            v-for="module in modules"
+            :key="module.path"
+            type="button"
+            class="module-card"
+            @click="goToModule(module.path)"
+          >
+            <span class="module-icon">
+              <el-icon :size="24"><component :is="module.icon" /></el-icon>
+            </span>
+            <span class="module-info">
+              <span class="module-name">{{ module.name }}</span>
+              <span class="module-desc">{{ module.desc }}</span>
+            </span>
+            <el-icon class="module-arrow"><ArrowRight /></el-icon>
+          </button>
+        </div>
+      </SectionCard>
+
+      <!-- 统计概览 -->
+      <div class="stat-grid stat-grid--flush">
+        <StatCard
+          v-for="stat in stats"
+          :key="stat.title"
+          :value="stat.value"
+          :title="stat.title"
+          :type="stat.type"
+          :icon="stat.icon"
+        />
+      </div>
+
+      <!-- 用户管理 -->
+      <SectionCard title="用户管理" :icon="User">
+        <template #extra>
           <el-input
             v-model="search"
             placeholder="搜索用户名 / 邮箱 / 姓名"
-            size="small"
+            :prefix-icon="Search"
             clearable
-            style="width: 240px"
+            class="user-search"
             @keyup.enter="fetchUsers"
             @clear="fetchUsers"
           />
-        </div>
-      </template>
-      <el-table :data="users" v-loading="loading" empty-text="暂无用户" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="email" label="邮箱" />
-        <el-table-column label="角色" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.is_admin ? 'danger' : 'success'">
-              {{ row.is_admin ? '管理员' : '普通用户' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="140">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.is_active"
-              active-text="启用"
-              inactive-text="禁用"
-              :disabled="row.id === currentUserId"
-              @change="handleStatusChange(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="注册时间" width="180">
-          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-    
-    <el-alert
-      type="info"
-      :closable="false"
-      show-icon
-      title="认养、土地、设备、溯源、营销及系统配置等运营管理，请使用独立的管理后台（admin/）。"
-    />
+        </template>
+        <el-table :data="users" v-loading="loading" empty-text="暂无用户">
+          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="username" label="用户名" min-width="140" />
+          <el-table-column prop="email" label="邮箱" min-width="200" />
+          <el-table-column label="角色" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.is_admin ? 'primary' : 'info'">
+                {{ row.is_admin ? '管理员' : '普通用户' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="140">
+            <template #default="{ row }">
+              <el-switch
+                v-model="row.is_active"
+                active-text="启用"
+                inactive-text="禁用"
+                :disabled="row.id === currentUserId"
+                @change="handleStatusChange(row)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="注册时间" width="180">
+            <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+          </el-table-column>
+        </el-table>
+      </SectionCard>
+
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        title="认养、土地、设备、溯源、营销及系统配置等运营管理，请使用独立的管理后台（admin/）。"
+      />
+    </div>
   </div>
 </template>
 
@@ -105,7 +98,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import { getErrorMessage } from '../utils/error'
-import { ArrowRight, DataAnalysis, TrendCharts, Van, Wallet } from '@element-plus/icons-vue'
+import type { Component } from 'vue'
+import {
+  ArrowRight, CircleCheck, DataAnalysis, Document, Grid, Refresh, Search, TrendCharts, User, UserFilled, Van, Wallet
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -114,29 +110,25 @@ const modules = [
     name: '智慧农业',
     desc: '设备管理、地块管理、作物监控',
     path: '/smart-agriculture',
-    icon: DataAnalysis,
-    color: '#10B981'
+    icon: DataAnalysis
   },
   {
     name: '数字营销',
     desc: '会员管理、营销活动',
     path: '/digital-marketing',
-    icon: TrendCharts,
-    color: '#8B5CF6'
+    icon: TrendCharts
   },
   {
     name: '冷链物流',
     desc: '车辆管理、仓库管理',
     path: '/cold-chain',
-    icon: Van,
-    color: '#3B82F6'
+    icon: Van
   },
   {
     name: '供应链金融',
     desc: '金融服务管理',
     path: '/supply-chain-finance',
-    icon: Wallet,
-    color: '#F59E0B'
+    icon: Wallet
   }
 ]
 
@@ -166,12 +158,21 @@ const search = ref('')
 const users = ref<UserRow[]>([])
 const currentUserId = (JSON.parse(localStorage.getItem('user') || 'null') as { id?: number } | null)?.id
 
-const stats = ref([
-  { title: '总用户数', value: '—', color: '#409EFF' },
-  { title: '活跃用户', value: '—', color: '#67C23A' },
-  { title: '管理员', value: '—', color: '#E6A23C' },
-  { title: '总订单', value: '—', color: '#F56C6C' }
-])
+interface AdminStat {
+  title: string
+  value: string
+  type: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  icon: Component
+}
+
+const statMeta: Omit<AdminStat, 'value'>[] = [
+  { title: '总用户数', type: 'primary', icon: User },
+  { title: '活跃用户', type: 'success', icon: CircleCheck },
+  { title: '管理员', type: 'primary', icon: UserFilled },
+  { title: '总订单', type: 'primary', icon: Document }
+]
+
+const stats = ref<AdminStat[]>(statMeta.map((m) => ({ ...m, value: '—' })))
 
 const formatDate = (value: string) => value.replace('T', ' ').slice(0, 19)
 
@@ -181,12 +182,13 @@ const fetchStats = async () => {
     axios.get<{ order_count: number }>('/api/public/stats')
   ])
   const n = (v: number) => v.toLocaleString('zh-CN')
-  stats.value = [
-    { title: '总用户数', value: n(userRes.data.total_users), color: '#409EFF' },
-    { title: '活跃用户', value: n(userRes.data.active_users), color: '#67C23A' },
-    { title: '管理员', value: n(userRes.data.admin_users), color: '#E6A23C' },
-    { title: '总订单', value: n(publicRes.data.order_count), color: '#F56C6C' }
+  const values = [
+    userRes.data.total_users,
+    userRes.data.active_users,
+    userRes.data.admin_users,
+    publicRes.data.order_count
   ]
+  stats.value = statMeta.map((m, i) => ({ ...m, value: n(values[i]) }))
 }
 
 const fetchUsers = async () => {
@@ -222,65 +224,17 @@ onMounted(refreshData)
 </script>
 
 <style scoped>
-.admin-container {
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
+.stat-grid--flush {
+  margin-bottom: 0;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+.user-search {
+  width: 240px;
 }
 
-.header h2 {
-  font-size: 24px;
-  color: #303133;
-}
-
-.stat-cards {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.stat-info h3 {
-  font-size: 28px;
-  margin: 0 0 5px;
-  color: #303133;
-}
-
-.stat-info p {
-  margin: 0;
-  color: #909399;
-}
-
-.section-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #303133;
-}
-
-/* 功能模块样式 */
 .module-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -288,54 +242,83 @@ onMounted(refreshData)
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 20px;
-  background: #f8fafc;
-  border-radius: 12px;
+  padding: 16px 20px;
+  font: inherit;
+  text-align: left;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .module-card:hover {
-  border-color: var(--accent);
+  border-color: var(--primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+}
+
+.module-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .module-icon {
-  width: 56px;
-  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
+  color: var(--primary);
+  background: var(--primary-light);
+  border-radius: var(--radius-md);
 }
 
 .module-info {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
-.module-info h4 {
-  margin: 0 0 4px;
-  font-size: 16px;
-  color: #303133;
+.module-name {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.module-info p {
-  margin: 0;
-  font-size: 13px;
-  color: #909399;
+.module-desc {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 
 .module-arrow {
-  color: #c0c4cc;
-  font-size: 18px;
+  font-size: 16px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.module-card:hover .module-arrow {
+  color: var(--primary);
+  transform: translateX(2px);
 }
 
 @media (max-width: 768px) {
   .module-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-search {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-card,
+  .module-arrow {
+    transition: none;
   }
 }
 </style>

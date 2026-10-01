@@ -300,6 +300,61 @@ body {
   color: var(--primary);
 }
 
+/* ====== 页面布局（UI 统一 spec §3.1 间距基准） ====== */
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* 统计卡网格：4 → 2 列 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* 区块纵向间距 */
+.section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 两栏区块，<1024px 堆叠 */
+.section-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+
+  .stat-grid {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .section-stack,
+  .section-split {
+    gap: 16px;
+  }
+}
+
 /* 页面切换动画（Sprint 3） */
 .page-enter-active {
   transition: opacity 0.25s ease, transform 0.25s ease;

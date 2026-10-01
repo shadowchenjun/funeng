@@ -14,8 +14,6 @@
   .smart-agri-container,
   .digital-marketing-container,
   .cold-chain-container,
-  .finance-container,
-  .admin-container,
   .home-container {
     padding: 8px !important;
     margin: 0 !important;
@@ -120,24 +118,8 @@
 }
 
 /* ====== 首页移动端 ======
- * 已删除：HomeView 自带响应式样式，此处覆写与其冲突（UI 统一 spec §3.3）
- * AdminView 的 .module-card 移动端规则暂保留，U2 迁移时删除 */
+ * 已删除：HomeView 自带响应式样式，此处覆写与其冲突（UI 统一 spec §3.3） */
 @media (max-width: 768px) {
-  .admin-container .module-card {
-    padding: 15px 10px !important;
-    margin-bottom: 10px !important;
-  }
-
-  .admin-container .module-card h3 {
-    font-size: 14px !important;
-    margin: 8px 0 !important;
-  }
-
-  .admin-container .module-card p {
-    font-size: 11px !important;
-    min-height: auto !important;
-  }
-
   .stat-item .stat-value {
     font-size: 20px !important;
   }

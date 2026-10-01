@@ -12,7 +12,7 @@
         </div>
       </div>
       <div v-if="icon" class="stat-icon">
-        <el-icon :size="24" :color="accent">
+        <el-icon :color="accent">
           <component :is="icon" />
         </el-icon>
       </div>
@@ -129,8 +129,26 @@ const accent = computed(() =>
   width: 52px;
   height: 52px;
   flex-shrink: 0;
+  font-size: 24px;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
+}
+
+@media (max-width: 768px) {
+  .stat-body {
+    gap: 8px;
+    padding: 18px 14px 14px;
+  }
+
+  .stat-value {
+    font-size: var(--font-lg);
+  }
+
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

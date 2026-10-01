@@ -65,8 +65,29 @@
 ---
 
 ### Sprint U2: 世代①清除（AdminView、SupplyChainFinance）
-- [ ] `.header` → PageHeader；统计 → StatCard（按 spec 图标表）；区块 → SectionCard
-- [ ] EP 灰 / `#409EFF` → 令牌；去 emoji；删除两页专属 responsive.css 规则
+
+**实现清单：**
+- [x] 全局布局类（App.vue）：`.page-container`、`.stat-grid`（4→2 列）、`.section-stack`、`.section-split`（<1024px 堆叠）
+- [x] `.header` → PageHeader（刷新按钮改 plain + Refresh 图标）；统计 → StatCard；区块 → SectionCard（标题图标 + extra 插槽）
+- [x] 金融：信用评估改为定义列表、空态用 EmptyState、评分环取令牌色值；保险/信用两栏用 `.section-split`；弹窗套 `dialog-sm`
+- [x] 管理后台：板块入口统一品牌蓝（去掉四色身份色）、改为 `<button>` 可键盘聚焦；角色标签 primary/info
+- [x] EP 灰 / `#409EFF` / emoji 清零；表格关键列 `min-width`，窄屏横向滚动而非挤压换行
+- [x] responsive.css 删除 `.finance-container`、`.admin-container`、`.admin-container .module-card` 规则
+- [x] StatCard 移动端紧凑（图标 36px，字号随 CSS 继承，无 `!important`）
+
+**验证记录（2026-10-01，headless Chrome，后端连 funeng.db 副本）：**
+- 两页 × 1440/390px 截图：无横向溢出、无控制台错误
+- 「申请融资」弹窗：宽 480px，`class="el-dialog dialog-sm"` 生效
+- `vue-tsc` ✅；`agent-lint` 0 error，旧色/emoji 警告中这两页条目清零
+
+**自评估（Generator 填写）：**
+| 维度 | 自评分 | 说明 |
+|------|--------|------|
+| 功能完整性 | 37/40 | 业务逻辑与接口调用未改；「详情/催收」按钮原本无行为，保持原样 |
+| 代码质量 | 27/30 | 统计卡元数据与取值分离；未新增 `!important` |
+| 视觉设计 | 18/20 | 与首页同代；金融页长表格无分页（原样保留，属信息架构） |
+| 测试覆盖 | 7/10 | 类型检查、lint、浏览器截图；前端无单测 |
+| **总分** | **89/100** | |
 
 ### Sprint U3: 世代②核心（SmartAgriculture、ColdChain）
 - [ ] 灰底统计块 → StatCard；section 卡 → SectionCard；导航卡 → NavCard（冷链 11 项按四组重排）

@@ -1,101 +1,89 @@
 <template>
-  <div class="finance-container">
-    <div class="header">
-      <h2>💰 供应链金融</h2>
-      <el-button type="primary" :loading="loading" @click="refreshData">
-        刷新数据
-      </el-button>
-    </div>
-    
+  <div class="page-container">
+    <PageHeader title="供应链金融" subtitle="订单融资 · 应收账款 · 农业保险 · 信用评估">
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="refreshData">刷新数据</el-button>
+      </template>
+    </PageHeader>
+
     <!-- 金融数据概览 -->
-    <el-row :gutter="20" class="stat-cards" v-loading="loading">
-      <el-col :span="6" v-for="stat in financeStats" :key="stat.title">
-        <el-card class="stat-card" :style="{ borderLeft: `4px solid ${stat.color}` }">
-          <div class="stat-info">
-            <h3>{{ stat.value }}</h3>
-            <p>{{ stat.title }}</p>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-    
-    <!-- 融资申请 -->
-    <el-card class="section-card">
-      <template #header>
-        <div class="card-header">
-          <h3>💳 订单融资</h3>
-          <el-button type="primary" size="small" @click="showFinanceDialog('order')">申请融资</el-button>
-        </div>
-      </template>
-      <el-table :data="orderFinance" v-loading="loading" empty-text="暂无融资数据" style="width: 100%">
-        <el-table-column prop="order_no" label="订单号" width="160" />
-        <el-table-column label="订单金额">
-          <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
-        </el-table-column>
-        <el-table-column label="融资金额">
-          <template #default="{ row }">{{ formatMoney(row.financed_amount) }}</template>
-        </el-table-column>
-        <el-table-column label="利率">
-          <template #default="{ row }">{{ row.rate }}%</template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+    <div class="stat-grid" v-loading="loading">
+      <StatCard
+        v-for="stat in financeStats"
+        :key="stat.title"
+        :value="stat.value"
+        :title="stat.title"
+        :type="stat.type"
+        :icon="stat.icon"
+      />
+    </div>
+
+    <div class="section-stack">
+      <!-- 融资申请 -->
+      <SectionCard title="订单融资" :icon="CreditCard">
+        <template #extra>
+          <el-button type="primary" @click="showFinanceDialog('order')">申请融资</el-button>
+        </template>
+        <el-table :data="orderFinance" v-loading="loading" empty-text="暂无融资数据">
+          <el-table-column prop="order_no" label="订单号" width="160" />
+          <el-table-column label="订单金额">
+            <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
+          </el-table-column>
+          <el-table-column label="融资金额">
+            <template #default="{ row }">{{ formatMoney(row.financed_amount) }}</template>
+          </el-table-column>
+          <el-table-column label="利率">
+            <template #default="{ row }">{{ row.rate }}%</template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="apply_date" label="申请日期" />
+        </el-table>
+      </SectionCard>
+
+      <!-- 应收账款 -->
+      <SectionCard title="应收账款" :icon="Tickets">
+        <template #extra>
+          <el-button type="primary" @click="showFinanceDialog('receivable')">转让应收款</el-button>
+        </template>
+        <el-table :data="receivables" v-loading="loading" empty-text="暂无应收账款">
+          <el-table-column prop="invoice_no" label="发票号" width="160" />
+          <el-table-column prop="debtor" label="买方" min-width="140" />
+          <el-table-column label="金额">
+            <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
+          </el-table-column>
+          <el-table-column prop="due_date" label="到期日" />
+          <el-table-column prop="status" label="状态" width="160">
+            <template #default="{ row }">
+              <el-tag :type="getReceivableStatusType(row.status)">{{ row.status }}</el-tag>
+              <el-tag v-if="row.financing_order_id" type="info" class="transferred-tag">已转让</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180">
+            <template #default="{ row }">
+              <el-button
+                v-if="['未到期', '即将到期'].includes(row.status) && !row.financing_order_id"
+                type="primary"
+                link
+                @click="showTransferDialog(row)"
+              >转让</el-button>
+              <el-button type="primary" link>详情</el-button>
+              <el-button type="primary" link>催收</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </SectionCard>
+
+      <div class="section-split">
+        <!-- 农业保险 -->
+        <SectionCard title="农业保险" :icon="Umbrella">
+          <template #extra>
+            <el-button type="primary" @click="showInsuranceDialog">购买保险</el-button>
           </template>
-        </el-table-column>
-        <el-table-column prop="apply_date" label="申请日期" />
-      </el-table>
-    </el-card>
-    
-    <!-- 应收账款 -->
-    <el-card class="section-card">
-      <template #header>
-        <div class="card-header">
-          <h3>📄 应收账款</h3>
-          <el-button type="primary" size="small" @click="showFinanceDialog('receivable')">转让应收款</el-button>
-        </div>
-      </template>
-      <el-table :data="receivables" v-loading="loading" empty-text="暂无应收账款" style="width: 100%">
-        <el-table-column prop="invoice_no" label="发票号" width="160" />
-        <el-table-column prop="debtor" label="买方" />
-        <el-table-column label="金额">
-          <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
-        </el-table-column>
-        <el-table-column prop="due_date" label="到期日" />
-        <el-table-column prop="status" label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="getReceivableStatusType(row.status)">
-              {{ row.status }}
-            </el-tag>
-            <el-tag v-if="row.financing_order_id" type="info" size="small" class="transferred-tag">已转让</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180">
-          <template #default="{ row }">
-            <el-button
-              v-if="['未到期', '即将到期'].includes(row.status) && !row.financing_order_id"
-              type="primary"
-              link
-              @click="showTransferDialog(row)"
-            >转让</el-button>
-            <el-button type="primary" link>详情</el-button>
-            <el-button type="success" link>催收</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-    
-    <!-- 农业保险 -->
-    <el-row :gutter="20">
-      <el-col :span="12">
-        <el-card class="section-card">
-          <template #header>
-            <div class="card-header">
-              <h3>🛡️ 农业保险</h3>
-              <el-button type="primary" size="small" @click="showInsuranceDialog">购买保险</el-button>
-            </div>
-          </template>
-          <el-table :data="insurances" v-loading="loading" empty-text="暂无保单" style="width: 100%">
+          <el-table :data="insurances" v-loading="loading" empty-text="暂无保单">
             <el-table-column label="险种">
               <template #default="{ row }">{{ row.type }} - {{ row.crop }}</template>
             </el-table-column>
@@ -111,16 +99,24 @@
               </template>
             </el-table-column>
           </el-table>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card class="section-card">
-          <template #header>
-            <h3>📊 信用评估</h3>
-          </template>
-          <el-empty v-if="!creditScore && !loading" description="暂无信用评估数据" />
+        </SectionCard>
+
+        <!-- 信用评估 -->
+        <SectionCard title="信用评估" :icon="Medal">
+          <EmptyState
+            v-if="!creditScore && !loading"
+            :icon="Medal"
+            title="暂无信用评估数据"
+            description="完成首次评估后将在此展示信用分与各维度得分"
+          />
           <div v-else-if="creditScore" class="credit-score">
-            <el-progress type="circle" :percentage="scorePercentage(creditScore.credit_score)" :color="getScoreColor(creditScore.credit_score)" :width="150">
+            <el-progress
+              type="circle"
+              :percentage="scorePercentage(creditScore.credit_score)"
+              :color="getScoreColor(creditScore.credit_score)"
+              :width="150"
+              :stroke-width="10"
+            >
               <template #default>
                 <div class="score-content">
                   <span class="score">{{ creditScore.credit_score }}</span>
@@ -128,20 +124,35 @@
                 </div>
               </template>
             </el-progress>
-            <div class="credit-info">
-              <h4>信用等级: <el-tag :type="getLevelType(creditScore.level)">{{ creditScore.level }}</el-tag></h4>
-              <p>评估主体: <span class="highlight">{{ creditScore.entity_name }}（{{ creditScore.entity_type }}）</span></p>
-              <p>财务 / 经营: <span class="highlight">{{ creditScore.factors.financial }} / {{ creditScore.factors.operation }}</span></p>
-              <p>管理 / 行业: <span class="highlight">{{ creditScore.factors.management }} / {{ creditScore.factors.industry }}</span></p>
-              <p>下次复评: <span class="highlight">{{ creditScore.next_review }}</span></p>
-            </div>
+            <dl class="credit-info">
+              <div class="credit-row">
+                <dt>信用等级</dt>
+                <dd><el-tag :type="getLevelType(creditScore.level)">{{ creditScore.level }}</el-tag></dd>
+              </div>
+              <div class="credit-row">
+                <dt>评估主体</dt>
+                <dd>{{ creditScore.entity_name }}（{{ creditScore.entity_type }}）</dd>
+              </div>
+              <div class="credit-row">
+                <dt>财务 / 经营</dt>
+                <dd>{{ creditScore.factors.financial }} / {{ creditScore.factors.operation }}</dd>
+              </div>
+              <div class="credit-row">
+                <dt>管理 / 行业</dt>
+                <dd>{{ creditScore.factors.management }} / {{ creditScore.factors.industry }}</dd>
+              </div>
+              <div class="credit-row">
+                <dt>下次复评</dt>
+                <dd>{{ creditScore.next_review }}</dd>
+              </div>
+            </dl>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-    
+        </SectionCard>
+      </div>
+    </div>
+
     <!-- 融资申请对话框 -->
-    <el-dialog v-model="financeDialogVisible" :title="financeType === 'order' ? '订单融资申请' : '应收账款转让'" width="500px">
+    <el-dialog v-model="financeDialogVisible" :title="financeType === 'order' ? '订单融资申请' : '应收账款转让'" class="dialog-sm">
       <el-form ref="financeFormRef" :model="financeForm" :rules="financeRules" label-width="100px">
         <el-form-item label="融资类型">
           <el-select v-model="financeType" disabled>
@@ -153,7 +164,7 @@
           <el-input v-model="financeForm.product" maxlength="100" placeholder="如：有机大米订单" />
         </el-form-item>
         <el-form-item v-else label="应收账款" prop="receivableId">
-          <el-select v-model="financeForm.receivableId" placeholder="选择未到期的应收账款" style="width: 100%" @change="onReceivableChange">
+          <el-select v-model="financeForm.receivableId" placeholder="选择未到期的应收账款" class="full-width" @change="onReceivableChange">
             <el-option
               v-for="r in transferableReceivables"
               :key="r.id"
@@ -192,7 +203,7 @@
     </el-dialog>
     
     <!-- 保险购买对话框 -->
-    <el-dialog v-model="insuranceDialogVisible" title="购买农业保险" width="500px">
+    <el-dialog v-model="insuranceDialogVisible" title="购买农业保险" class="dialog-sm">
       <el-form ref="insuranceFormRef" :model="insuranceForm" :rules="insuranceRules" label-width="100px">
         <el-form-item label="险种类型" prop="type">
           <el-select v-model="insuranceForm.type">
@@ -229,6 +240,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import axios from 'axios'
+import type { Component } from 'vue'
+import { CreditCard, Medal, Money, Refresh, Tickets, TrendCharts, Umbrella, Wallet } from '@element-plus/icons-vue'
 import { formatMoneyCompact as formatMoney } from '../utils/format'
 
 const API = '/api/supply-chain-finance'
@@ -302,14 +315,15 @@ interface CreditAssessment {
   }
 }
 
-interface StatCard {
+interface FinanceStat {
   title: string
   value: string
-  color: string
+  type: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  icon: Component
 }
 
 const loading = ref(false)
-const financeStats = ref<StatCard[]>([])
+const financeStats = ref<FinanceStat[]>([])
 const orderFinance = ref<FinancingOrder[]>([])
 const receivables = ref<Receivable[]>([])
 const insurances = ref<Insurance[]>([])
@@ -333,10 +347,10 @@ const fetchData = async () => {
     insurances.value = insRes.data
     creditScore.value = creditRes.data[0] ?? null
     financeStats.value = [
-      { title: '总融资额', value: formatMoney(finStatsRes.data.total_financed), color: '#409EFF' },
-      { title: '应收未收', value: formatMoney(recStatsRes.data.outstanding), color: '#E6A23C' },
-      { title: '平均融资利率', value: `${finStatsRes.data.avg_rate}%`, color: '#67C23A' },
-      { title: '保险保障', value: formatMoney(insStatsRes.data.total_coverage), color: '#F56C6C' }
+      { title: '总融资额', value: formatMoney(finStatsRes.data.total_financed), type: 'primary', icon: Money },
+      { title: '应收未收', value: formatMoney(recStatsRes.data.outstanding), type: 'warning', icon: Wallet },
+      { title: '平均融资利率', value: `${finStatsRes.data.avg_rate}%`, type: 'success', icon: TrendCharts },
+      { title: '保险保障', value: formatMoney(insStatsRes.data.total_coverage), type: 'primary', icon: Umbrella }
     ]
   } catch (e) {
     const detail = axios.isAxiosError(e) ? e.response?.data?.detail : undefined
@@ -427,11 +441,12 @@ const getReceivableStatusType = (status: string) => {
 // 信用分区间为 300-850，换算为进度百分比
 const scorePercentage = (score: number) => Math.min(100, Math.max(0, Math.round(((score - 300) / 550) * 100)))
 
+// el-progress 的 color 写入 SVG stroke，取设计令牌的色值（--color-success / --primary / --color-warning / --color-danger）
 const getScoreColor = (score: number) => {
-  if (score >= 750) return '#67C23A'
-  if (score >= 650) return '#409EFF'
-  if (score >= 550) return '#E6A23C'
-  return '#F56C6C'
+  if (score >= 750) return '#10B981'
+  if (score >= 650) return '#165DFF'
+  if (score >= 550) return '#F59E0B'
+  return '#EF4444'
 }
 
 const getLevelType = (level: string) => {
@@ -520,102 +535,82 @@ const submitInsurance = async () => {
 <style scoped>
 .form-tip {
   margin-left: 12px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+.full-width {
+  width: 100%;
 }
 
 .transferred-tag {
   margin-left: 6px;
 }
 
-.finance-container {
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.header h2 {
-  font-size: 24px;
-  color: #303133;
-}
-
-.stat-cards {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.stat-info h3 {
-  font-size: 24px;
-  margin: 0 0 5px;
-  color: #303133;
-}
-
-.stat-info p {
-  margin: 0;
-  color: #909399;
-}
-
-.section-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #303133;
-}
-
 .credit-score {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 32px;
+  padding: 8px 0;
 }
 
 .score-content {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .score-content .score {
-  display: block;
-  font-size: 36px;
-  font-weight: bold;
-  color: #303133;
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .score-content .label {
-  font-size: 14px;
-  color: #909399;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 
-.credit-info h4 {
-  margin: 0 0 15px;
+.credit-info {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
 }
 
-.credit-info p {
-  margin: 8px 0;
-  color: #606266;
+.credit-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  font-size: var(--font-sm);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.credit-info .highlight {
-  color: #409EFF;
-  font-weight: bold;
+.credit-row:last-child {
+  border-bottom: none;
+}
+
+.credit-row dt {
+  color: var(--text-secondary);
+}
+
+.credit-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .credit-score {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .credit-info {
+    width: 100%;
+  }
 }
 </style>

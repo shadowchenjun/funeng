@@ -70,7 +70,7 @@
 
 首页 hero（36px+）为唯一例外，不入字阶。
 
-**间距基准**：页面留白 24px（移动端 16px）、区块间距 24px、卡内边距 20px/24px、栅格 gap 16-24px。
+**间距基准**：页面留白 32px/24px（`.page-container`，与首页/看板一致；移动端 16px）、区块间距 24px、卡内边距 20px/24px、栅格 gap 16-24px。
 
 ### 3.2 Element Plus 主题接管（一处覆盖，全站生效）
 
@@ -123,7 +123,9 @@
 | `MotionCard` | 已存在，按需 | 通用动效卡 |
 | `PageSection` | 已存在，**删除**（r2） | 职责（28px 标题 + 副标题）与 PageHeader 重叠且无人引用，U1 删除 |
 
-**StatCard 图标约定**（mockup 中 🏭✅🔔🚨 仅为占位，实现时照此表，不得抄 emoji）：仓库/库存 `House`/`Box`、合格率/成功 `CircleCheck`、预警 `Bell`、告警/危险 `Warning`、金额 `Money`、订单 `Document`、车辆/运输 `Van`、设备 `Monitor`、温度 `Odometer`、用户 `User`、趋势 `TrendCharts`；新增需先补本表。
+**StatCard 图标约定**（mockup 中 🏭✅🔔🚨 仅为占位，实现时照此表，不得抄 emoji）：仓库/库存 `House`/`Box`、合格率/成功 `CircleCheck`、预警 `Bell`、告警/危险 `Warning`、金额 `Money`、订单 `Document`、车辆/运输 `Van`、设备 `Monitor`、温度 `Odometer`、用户 `User`、趋势 `TrendCharts`、钱包/应收 `Wallet`、保险 `Umbrella`、票据 `Tickets`、融资 `CreditCard`、信用 `Medal`、管理员 `UserFilled`、板块入口 `Grid`；页头刷新按钮用 `Refresh`（plain 次按钮）；新增需先补本表。
+
+**StatCard 配色规则（U2 定）**：中性计数/金额一律 `primary`；只有指标本身表达状态时才用语义色（如活跃=success、待收/待处理=warning、告警/逾期=danger）。`info`（灰条）观感像禁用，不用于统计卡。
 
 ### 3.5 交互规范
 
