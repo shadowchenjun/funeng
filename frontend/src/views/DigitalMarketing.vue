@@ -1,251 +1,164 @@
 <template>
-  <div class="digital-marketing-container">
-    <!-- 页面头部 -->
-    <header class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">📱 数字营销</h1>
-        <p class="page-subtitle">数据驱动 · 精准触达 · 高效转化</p>
-      </div>
-    </header>
+  <div class="page-container">
+    <PageHeader title="数字营销" subtitle="数据驱动 · 精准触达 · 高效转化" />
 
-    <!-- 快捷入口 -->
-    <div class="quick-nav-grid">
-      <div
-        v-for="(item, index) in navItems"
-        :key="item.key"
-        class="nav-card"
-        :style="{ '--accent': item.color, '--delay': `${index * 0.05}s` }"
-        @click="setActiveTab(item.key)"
-      >
-        <div class="nav-card-glow"></div>
-        <div class="nav-card-content">
-          <div class="nav-icon-wrapper">
-            <el-icon :size="28" :color="item.color">
-              <component :is="item.icon" />
-            </el-icon>
-          </div>
-          <span class="nav-label">{{ item.label }}</span>
-        </div>
-      </div>
-    </div>
+    <ModuleNav v-model="activeTab" :groups="navGroups" aria-label="数字营销功能导航" />
 
     <!-- 数据概览 -->
-    <div v-if="activeTab === 'stats'">
-      <el-row :gutter="10" class="stat-cards">
-        <el-col :span="12" v-for="stat in marketingStats" :key="stat.title">
-          <el-card class="stat-card" :style="{ borderLeft: `4px solid ${stat.color}` }">
-            <div class="stat-info">
-              <h3>{{ stat.value }}</h3>
-              <p>{{ stat.title }}</p>
-              <span :class="['trend', stat.trend > 0 ? 'up' : 'down']">
-                {{ stat.trend > 0 ? '↑' : '↓' }} {{ Math.abs(stat.trend) }}%
-              </span>
+    <div v-show="activeTab === 'stats'">
+      <div class="stat-grid">
+        <StatCard
+          v-for="stat in marketingStats"
+          :key="stat.title"
+          :value="stat.value"
+          :title="stat.title"
+          :trend="stat.trend"
+          :type="stat.type"
+          :icon="stat.icon"
+        />
+      </div>
+
+      <SectionCard title="渠道概览" :icon="ChatDotRound">
+        <div class="tile-grid">
+          <div v-for="ch in channelCards.slice(0, 3)" :key="ch.name" class="tile channel-tile">
+            <span class="channel-icon"><el-icon :size="22"><component :is="ch.icon" /></el-icon></span>
+            <div class="channel-body">
+              <div class="tile-title">{{ ch.name }}</div>
+              <div class="tile-meta">
+                <span v-for="row in ch.rows" :key="row.label">{{ row.label }}：<b class="channel-num">{{ row.value }}</b></span>
+              </div>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
-      
-      <!-- 营销渠道 -->
-      <el-row :gutter="10" class="channel-section">
-        <el-col :span="8">
-          <el-card class="channel-card">
-            <div class="channel-icon">
-              <el-icon :size="32" color="#07C160">
-                <VideoCamera />
-              </el-icon>
-            </div>
-            <h4>直播带货</h4>
-            <p>直播: <span class="highlight">{{ channelStats.liveSessions }}</span></p>
-            <p>销售额: <span class="highlight">{{ formatMoney(channelStats.liveSales) }}</span></p>
-          </el-card>
-        </el-col>
-        <el-col :span="8">
-          <el-card class="channel-card">
-            <div class="channel-icon">
-              <el-icon :size="32" color="#FF6B00">
-                <ChatDotRound />
-              </el-icon>
-            </div>
-            <h4>社交推广</h4>
-            <p>粉丝: <span class="highlight">{{ formatNumber(channelStats.followers) }}</span></p>
-            <p>新增: <span class="highlight">+{{ formatNumber(channelStats.newFollowers) }}</span></p>
-          </el-card>
-        </el-col>
-        <el-col :span="8">
-          <el-card class="channel-card">
-            <div class="channel-icon">
-              <el-icon :size="32" color="#0089FF">
-                <ShoppingCart />
-              </el-icon>
-            </div>
-            <h4>电商管理</h4>
-            <p>商品: <span class="highlight">{{ channelStats.products }}</span></p>
-            <p>订单: <span class="highlight">{{ channelStats.pendingOrders }}</span></p>
-          </el-card>
-        </el-col>
-      </el-row>
+          </div>
+        </div>
+      </SectionCard>
     </div>
-    
+
     <!-- 会员管理 -->
-    <el-card v-if="activeTab === 'member'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>👥 会员管理</span>
-          <el-button type="primary" size="small" @click="showMemberDialog()">+ 添加会员</el-button>
-        </div>
-      </template>
-      
-      <!-- 移动端卡片式会员列表 -->
-      <div class="member-cards">
-        <el-card v-for="member in members" :key="member.id" class="member-card">
-          <div class="member-info">
-            <el-avatar :size="40" :style="{ backgroundColor: getLevelColor(member.level) }">
-              {{ member.name.charAt(0) }}
-            </el-avatar>
-            <div class="member-detail">
-              <div class="member-name">{{ member.name }}</div>
-              <div class="member-phone">{{ member.phone }}</div>
+    <div v-show="activeTab === 'member'">
+      <SectionCard title="会员管理" :icon="User">
+        <template #extra>
+          <el-button type="primary" :icon="Plus" @click="showMemberDialog()">添加会员</el-button>
+        </template>
+        <EmptyState v-if="members.length === 0" :icon="User" title="暂无会员" description="点击「添加会员」创建第一位会员" />
+        <div v-else class="tile-grid">
+          <div v-for="member in members" :key="member.id" class="tile">
+            <div class="tile-header">
+              <span class="member-head">
+                <el-avatar :size="36" class="member-avatar">{{ member.name.charAt(0) }}</el-avatar>
+                <span>
+                  <span class="tile-title">{{ member.name }}</span>
+                  <span class="member-phone">{{ member.phone }}</span>
+                </span>
+              </span>
+              <el-tag :type="getLevelType(member.level)">{{ member.level }}</el-tag>
             </div>
-            <el-tag :type="getLevelType(member.level)" size="small">{{ member.level }}</el-tag>
+            <div class="tile-meta">
+              <span>积分：{{ member.points }} · 消费：{{ member.totalSpent }}</span>
+            </div>
+            <div class="tile-actions">
+              <el-button type="primary" link @click="editMember(member)">编辑</el-button>
+              <el-button type="danger" link @click="deleteMember(member)">删除</el-button>
+            </div>
           </div>
-          <div class="member-stats">
-            <span>积分: {{ member.points }}</span>
-            <span>消费: {{ member.totalSpent }}</span>
-          </div>
-          <div class="member-actions">
-            <el-button type="primary" link size="small" @click="editMember(member)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteMember(member)">删除</el-button>
-          </div>
-        </el-card>
-      </div>
-    </el-card>
-    
-    <!-- 营销活动 -->
-    <el-card v-if="activeTab === 'campaign'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>🎯 营销活动</span>
-          <el-button type="primary" size="small" @click="showCampaignDialog()">+ 创建活动</el-button>
         </div>
-      </template>
-      
-      <!-- 移动端卡片式活动列表 -->
-      <div class="campaign-cards">
-        <el-card v-for="campaign in campaigns" :key="campaign.id" class="campaign-card">
-          <div class="campaign-header">
-            <h4>{{ campaign.name }}</h4>
-            <el-tag :type="campaign.status === '进行中' ? 'success' : 'info'" size="small">
-              {{ campaign.status }}
-            </el-tag>
+      </SectionCard>
+    </div>
+
+    <!-- 营销活动 -->
+    <div v-show="activeTab === 'campaign'">
+      <SectionCard title="营销活动" :icon="Present">
+        <template #extra>
+          <el-button type="primary" :icon="Plus" @click="showCampaignDialog()">创建活动</el-button>
+        </template>
+        <EmptyState v-if="campaigns.length === 0" :icon="Present" title="暂无营销活动" description="点击「创建活动」发起第一个活动" />
+        <div v-else class="tile-grid">
+          <div v-for="campaign in campaigns" :key="campaign.id" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ campaign.name }}</span>
+              <el-tag :type="campaign.status === '进行中' ? 'success' : 'info'">{{ campaign.status }}</el-tag>
+            </div>
+            <div class="tile-meta">
+              <span>类型：{{ campaign.type }} · 参与：{{ campaign.participants }} 人</span>
+              <span>销售额：{{ campaign.sales }}</span>
+              <span>截止：{{ campaign.endDate || '—' }}</span>
+            </div>
+            <div class="tile-actions">
+              <el-button type="primary" link @click="editCampaign(campaign)">编辑</el-button>
+              <el-button type="danger" link @click="deleteCampaign(campaign)">删除</el-button>
+            </div>
           </div>
-          <div class="campaign-info">
-            <span>类型: {{ campaign.type }}</span>
-            <span>参与: {{ campaign.participants }}人</span>
-            <span>销售额: {{ campaign.sales }}</span>
-            <span>截止: {{ campaign.endDate }}</span>
+        </div>
+      </SectionCard>
+    </div>
+
+    <!-- 营销渠道 -->
+    <div v-show="activeTab === 'channel'">
+      <SectionCard title="营销渠道" :icon="ChatDotRound">
+        <div class="tile-grid">
+          <div v-for="ch in channelCards" :key="ch.name" class="tile channel-tile">
+            <span class="channel-icon"><el-icon :size="22"><component :is="ch.icon" /></el-icon></span>
+            <div class="channel-body">
+              <div class="tile-title">{{ ch.name }}</div>
+              <div class="tile-meta">
+                <span v-for="row in ch.detail" :key="row.label">{{ row.label }}：<b class="channel-num">{{ row.value }}</b></span>
+              </div>
+              <div class="tile-actions channel-actions">
+                <el-button>管理</el-button>
+              </div>
+            </div>
           </div>
-          <div class="campaign-actions">
-            <el-button type="primary" link size="small" @click="editCampaign(campaign)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteCampaign(campaign)">删除</el-button>
-          </div>
-        </el-card>
-      </div>
-    </el-card>
-    
-    <!-- 营销渠道详情 -->
-    <el-card v-if="activeTab === 'channel'" class="section-card">
-      <template #header>
-        <span>📢 营销渠道</span>
-      </template>
-      
-      <el-row :gutter="10">
-        <el-col :span="12">
-          <el-card class="channel-detail-card">
-            <el-icon :size="32" color="#07C160"><VideoCamera /></el-icon>
-            <h4>直播带货</h4>
-            <p>进行中: {{ channelStats.liveSessions }}</p>
-            <p>今日销售额: {{ formatMoney(channelStats.liveSales) }}</p>
-            <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
-          </el-card>
-        </el-col>
-        <el-col :span="12">
-          <el-card class="channel-detail-card">
-            <el-icon :size="32" color="#FF6B00"><ChatDotRound /></el-icon>
-            <h4>社交推广</h4>
-            <p>粉丝: {{ formatNumber(channelStats.followers) }}</p>
-            <p>今日新增: +{{ formatNumber(channelStats.newFollowers) }}</p>
-            <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
-          </el-card>
-        </el-col>
-        <el-col :span="12">
-          <el-card class="channel-detail-card">
-            <el-icon :size="32" color="#0089FF"><ShoppingCart /></el-icon>
-            <h4>电商管理</h4>
-            <p>在售: {{ channelStats.products }}</p>
-            <p>待处理: {{ channelStats.pendingOrders }}</p>
-            <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
-          </el-card>
-        </el-col>
-        <el-col :span="12">
-          <el-card class="channel-detail-card">
-            <el-icon :size="32" color="#F56C6C"><Message /></el-icon>
-            <h4>消息推送</h4>
-            <p>发送: {{ formatNumber(channelStats.pushSent) }}</p>
-            <p>打开率: {{ channelStats.pushOpenRate }}%</p>
-            <el-button type="primary" size="small" style="margin-top: 8px;">管理</el-button>
-          </el-card>
-        </el-col>
-      </el-row>
-    </el-card>
-    
+        </div>
+      </SectionCard>
+    </div>
+
     <!-- 添加/编辑会员对话框 -->
-    <el-dialog v-model="memberDialogVisible" :title="isEditMember ? '编辑会员' : '添加会员'" width="95%">
-      <el-form :model="memberForm" label-width="80px" size="small">
+    <el-dialog v-model="memberDialogVisible" :title="isEditMember ? '编辑会员' : '添加会员'" class="dialog-md">
+      <el-form :model="memberForm" label-width="80px">
         <div class="form-section-title">基本信息</div>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="姓名" required>
               <el-input v-model="memberForm.name" placeholder="会员姓名" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="性别">
-              <el-select v-model="memberForm.gender" style="width: 100%">
+              <el-select v-model="memberForm.gender" class="w-full">
                 <el-option label="男" value="男" />
                 <el-option label="女" value="女" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="电话" required>
               <el-input v-model="memberForm.phone" placeholder="手机号码" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="生日">
-              <el-date-picker v-model="memberForm.birthday" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+              <el-date-picker v-model="memberForm.birthday" type="date" placeholder="选择日期" class="w-full" value-format="YYYY-MM-DD" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="邮箱">
               <el-input v-model="memberForm.email" placeholder="邮箱地址" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="地址">
               <el-input v-model="memberForm.address" placeholder="联系地址" />
             </el-form-item>
           </el-col>
         </el-row>
         <div class="form-section-title">会员信息</div>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="等级">
-              <el-select v-model="memberForm.level" style="width: 100%">
+              <el-select v-model="memberForm.level" class="w-full">
                 <el-option label="普通会员" value="普通" />
                 <el-option label="银牌会员" value="银牌" />
                 <el-option label="金牌会员" value="金牌" />
@@ -253,39 +166,39 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="注册日期">
-              <el-date-picker v-model="memberForm.registerDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+              <el-date-picker v-model="memberForm.registerDate" type="date" placeholder="选择日期" class="w-full" value-format="YYYY-MM-DD" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="积分">
-              <el-input-number v-model="memberForm.points" :min="0" style="width: 100%" />
+              <el-input-number v-model="memberForm.points" :min="0" class="w-full" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="消费额">
-              <el-input v-model="memberForm.totalSpent" placeholder="如: ¥10,000" />
+              <el-input v-model="memberForm.totalSpent" placeholder="如：¥10,000" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="memberDialogVisible = false" size="small">取消</el-button>
-        <el-button type="primary" @click="saveMember" size="small">保存</el-button>
+        <el-button @click="memberDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveMember">保存</el-button>
       </template>
     </el-dialog>
     
     <!-- 创建/编辑活动对话框 -->
-    <el-dialog v-model="campaignDialogVisible" :title="isEditCampaign ? '编辑活动' : '创建活动'" width="95%">
-      <el-form :model="campaignForm" label-width="70px" size="small">
+    <el-dialog v-model="campaignDialogVisible" :title="isEditCampaign ? '编辑活动' : '创建活动'" class="dialog-sm">
+      <el-form :model="campaignForm" label-width="80px">
         <el-form-item label="活动名称" required>
           <el-input v-model="campaignForm.name" placeholder="活动名称" />
         </el-form-item>
         <el-form-item label="活动类型">
-          <el-select v-model="campaignForm.type" style="width: 100%">
+          <el-select v-model="campaignForm.type" class="w-full">
             <el-option label="满减活动" value="满减活动" />
             <el-option label="折扣活动" value="折扣活动" />
             <el-option label="试用活动" value="试用活动" />
@@ -294,45 +207,51 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="campaignForm.status" style="width: 100%">
+          <el-select v-model="campaignForm.status" class="w-full">
             <el-option label="进行中" value="进行中" />
             <el-option label="未开始" value="未开始" />
             <el-option label="已结束" value="已结束" />
           </el-select>
         </el-form-item>
         <el-form-item label="参与人数">
-          <el-input-number v-model="campaignForm.participants" :min="0" style="width: 100%" />
+          <el-input-number v-model="campaignForm.participants" :min="0" class="w-full" />
         </el-form-item>
         <el-form-item label="销售额">
-          <el-input v-model="campaignForm.sales" placeholder="如: ¥100,000" />
+          <el-input v-model="campaignForm.sales" placeholder="如：¥100,000" />
         </el-form-item>
         <el-form-item label="结束日期">
-          <el-date-picker v-model="campaignForm.endDate" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
+          <el-date-picker v-model="campaignForm.endDate" type="date" placeholder="选择日期" class="w-full" value-format="YYYY-MM-DD" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="campaignDialogVisible = false" size="small">取消</el-button>
-        <el-button type="primary" @click="saveCampaign" size="small">保存</el-button>
+        <el-button @click="campaignDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveCampaign">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataAnalysis, User, Present, ChatDotRound, VideoCamera, ShoppingCart, Message } from '@element-plus/icons-vue'
+import {
+  ChatDotRound, DataAnalysis, Message, Money, Plus, Present, ShoppingCart, TrendCharts, User, UserFilled, VideoCamera, View
+} from '@element-plus/icons-vue'
+import type { Component } from 'vue'
+import type { ModuleNavGroup } from '../components/ui/ModuleNav.vue'
 import axios from 'axios'
 import { formatMoneyExact as formatMoney } from '../utils/format'
 
 const activeTab = ref('stats')
-const setActiveTab = (tab: string) => { activeTab.value = tab }
-
-const navItems = [
-  { key: 'stats', label: '数据概览', icon: DataAnalysis, color: '#3B82F6' },
-  { key: 'member', label: '会员管理', icon: User, color: '#10B981' },
-  { key: 'campaign', label: '营销活动', icon: Present, color: '#F59E0B' },
-  { key: 'channel', label: '营销渠道', icon: ChatDotRound, color: '#8B5CF6' }
+const navGroups: ModuleNavGroup[] = [
+  {
+    items: [
+      { key: 'stats', label: '数据概览', icon: DataAnalysis },
+      { key: 'member', label: '会员管理', icon: User },
+      { key: 'campaign', label: '营销活动', icon: Present },
+      { key: 'channel', label: '营销渠道', icon: ChatDotRound }
+    ]
+  }
 ]
 
 // 会员数据
@@ -386,11 +305,19 @@ const loadCampaigns = async () => {
 // 营销数据（来自 /analytics：今日指标及与昨日对比）
 const formatNumber = (n: number) => Number(n || 0).toLocaleString('zh-CN')
 
-const marketingStats = ref([
-  { title: '今日销售额', value: '--', color: '#67C23A', trend: 0 },
-  { title: '访客数量', value: '--', color: '#409EFF', trend: 0 },
-  { title: '转化率', value: '--', color: '#E6A23C', trend: 0 },
-  { title: '新增会员', value: '--', color: '#F56C6C', trend: 0 }
+interface MarketingStat {
+  title: string
+  value: string
+  trend: number
+  type: 'primary' | 'success'
+  icon: Component
+}
+
+const marketingStats = ref<MarketingStat[]>([
+  { title: '今日销售额', value: '--', trend: 0, type: 'primary', icon: Money },
+  { title: '访客数量', value: '--', trend: 0, type: 'primary', icon: View },
+  { title: '转化率', value: '--', trend: 0, type: 'primary', icon: TrendCharts },
+  { title: '新增会员', value: '--', trend: 0, type: 'primary', icon: UserFilled }
 ])
 
 const channelStats = reactive({
@@ -398,16 +325,40 @@ const channelStats = reactive({
   products: 0, pendingOrders: 0, pushSent: 0, pushOpenRate: 0
 })
 
+// 渠道卡片：概览页取前 3 个渠道的摘要（rows），渠道页展示全部 4 个（detail）
+const channelCards = computed(() => [
+  {
+    name: '直播带货', icon: VideoCamera,
+    rows: [{ label: '直播', value: channelStats.liveSessions }, { label: '销售额', value: formatMoney(channelStats.liveSales) }],
+    detail: [{ label: '进行中', value: channelStats.liveSessions }, { label: '今日销售额', value: formatMoney(channelStats.liveSales) }]
+  },
+  {
+    name: '社交推广', icon: ChatDotRound,
+    rows: [{ label: '粉丝', value: formatNumber(channelStats.followers) }, { label: '新增', value: `+${formatNumber(channelStats.newFollowers)}` }],
+    detail: [{ label: '粉丝', value: formatNumber(channelStats.followers) }, { label: '今日新增', value: `+${formatNumber(channelStats.newFollowers)}` }]
+  },
+  {
+    name: '电商管理', icon: ShoppingCart,
+    rows: [{ label: '商品', value: channelStats.products }, { label: '订单', value: channelStats.pendingOrders }],
+    detail: [{ label: '在售', value: channelStats.products }, { label: '待处理', value: channelStats.pendingOrders }]
+  },
+  {
+    name: '消息推送', icon: Message,
+    rows: [],
+    detail: [{ label: '发送', value: formatNumber(channelStats.pushSent) }, { label: '打开率', value: `${channelStats.pushOpenRate}%` }]
+  }
+])
+
 const loadAnalytics = async () => {
   try {
     const res = await axios.get('/api/digital-marketing/analytics')
     const t = res.data.today || {}
     const ch = res.data.channels || {}
     marketingStats.value = [
-      { title: '今日销售额', value: formatMoney(t.sales), color: '#67C23A', trend: t.sales_trend || 0 },
-      { title: '访客数量', value: formatNumber(t.visitors), color: '#409EFF', trend: t.visitors_trend || 0 },
-      { title: '转化率', value: `${t.conversion_rate || 0}%`, color: '#E6A23C', trend: t.conversion_trend || 0 },
-      { title: '新增会员', value: formatNumber(t.new_members), color: '#F56C6C', trend: t.new_members_trend || 0 }
+      { title: '今日销售额', value: formatMoney(t.sales), trend: t.sales_trend || 0, type: 'primary', icon: Money },
+      { title: '访客数量', value: formatNumber(t.visitors), trend: t.visitors_trend || 0, type: 'primary', icon: View },
+      { title: '转化率', value: `${t.conversion_rate || 0}%`, trend: t.conversion_trend || 0, type: 'primary', icon: TrendCharts },
+      { title: '新增会员', value: formatNumber(t.new_members), trend: t.new_members_trend || 0, type: 'primary', icon: UserFilled }
     ]
     Object.assign(channelStats, {
       liveSessions: ch.live?.sessions || 0,
@@ -591,15 +542,8 @@ const deleteCampaign = async (campaign: any) => {
 }
 
 // 工具函数
-const getLevelType = (level: string) => {
-  const types: any = { 'VIP': 'danger', '金牌': 'warning', '银牌': 'info', '普通': '' }
-  return types[level] || ''
-}
-
-const getLevelColor = (level: string) => {
-  const colors: any = { 'VIP': '#F56C6C', '金牌': '#E6A23C', '银牌': '#909399', '普通': '#67C23A' }
-  return colors[level] || '#67C23A'
-}
+const levelTypes: Record<string, 'primary' | 'warning' | 'info'> = { 'VIP': 'primary', '金牌': 'warning', '银牌': 'info', '普通': 'info' }
+const getLevelType = (level: string) => levelTypes[level] || 'info'
 
 // 页面加载时获取数据
 onMounted(() => {
@@ -611,309 +555,57 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.digital-marketing-container {
-  padding: 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-  background: var(--bg-secondary, #F8FAFC);
-  min-height: calc(100vh - 64px);
-}
-
-/* ========== 页面头部 ========== */
-.page-header {
+.channel-tile {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 28px;
+  gap: 12px;
 }
 
-.header-left {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary, #0F172A);
-  margin: 0 0 8px 0;
-  letter-spacing: -0.02em;
-}
-
-.page-subtitle {
-  font-size: 15px;
-  color: var(--text-secondary, #475569);
-  margin: 0;
-}
-
-/* ========== 快捷入口导航 ========== */
-.quick-nav-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 28px;
-}
-
-.nav-card {
-  position: relative;
-  background: var(--bg-primary, #FFFFFF);
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 14px;
-  padding: 24px 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  overflow: hidden;
-  animation: fadeInUp 0.4s ease forwards;
-  animation-delay: var(--delay);
-  opacity: 0;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.nav-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent);
-}
-
-.nav-card-glow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s ease;
-}
-
-.nav-card:hover .nav-card-glow {
-  transform: scaleX(1);
-}
-
-.nav-card-content {
-  position: relative;
-}
-
-.nav-icon-wrapper {
-  width: 56px;
-  height: 56px;
+.channel-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary, #F8FAFC);
-  border-radius: 14px;
-  margin: 0 auto 14px;
-  transition: all 0.3s ease;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  color: var(--primary);
+  background: var(--primary-light);
+  border-radius: var(--radius-md);
 }
 
-.nav-card:hover .nav-icon-wrapper {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+.channel-body {
+  flex: 1;
+  min-width: 0;
 }
 
-.nav-label {
+.channel-body .tile-title {
   display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary, #0F172A);
+  margin-bottom: 6px;
 }
 
-/* ========== 响应式 ========== */
-@media (max-width: 768px) {
-  .digital-marketing-container {
-    padding: 20px;
-  }
-
-  .quick-nav-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .nav-card {
-    padding: 20px 12px;
-  }
-
-  .nav-icon-wrapper {
-    width: 48px;
-    height: 48px;
-  }
-
-  .nav-label {
-    font-size: 13px;
-  }
+.channel-num {
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.stat-cards {
-  margin-bottom: 10px;
+.channel-actions {
+  justify-content: flex-start;
 }
 
-.stat-card {
-  margin-bottom: 10px;
-}
-
-.stat-card h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.stat-card p {
-  margin: 5px 0 0 0;
-  font-size: 12px;
-  color: #909399;
-}
-
-.stat-card .trend {
-  font-size: 12px;
-}
-
-.trend.up { color: #67C23A; }
-.trend.down { color: #F56C6C; }
-
-.channel-section {
-  margin-bottom: 10px;
-}
-
-.channel-card {
-  text-align: center;
-}
-
-.channel-card h4 {
-  margin: 8px 0;
-  font-size: 14px;
-}
-
-.channel-card p {
-  margin: 3px 0;
-  font-size: 12px;
-  color: #606266;
-}
-
-.highlight {
-  color: #409eff;
-  font-weight: bold;
-}
-
-.section-card {
-  margin-bottom: 10px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header span {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* 会员卡片 */
-.member-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.member-card {
-  padding: 10px;
-}
-
-.member-info {
+.member-head {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.member-detail {
-  flex: 1;
-}
-
-.member-name {
-  font-size: 14px;
-  font-weight: 500;
+.member-avatar {
+  color: var(--primary);
+  background: var(--primary-light);
+  font-weight: 600;
 }
 
 .member-phone {
-  font-size: 12px;
-  color: #909399;
-}
-
-.member-stats {
-  display: flex;
-  gap: 15px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #606266;
-}
-
-.member-actions {
-  display: flex;
-  gap: 5px;
-  margin-top: 8px;
-}
-
-/* 活动卡片 */
-.campaign-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.campaign-card {
-  padding: 10px;
-}
-
-.campaign-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.campaign-header h4 {
-  margin: 0;
-  font-size: 14px;
-}
-
-.campaign-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #606266;
-}
-
-.campaign-actions {
-  display: flex;
-  gap: 5px;
-  margin-top: 8px;
-}
-
-/* 渠道详情 */
-.channel-detail-card {
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.channel-detail-card h4 {
-  margin: 8px 0;
-  font-size: 13px;
-}
-
-.channel-detail-card p {
-  margin: 3px 0;
-  font-size: 12px;
-  color: #606266;
+  display: block;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 </style>

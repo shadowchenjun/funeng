@@ -1,36 +1,21 @@
 <template>
-  <div class="products-container">
-    <!-- 页面头部 -->
-    <header class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">📦 产品管理</h1>
-        <p class="page-subtitle">管理您的农产品库存与销售</p>
-      </div>
-      <div class="header-right" v-if="isAdmin">
-        <button class="btn-primary" @click="showAddDialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          添加产品
-        </button>
-      </div>
-    </header>
+  <div class="page-container">
+    <PageHeader title="产品管理" subtitle="管理您的农产品库存与销售">
+      <template v-if="isAdmin" #actions>
+        <el-button type="primary" :icon="Plus" @click="showAddDialog">添加产品</el-button>
+      </template>
+    </PageHeader>
 
     <!-- 搜索和筛选 -->
     <div class="filters-bar">
-      <div class="search-wrapper">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="M21 21l-4.35-4.35"/>
-        </svg>
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          placeholder="搜索产品名称..."
-          @input="fetchProducts"
-        />
-      </div>
+      <el-input
+        v-model="searchQuery"
+        class="search-input"
+        :prefix-icon="Search"
+        placeholder="搜索产品名称"
+        clearable
+        @input="fetchProducts"
+      />
       <el-select
         v-model="categoryFilter"
         placeholder="全部分类"
@@ -42,13 +27,13 @@
       </el-select>
     </div>
 
-    <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" />
+    <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" class="load-error" />
 
     <!-- 产品列表 -->
     <div class="products-content">
       <!-- 桌面端：表格视图 -->
       <div class="products-table-desktop">
-        <el-table :data="products" stripe style="width: 100%" v-loading="loading" :empty-text="loading ? '正在加载产品…' : '暂无产品'">
+        <el-table :data="products" v-loading="loading" :empty-text="loading ? '正在加载产品…' : '暂无产品'">
           <el-table-column prop="name" label="产品名称" min-width="150">
             <template #default="{ row }">
               <div class="product-name-cell">
@@ -60,7 +45,7 @@
           </el-table-column>
           <el-table-column prop="category_name" label="分类" width="120">
             <template #default="{ row }">
-              <span class="category-tag">{{ row.category_name || '未分类' }}</span>
+              <el-tag type="info">{{ row.category_name || '未分类' }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="price" label="价格" width="140">
@@ -71,17 +56,17 @@
           <el-table-column prop="stock" label="库存" width="100" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <span :class="['status-badge', row.is_active === 1 ? 'active' : 'inactive']">
+              <el-tag :type="row.is_active === 1 ? 'success' : 'info'">
                 {{ row.is_active === 1 ? '在售' : '停售' }}
-              </span>
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right">
+          <el-table-column label="操作" width="130" fixed="right">
             <template #default="{ row }">
-              <div class="action-buttons" v-if="isAdmin">
-                <button class="action-btn edit" @click="editProduct(row)">编辑</button>
-                <button class="action-btn delete" @click="deleteProduct(row)">删除</button>
-              </div>
+              <template v-if="isAdmin">
+                <el-button type="primary" link @click="editProduct(row)">编辑</el-button>
+                <el-button type="danger" link @click="deleteProduct(row)">删除</el-button>
+              </template>
               <span v-else class="no-permission">-</span>
             </template>
           </el-table-column>
@@ -114,14 +99,14 @@
           <div class="card-info">
             <h3 class="card-name">{{ product.name }}</h3>
             <div class="card-meta">
-              <span class="category-tag">{{ product.category_name || '未分类' }}</span>
+              <el-tag type="info">{{ product.category_name || '未分类' }}</el-tag>
               <span class="price-value">¥{{ product.price }}/{{ product.unit }}</span>
             </div>
             <div class="card-footer">
               <span class="stock-info">库存: {{ product.stock }}</span>
-              <span :class="['status-badge', product.is_active === 1 ? 'active' : 'inactive']">
+              <el-tag :type="product.is_active === 1 ? 'success' : 'info'">
                 {{ product.is_active === 1 ? '在售' : '停售' }}
-              </span>
+              </el-tag>
             </div>
           </div>
         </div>
@@ -143,32 +128,31 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑产品' : '添加产品'"
-      width="90%"
-      class="product-dialog"
+      class="dialog-md"
     >
-      <el-form :model="productForm" label-width="80px" size="default">
+      <el-form :model="productForm" label-width="80px">
         <el-form-item label="产品名称" required>
           <el-input v-model="productForm.name" placeholder="请输入产品名称" />
         </el-form-item>
         <el-form-item label="产品分类">
-          <el-select v-model="productForm.category_id" placeholder="选择分类" style="width: 100%">
+          <el-select v-model="productForm.category_id" placeholder="选择分类" class="w-full">
             <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
           </el-select>
         </el-form-item>
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="价格">
-              <el-input-number v-model="productForm.price" :min="0" :precision="2" style="width: 100%" />
+              <el-input-number v-model="productForm.price" :min="0" :precision="2" class="w-full" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="单位">
               <el-input v-model="productForm.unit" placeholder="斤/箱" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="库存">
-          <el-input-number v-model="productForm.stock" :min="0" style="width: 100%" />
+          <el-input-number v-model="productForm.stock" :min="0" class="w-full" />
         </el-form-item>
         <el-form-item label="产品图片">
           <ImageUpload v-model="productForm.image_url" />
@@ -184,12 +168,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <div class="dialog-footer">
-          <button class="btn-cancel" @click="dialogVisible = false">取消</button>
-          <button class="btn-primary" @click="saveProduct" :disabled="saving">
-            {{ saving ? '保存中...' : '保存' }}
-          </button>
-        </div>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveProduct">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -198,6 +178,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Search } from '@element-plus/icons-vue'
 import axios from 'axios'
 import ImageUpload from '../components/ImageUpload.vue'
 import { useAuthStore } from '../stores/auth'
@@ -377,134 +358,36 @@ const deleteProduct = async (product: Product) => {
 </script>
 
 <style scoped>
-.products-container {
-  padding: 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-  background: var(--bg-secondary, #F8FAFC);
-  min-height: calc(100vh - 64px);
-}
-
-/* ========== 页面头部 ========== */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.header-left {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary, #0F172A);
-  margin: 0 0 8px 0;
-  letter-spacing: -0.02em;
-}
-
-.page-subtitle {
-  font-size: 15px;
-  color: var(--text-secondary, #475569);
-  margin: 0;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: var(--primary, #165DFF);
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--primary-dark, #0F4AE6);
-  transform: translateY(-1px);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* ========== 搜索筛选 ========== */
 .filters-bar {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.search-wrapper {
-  position: relative;
+.search-input {
   flex: 1;
   max-width: 400px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  color: var(--text-tertiary, #94A3B8);
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 14px 12px 44px;
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 10px;
-  font-size: 14px;
-  background: var(--bg-primary, #FFFFFF);
-  transition: all 0.2s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary, #165DFF);
-  box-shadow: 0 0 0 3px var(--primary-light, rgba(22, 93, 255, 0.08));
-}
-
-.search-input::placeholder {
-  color: var(--text-tertiary, #94A3B8);
 }
 
 .category-select {
   width: 180px;
 }
 
-/* ========== 产品内容区 ========== */
-.products-content {
-  background: var(--bg-primary, #FFFFFF);
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 16px;
-  overflow: hidden;
+.load-error {
+  margin-bottom: 16px;
 }
 
-.products-table-desktop {
-  display: block;
+.products-content {
+  overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .products-cards-mobile {
   display: none;
 }
 
-/* ========== 表格样式 ========== */
 .product-name-cell {
   display: flex;
   align-items: center;
@@ -514,7 +397,8 @@ const deleteProduct = async (product: Product) => {
 .product-thumb {
   width: 44px;
   height: 44px;
-  border-radius: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
   object-fit: cover;
 }
 
@@ -522,122 +406,44 @@ const deleteProduct = async (product: Product) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary, #F8FAFC);
-  color: var(--text-tertiary, #94A3B8);
   font-size: 10px;
+  color: var(--text-tertiary);
   text-align: center;
-}
-
-.mobile-state {
-  padding: 24px;
-  text-align: center;
-  color: var(--text-secondary, #475569);
+  background: var(--bg-secondary);
 }
 
 .product-name {
   font-weight: 500;
-  color: var(--text-primary, #0F172A);
-}
-
-.category-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  background: var(--bg-secondary, #F8FAFC);
-  border-radius: 6px;
-  font-size: 12px;
-  color: var(--text-secondary, #475569);
+  color: var(--text-primary);
 }
 
 .price-value {
   font-weight: 600;
-  color: #EF4444;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 100px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-badge.active {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10B981;
-}
-
-.status-badge.inactive {
-  background: rgba(148, 163, 184, 0.15);
-  color: #64748B;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.action-btn.edit {
-  background: var(--primary-light, rgba(22, 93, 255, 0.08));
-  color: var(--primary, #165DFF);
-}
-
-.action-btn.edit:hover {
-  background: var(--primary, #165DFF);
-  color: white;
-}
-
-.action-btn.delete {
-  background: rgba(239, 68, 68, 0.08);
-  color: #EF4444;
-}
-
-.action-btn.delete:hover {
-  background: #EF4444;
-  color: white;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: center;
   padding: 20px;
-  border-top: 1px solid var(--border-color, #E2E8F0);
+  border-top: 1px solid var(--border-color);
 }
 
-/* ========== 移动端卡片 ========== */
+.mobile-state {
+  padding: 24px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 @media (max-width: 768px) {
-  .products-container {
-    padding: 20px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .page-title {
-    font-size: 24px;
-  }
-
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
-  }
-
   .filters-bar {
     flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
   }
 
-  .search-wrapper {
+  .search-input {
     max-width: none;
   }
 
@@ -657,26 +463,28 @@ const deleteProduct = async (product: Product) => {
   .product-card {
     display: flex;
     gap: 12px;
-    padding: 16px;
-    background: var(--bg-primary, #FFFFFF);
-    border: 1px solid var(--border-color, #E2E8F0);
-    border-radius: 12px;
     margin-bottom: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: border-color 0.2s ease;
   }
 
-  .product-card:hover {
-    border-color: var(--primary, #165DFF);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  .product-card.clickable {
+    cursor: pointer;
+  }
+
+  .product-card.clickable:hover {
+    border-color: var(--primary);
   }
 
   .card-thumb {
     width: 72px;
     height: 72px;
-    border-radius: 8px;
-    object-fit: cover;
     flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
   }
 
   .card-info {
@@ -685,12 +493,12 @@ const deleteProduct = async (product: Product) => {
   }
 
   .card-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary, #0F172A);
-    margin: 0 0 8px 0;
-    white-space: nowrap;
+    margin: 0 0 8px;
     overflow: hidden;
+    font-size: var(--font-md);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
     text-overflow: ellipsis;
   }
 
@@ -703,13 +511,13 @@ const deleteProduct = async (product: Product) => {
 
   .card-footer {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
   }
 
   .stock-info {
-    font-size: 13px;
-    color: var(--text-secondary, #475569);
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
   }
 
   .pagination-mobile {
@@ -717,46 +525,5 @@ const deleteProduct = async (product: Product) => {
     justify-content: center;
     padding-top: 16px;
   }
-}
-
-/* ========== 对话框 ========== */
-:deep(.product-dialog) {
-  border-radius: 16px;
-}
-
-:deep(.product-dialog .el-dialog__header) {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color, #E2E8F0);
-}
-
-:deep(.product-dialog .el-dialog__title) {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-:deep(.product-dialog .el-dialog__body) {
-  padding: 24px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.btn-cancel {
-  padding: 10px 20px;
-  background: transparent;
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary, #475569);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-cancel:hover {
-  background: var(--bg-secondary, #F8FAFC);
 }
 </style>
