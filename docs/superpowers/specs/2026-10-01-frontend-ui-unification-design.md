@@ -121,9 +121,12 @@
 | `NavCard` | 已存在，对齐令牌后启用 | 板块内导航卡：**16px 圆角 + 4px 顶光条**（r2，原 14px/3px 违反圆角规则）+ hover -4px；三份拷贝归一（统一 padding 20px/16px、chip 52px/12px）；支持 `active` 态 |
 | `EmptyState` | 已存在，启用 | 列表空态统一 |
 | `MotionCard` | 已存在，按需 | 通用动效卡 |
+| `ModuleNav` | **新增**（U3） | 板块内分组导航：NavCard 按业务分组，组宽与项数成正比，宽屏一行、窄屏按组换行；v-model 绑定当前面板 |
 | `PageSection` | 已存在，**删除**（r2） | 职责（28px 标题 + 副标题）与 PageHeader 重叠且无人引用，U1 删除 |
 
 **StatCard 图标约定**（mockup 中 🏭✅🔔🚨 仅为占位，实现时照此表，不得抄 emoji）：仓库/库存 `House`/`Box`、合格率/成功 `CircleCheck`、预警 `Bell`、告警/危险 `Warning`、金额 `Money`、订单 `Document`、车辆/运输 `Van`、设备 `Monitor`、温度 `Odometer`、用户 `User`、趋势 `TrendCharts`、钱包/应收 `Wallet`、保险 `Umbrella`、票据 `Tickets`、融资 `CreditCard`、信用 `Medal`、管理员 `UserFilled`、板块入口 `Grid`；页头刷新按钮用 `Refresh`（plain 次按钮）；新增需先补本表。
+
+**区块内外的数字（U3 定）**：区块外用 StatCard；区块（SectionCard）内的指标用 `.metric`，信息小卡用 `.tile`，不嵌套卡片。
 
 **StatCard 配色规则（U2 定）**：中性计数/金额一律 `primary`；只有指标本身表达状态时才用语义色（如活跃=success、待收/待处理=warning、告警/逾期=danger）。`info`（灰条）观感像禁用，不用于统计卡。
 

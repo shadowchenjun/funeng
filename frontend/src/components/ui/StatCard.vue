@@ -151,6 +151,12 @@ const accent = computed(() =>
   }
 }
 
+@media (max-width: 480px) {
+  .stat-icon {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-stat-card {
     transition: none;

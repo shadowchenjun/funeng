@@ -1,535 +1,561 @@
 <template>
-  <div class="cold-chain-container">
-    <!-- 页面头部 -->
-    <header class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">❄️ 数字冷链</h1>
-        <p class="page-subtitle">全程温控 · 实时追踪 · 安全保障</p>
-      </div>
-    </header>
+  <div class="page-container">
+    <PageHeader title="冷链物流" subtitle="全程温控 · 实时追踪 · 安全保障" />
 
-    <!-- 快捷入口 -->
-    <div class="quick-nav-grid">
-      <div
-        v-for="(item, index) in navItems"
-        :key="item.key"
-        class="nav-card"
-        :style="{ '--accent': item.color, '--delay': `${index * 0.05}s` }"
-        @click="setActiveTab(item.key)"
-      >
-        <div class="nav-card-glow"></div>
-        <div class="nav-card-content">
-          <div class="nav-icon-wrapper">
-            <el-icon :size="28" :color="item.color">
-              <component :is="item.icon" />
-            </el-icon>
-          </div>
-          <span class="nav-label">{{ item.label }}</span>
-        </div>
-      </div>
-    </div>
+    <ModuleNav v-model="activeTab" :groups="navGroups" aria-label="冷链功能导航" />
 
     <!-- 实时监控 -->
-    <div v-if="activeTab === 'monitor'">
-      <el-row :gutter="10" class="monitor-cards">
-        <el-col :span="12" v-for="item in monitorData" :key="item.title">
-          <el-card class="monitor-card" :style="{ borderLeft: `4px solid ${item.color}` }">
-            <div class="monitor-info">
-              <h3>{{ item.value }}</h3>
-              <p>{{ item.title }}</p>
+    <div v-show="activeTab === 'monitor'">
+      <div class="stat-grid">
+        <StatCard
+          v-for="item in monitorData"
+          :key="item.title"
+          :value="item.value"
+          :title="item.title"
+          :type="item.type"
+          :icon="item.icon"
+        />
+      </div>
+
+      <SectionCard title="温度监控" :icon="Odometer">
+        <div class="tile-grid">
+          <div v-for="item in temperatureData" :key="item.warehouse" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ item.warehouse }}</span>
+              <el-tag :type="item.status === '正常' ? 'success' : 'danger'">{{ item.status }}</el-tag>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
-      
-      <el-card class="section-card">
-        <template #header>
-          <span>🌡️ 温度监控</span>
+            <div class="tile-meta">
+              <span>位置：{{ item.location }}</span>
+              <span>
+                温度：<b v-if="item.currentTemp != null" class="temp-value" :style="{ color: getTempColor(item.currentTemp) }">{{ item.currentTemp }}°C</b>
+                <span v-else>暂无读数</span>
+              </span>
+              <span>湿度：{{ item.humidity }}</span>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+
+    <!-- 仓库管理 -->
+    <div v-show="activeTab === 'warehouse'">
+      <div class="stat-grid stat-grid--3">
+        <StatCard :value="warehouses.length" title="仓库数" :icon="OfficeBuilding" />
+        <StatCard :value="warehouses.filter(w => w.status === '正常').length" title="正常" type="success" :icon="CircleCheck" />
+        <StatCard :value="totalCapacity" unit="m³" title="总容量" :icon="Box" />
+      </div>
+
+      <SectionCard title="仓库管理" :icon="OfficeBuilding">
+        <template #extra>
+          <el-button type="primary" :icon="Plus" @click="showWarehouseDialog()">添加仓库</el-button>
         </template>
-        
-        <div class="temp-list">
-          <el-card v-for="item in temperatureData" :key="item.warehouse" class="temp-card">
-            <div class="temp-header">
-              <span class="warehouse-name">{{ item.warehouse }}</span>
-              <el-tag :type="item.status === '正常' ? 'success' : 'danger'" size="small">
-                {{ item.status }}
+        <div class="tile-grid">
+          <div v-for="wh in warehouses" :key="wh.id" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ wh.name }}</span>
+              <el-tag :type="wh.status === '正常' ? 'success' : 'warning'">{{ wh.status }}</el-tag>
+            </div>
+            <div class="tile-meta">
+              <span>地址：{{ wh.address }}</span>
+              <span>容量：{{ wh.capacity }}m³ · 面积：{{ wh.area }}㎡</span>
+              <span>温度：{{ wh.temperature }}°C · 湿度：{{ wh.humidity }}%</span>
+              <span>库存：{{ wh.inventory }} 件</span>
+            </div>
+            <div class="tile-actions">
+              <el-button type="primary" link @click="editWarehouse(wh)">编辑</el-button>
+              <el-button type="danger" link @click="deleteWarehouse(wh)">删除</el-button>
+            </div>
+          </div>
+        </div>
+
+        <h4 class="subsection-title">仓库分布</h4>
+        <div id="warehouseMap" class="map-box"></div>
+      </SectionCard>
+    </div>
+
+    <!-- 车辆管理 -->
+    <div v-show="activeTab === 'vehicle'">
+      <div class="stat-grid stat-grid--3">
+        <StatCard :value="vehicles.length" title="车辆数" :icon="Van" />
+        <StatCard :value="vehicles.filter(v => v.status === '运输中').length" title="运输中" type="success" :icon="Position" />
+        <StatCard :value="vehicles.filter(v => v.status === '空闲').length" title="空闲" :icon="Clock" />
+      </div>
+
+      <SectionCard title="车辆管理" :icon="Van">
+        <template #extra>
+          <el-button type="primary" :icon="Plus" @click="showVehicleDialog()">添加车辆</el-button>
+        </template>
+        <div class="tile-grid">
+          <div v-for="v in vehicles" :key="v.id" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ v.plate }}</span>
+              <el-tag :type="v.status === '运输中' ? 'success' : v.status === '维修中' ? 'danger' : 'info'">
+                {{ v.status }}
               </el-tag>
             </div>
-            <div class="temp-info">
-              <span>位置: {{ item.location }}</span>
-              <span>温度: <b :style="{ color: getTempColor(item.currentTemp) }">{{ item.currentTemp }}°C</b></span>
-              <span>湿度: {{ item.humidity }}</span>
+            <div class="tile-meta">
+              <span>司机：{{ v.driver }} · {{ v.phone }}</span>
+              <span>当前位置：{{ v.location }}</span>
+              <span>车厢温度：{{ v.temperature }}°C · 电量：{{ v.battery }}%</span>
             </div>
-          </el-card>
+            <div class="tile-actions">
+              <el-button type="primary" link @click="trackVehicle(v)">追踪</el-button>
+              <el-button type="primary" link @click="editVehicle(v)">编辑</el-button>
+              <el-button type="danger" link @click="deleteVehicle(v)">删除</el-button>
+            </div>
+          </div>
         </div>
-      </el-card>
+      </SectionCard>
     </div>
-    
-    <!-- 仓库管理 -->
-    <el-card v-if="activeTab === 'warehouse'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>🏭 仓库管理</span>
-          <el-button type="primary" size="small" @click="showWarehouseDialog()">+ 添加仓库</el-button>
-        </div>
-      </template>
-      
-      <!-- 仓库统计 -->
-      <el-row :gutter="10" class="warehouse-stats">
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ warehouses.length }}</span>
-            <span class="label">仓库数</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ warehouses.filter(w => w.status === '正常').length }}</span>
-            <span class="label">正常</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ totalCapacity }}m³</span>
-            <span class="label">总容量</span>
-          </div>
-        </el-col>
-      </el-row>
-      
-      <!-- 仓库列表 -->
-      <div class="warehouse-list">
-        <el-card v-for="wh in warehouses" :key="wh.id" class="warehouse-card">
-          <div class="warehouse-header">
-            <div class="warehouse-title">
-              <el-icon :size="24"><OfficeBuilding /></el-icon>
-              <span>{{ wh.name }}</span>
-            </div>
-            <el-tag :type="wh.status === '正常' ? 'success' : 'warning'" size="small">
-              {{ wh.status }}
-            </el-tag>
-          </div>
-          <div class="warehouse-info">
-            <p>📍 {{ wh.address }}</p>
-            <p>📐 容量: {{ wh.capacity }}m³ | 面积: {{ wh.area }}㎡</p>
-            <p>🌡️ 温度: {{ wh.temperature }}°C | 湿度: {{ wh.humidity }}%</p>
-            <p>📦 库存: {{ wh.inventory }}件</p>
-          </div>
-          <div class="warehouse-actions">
-            <el-button type="primary" link size="small" @click="editWarehouse(wh)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteWarehouse(wh)">删除</el-button>
-          </div>
-        </el-card>
-      </div>
-      
-      <el-divider>仓库分布</el-divider>
-      <div class="warehouse-map">
-        <div id="warehouseMap" style="width: 100%; height: 200px; border-radius: 8px;"></div>
-      </div>
-    </el-card>
-    
-    <!-- 车辆管理 -->
-    <el-card v-if="activeTab === 'vehicle'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>🚛 车辆管理</span>
-          <el-button type="primary" size="small" @click="showVehicleDialog()">+ 添加车辆</el-button>
-        </div>
-      </template>
-      
-      <!-- 车辆统计 -->
-      <el-row :gutter="10" class="vehicle-stats">
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ vehicles.length }}</span>
-            <span class="label">车辆数</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ vehicles.filter(v => v.status === '运输中').length }}</span>
-            <span class="label">运输中</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ vehicles.filter(v => v.status === '空闲').length }}</span>
-            <span class="label">空闲</span>
-          </div>
-        </el-col>
-      </el-row>
-      
-      <!-- 车辆列表 -->
-      <div class="vehicle-list">
-        <el-card v-for="v in vehicles" :key="v.id" class="vehicle-card">
-          <div class="vehicle-header">
-            <el-icon :size="28" color="#409eff"><Van /></el-icon>
-            <div class="vehicle-info">
-              <h4>{{ v.plate }}</h4>
-              <p>司机: {{ v.driver }} | 电话: {{ v.phone }}</p>
-            </div>
-            <el-tag :type="v.status === '运输中' ? 'success' : v.status === '维修中' ? 'danger' : 'info'" size="small">
-              {{ v.status }}
-            </el-tag>
-          </div>
-          <div class="vehicle-detail">
-            <span>📍 当前位置: {{ v.location }}</span>
-            <span>🌡️ 车厢温度: {{ v.temperature }}°C</span>
-            <span>🔋 电量: {{ v.battery }}%</span>
-          </div>
-          <div class="vehicle-actions">
-            <el-button type="primary" link size="small" @click="trackVehicle(v)">追踪</el-button>
-            <el-button type="warning" link size="small" @click="editVehicle(v)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteVehicle(v)">删除</el-button>
-          </div>
-        </el-card>
-      </div>
-    </el-card>
-    
+
     <!-- 运输追踪 -->
-    <el-card v-if="activeTab === 'transport'" class="section-card">
-      <template #header>
-        <span>🗺️ 运输追踪</span>
-      </template>
+    <div v-show="activeTab === 'transport'">
+      <SectionCard title="运输追踪" :icon="Location">
+        <el-select v-model="selectedTransportId" placeholder="选择运输路线" class="w-full transport-select" @change="onTransportSelectChange">
+          <el-option
+            v-for="t in transports"
+            :key="t.id"
+            :label="`${t.vehicle_no} - ${t.route} (${t.status === 'in_transit' ? '运输中' : t.status === 'arrived' ? '已到达' : '等待'})`"
+            :value="t.id"
+          />
+        </el-select>
 
-      <!-- 运输路线选择 -->
-      <el-select v-model="selectedTransportId" placeholder="选择运输路线" style="width: 100%; margin-bottom: 15px;" @change="onTransportSelectChange">
-        <el-option
-          v-for="t in transports"
-          :key="t.id"
-          :label="`${t.vehicle_no} - ${t.route} (${t.status === 'in_transit' ? '运输中' : t.status === 'arrived' ? '已到达' : '等待'})`"
-          :value="t.id"
-        />
-      </el-select>
+        <div id="transportMap" class="map-box map-box--lg"></div>
 
-      <!-- 运输路线地图 -->
-      <div class="transport-map">
-        <div id="transportMap" style="width: 100%; height: 250px; border-radius: 8px; margin-bottom: 15px;"></div>
-      </div>
+        <el-timeline class="transport-timeline">
+          <el-timeline-item
+            v-for="(item, index) in transportData"
+            :key="index"
+            :timestamp="item.timestamp"
+            :type="(item.type as any)"
+            :hollow="item.hollow"
+          >
+            <div class="timeline-title">{{ item.title }}</div>
+            <div class="timeline-info">{{ item.location }} · 温度 {{ item.temperature }} · 湿度 {{ item.humidity }}</div>
+          </el-timeline-item>
+        </el-timeline>
+      </SectionCard>
+    </div>
 
-      <!-- 运输轨迹 -->
-      <el-timeline>
-        <el-timeline-item
-          v-for="(item, index) in transportData"
-          :key="index"
-          :timestamp="item.timestamp"
-          :type="(item.type as any)"
-          :hollow="item.hollow"
-        >
-          <h4>{{ item.title }}</h4>
-          <p>{{ item.location }}</p>
-          <p class="timeline-info">
-            <span>🌡️ {{ item.temperature }}</span>
-            <span>💧 {{ item.humidity }}</span>
-          </p>
-        </el-timeline-item>
-      </el-timeline>
-    </el-card>
-    
     <!-- 库存管理 -->
-    <el-card v-if="activeTab === 'inventory'" class="section-card">
-      <template #header>
-        <span>📦 库存管理</span>
-      </template>
-      
-      <!-- 库存统计 -->
-      <el-row :gutter="10" class="inventory-stats">
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ totalInventory }}</span>
-            <span class="label">总库存</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ inventoryData.length }}</span>
-            <span class="label">SKU数</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num">{{ expiringCount }}</span>
-            <span class="label">临期</span>
-          </div>
-        </el-col>
-      </el-row>
-      
-      <!-- 库存列表 -->
-      <div class="inventory-list">
-        <el-card v-for="item in inventoryData" :key="item.product" class="inventory-card">
-          <div class="inventory-header">
-            <span class="product-name">{{ item.product }}</span>
-            <el-tag size="small">{{ item.storage }}</el-tag>
-          </div>
-          <div class="inventory-info">
-            <span>数量: {{ item.quantity }}</span>
-            <span>保质期: {{ item.expiry }}</span>
-            <el-tag v-if="isExpiring(item.expiry)" type="warning" size="small">临期</el-tag>
-          </div>
-        </el-card>
+    <div v-show="activeTab === 'inventory'" class="section-stack">
+      <div class="stat-grid stat-grid--3 stat-grid--flush">
+        <StatCard :value="totalInventory" title="总库存" :icon="Box" />
+        <StatCard :value="inventoryData.length" title="SKU 数" :icon="Goods" />
+        <StatCard :value="expiringCount" title="临期" type="warning" :icon="Warning" />
       </div>
-      
-      <el-divider />
-      
-      <!-- 质量追溯 -->
-      <h4>🔍 质量追溯</h4>
-      <el-form :model="traceForm" label-width="80px" size="small">
-        <el-form-item label="追溯码">
-          <el-input v-model="traceForm.code" placeholder="请输入追溯码" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="traceProduct" size="small">查询</el-button>
-        </el-form-item>
-      </el-form>
-      
-      <div v-if="traceResult" class="trace-result">
-        <h4>追溯信息</h4>
-        <p><strong>产品:</strong> {{ traceResult.product }}</p>
-        <p><strong>产地:</strong> {{ traceResult.origin }}</p>
-        <p><strong>加工日期:</strong> {{ traceResult.processDate }}</p>
-        <p><strong>存储温度:</strong> {{ traceResult.storageTemp }}</p>
-        <p><strong>运输路线:</strong> {{ traceResult.transportRoute }}</p>
-      </div>
-    </el-card>
-    
+
+      <SectionCard title="库存管理" :icon="Box">
+        <div class="tile-grid">
+          <div v-for="item in inventoryData" :key="item.product" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ item.product }}</span>
+              <el-tag>{{ item.storage }}</el-tag>
+            </div>
+            <div class="tile-meta">
+              <span>数量：{{ item.quantity }}</span>
+              <span>
+                保质期：{{ item.expiry }}
+                <el-tag v-if="isExpiring(item.expiry)" type="warning" class="inline-tag">临期</el-tag>
+              </span>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="质量追溯" :icon="Search">
+        <el-form :model="traceForm" inline class="trace-form" @submit.prevent="traceProduct">
+          <el-form-item label="追溯码">
+            <el-input v-model="traceForm.code" placeholder="请输入追溯码" clearable />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="traceProduct">查询</el-button>
+          </el-form-item>
+        </el-form>
+
+        <dl v-if="traceResult" class="tile trace-result">
+          <div><dt>产品</dt><dd>{{ traceResult.product }}</dd></div>
+          <div><dt>产地</dt><dd>{{ traceResult.origin }}</dd></div>
+          <div><dt>加工日期</dt><dd>{{ traceResult.processDate }}</dd></div>
+          <div><dt>存储温度</dt><dd>{{ traceResult.storageTemp }}</dd></div>
+          <div><dt>运输路线</dt><dd>{{ traceResult.transportRoute }}</dd></div>
+        </dl>
+      </SectionCard>
+    </div>
+
     <!-- 数据分析 -->
-    <el-card v-if="activeTab === 'analytics'" class="section-card">
-      <template #header>
-        <span>📊 数据分析</span>
-      </template>
-      
-      <!-- 库存周转 -->
-      <el-row :gutter="10" class="analytics-section">
-        <el-col :span="12">
-          <h4>📦 库存周转</h4>
-          <div class="chart-placeholder">
-            <el-progress type="circle" :percentage="72" :width="100" />
-            <p>周转率 72%</p>
+    <div v-show="activeTab === 'analytics'">
+      <SectionCard title="数据分析" :icon="TrendCharts">
+        <div class="analytics-grid">
+          <div class="analytics-item">
+            <h4 class="subsection-title">库存周转</h4>
+            <el-progress type="circle" :percentage="72" :width="110" :color="themeColors.primary" />
+            <p class="analytics-note">周转率 72%</p>
           </div>
-        </el-col>
-        <el-col :span="12">
-          <h4>🚛 运输效率</h4>
-          <div class="chart-placeholder">
-            <el-progress type="circle" :percentage="85" :width="100" color="#67C23A" />
-            <p>准点率 85%</p>
+          <div class="analytics-item">
+            <h4 class="subsection-title">运输效率</h4>
+            <el-progress type="circle" :percentage="85" :width="110" :color="themeColors.success" />
+            <p class="analytics-note">准点率 85%</p>
           </div>
-        </el-col>
-      </el-row>
-      
-      <!-- 温度合规率 -->
-      <el-divider />
-      <h4>🌡️ 温度合规率</h4>
-      <el-progress :percentage="98" :stroke-width="20" />
-      <p class="analytics-note">本月温度异常时间: 2.3小时 / 720小时</p>
-      
-      <!-- 损耗统计 -->
-      <el-divider />
-      <h4>📉 损耗统计</h4>
-      <el-row :gutter="10">
-        <el-col :span="8">
-          <div class="loss-item">
-            <span class="num">0.5%</span>
-            <span class="label">运输损耗</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="loss-item">
-            <span class="num">0.2%</span>
-            <span class="label">仓储损耗</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="loss-item">
-            <span class="num">0.7%</span>
-            <span class="label">总损耗</span>
-          </div>
-        </el-col>
-      </el-row>
-    </el-card>
-    
+        </div>
+
+        <h4 class="subsection-title">温度合规率</h4>
+        <el-progress :percentage="98" :stroke-width="16" :color="themeColors.success" />
+        <p class="analytics-note">本月温度异常时间：2.3 小时 / 720 小时</p>
+
+        <h4 class="subsection-title">损耗统计</h4>
+        <div class="metric-grid">
+          <div class="metric"><span class="metric-value">0.5%</span><span class="metric-label">运输损耗</span></div>
+          <div class="metric"><span class="metric-value">0.2%</span><span class="metric-label">仓储损耗</span></div>
+          <div class="metric"><span class="metric-value">0.7%</span><span class="metric-label">总损耗</span></div>
+        </div>
+      </SectionCard>
+    </div>
+
     <!-- 品控管理 -->
-    <el-card v-if="activeTab === 'quality'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>✅ 品控管理</span>
-          <el-button type="primary" size="small" @click="loadQualityData">🔄 刷新</el-button>
-        </div>
-      </template>
-      
-      <!-- 品控统计 -->
-      <el-row :gutter="10" class="quality-stats">
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num">{{ qualityInspections.length }}</span>
-            <span class="label">检查总数</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num">{{ qualityInspections.filter(i => i.result === '合格').length }}</span>
-            <span class="label">合格</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num">{{ qualityInspections.filter(i => i.result === '待复检').length }}</span>
-            <span class="label">待复检</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num" style="color: #F56C6C;">{{ qualityInspections.filter(i => i.result === '不合格').length }}</span>
-            <span class="label">不合格</span>
-          </div>
-        </el-col>
-      </el-row>
-      
-      <!-- 品控标准 -->
-      <el-divider>📋 品控标准</el-divider>
-      <div class="quality-standards">
-        <el-card v-for="std in qualityStandards" :key="std.id" class="standard-card">
-          <div class="standard-header">
-            <span class="standard-name">{{ std.name }}</span>
-            <el-tag size="small">{{ std.category }}</el-tag>
-          </div>
-          <div class="standard-info">
-            <span>🌡️ 温度: {{ std.temperature.min }}~{{ std.temperature.max }}{{ std.temperature.unit }}</span>
-            <span>💧 湿度: {{ std.humidity.min }}~{{ std.humidity.max }}{{ std.humidity.unit }}</span>
-            <span>📅 货架期: {{ std.shelf_days }}天</span>
-          </div>
-        </el-card>
+    <div v-show="activeTab === 'quality'">
+      <div class="stat-grid">
+        <StatCard :value="qualityInspections.length" title="检查总数" :icon="Document" />
+        <StatCard :value="qualityInspections.filter(i => i.result === '合格').length" title="合格" type="success" :icon="CircleCheck" />
+        <StatCard :value="qualityInspections.filter(i => i.result === '待复检').length" title="待复检" type="warning" :icon="Clock" />
+        <StatCard :value="qualityInspections.filter(i => i.result === '不合格').length" title="不合格" type="danger" :icon="CircleClose" />
       </div>
-      
-      <!-- 检查记录 -->
-      <el-divider>📝 检查记录</el-divider>
-      <el-table :data="qualityInspections" size="small" stripe>
-        <el-table-column prop="id" label="编号" width="100" />
-        <el-table-column prop="type" label="类型" width="80" />
-        <el-table-column prop="product" label="产品" />
-        <el-table-column prop="batch_no" label="批次" width="140" />
-        <el-table-column prop="result" label="结果" width="70">
-          <template #default="{ row }">
-            <el-tag :type="row.result === '合格' ? 'success' : row.result === '不合格' ? 'danger' : 'warning'" size="small">
-              {{ row.result }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="score" label="评分" width="60" />
-        <el-table-column prop="inspector" label="质检员" width="80" />
-        <el-table-column prop="created_at" label="时间" width="130" />
-      </el-table>
-    </el-card>
-    
+
+      <SectionCard title="品控管理" :icon="CircleCheck">
+        <template #extra>
+          <el-button :icon="Refresh" @click="loadQualityData">刷新</el-button>
+        </template>
+
+        <h4 class="subsection-title">品控标准</h4>
+        <div class="tile-grid">
+          <div v-for="std in qualityStandards" :key="std.id" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ std.name }}</span>
+              <el-tag>{{ std.category }}</el-tag>
+            </div>
+            <div class="tile-meta">
+              <span>温度：{{ std.temperature.min }}~{{ std.temperature.max }}{{ std.temperature.unit }}</span>
+              <span>湿度：{{ std.humidity.min }}~{{ std.humidity.max }}{{ std.humidity.unit }}</span>
+              <span>货架期：{{ std.shelf_days }} 天</span>
+            </div>
+          </div>
+        </div>
+
+        <h4 class="subsection-title">检查记录</h4>
+        <el-table :data="qualityInspections">
+          <el-table-column prop="id" label="编号" width="100" />
+          <el-table-column prop="type" label="类型" width="80" />
+          <el-table-column prop="product" label="产品" min-width="120" />
+          <el-table-column prop="batch_no" label="批次" width="140" />
+          <el-table-column prop="result" label="结果" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.result === '合格' ? 'success' : row.result === '不合格' ? 'danger' : 'warning'">
+                {{ row.result }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="score" label="评分" width="70" />
+          <el-table-column prop="inspector" label="质检员" width="90" />
+          <el-table-column prop="created_at" label="时间" width="150" />
+        </el-table>
+      </SectionCard>
+    </div>
+
     <!-- 库存预警 -->
-    <el-card v-if="activeTab === 'alert'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>🔔 库存预警</span>
-          <el-button type="primary" size="small" @click="loadAlertData">🔄 刷新</el-button>
+    <div v-show="activeTab === 'alert'">
+      <div class="stat-grid stat-grid--3">
+        <StatCard :value="inventoryStats.low_stock_count" title="库存不足" type="danger" :icon="Warning" />
+        <StatCard :value="inventoryStats.overstock_count" title="库存过多" type="warning" :icon="Box" />
+        <StatCard :value="inventoryStats.expiring_soon_count" title="临期预警" type="warning" :icon="Clock" />
+      </div>
+
+      <SectionCard title="库存预警" :icon="Bell">
+        <template #extra>
+          <el-button :icon="Refresh" @click="loadAlertData">刷新</el-button>
+        </template>
+
+        <h4 class="subsection-title">预警规则</h4>
+        <div class="tile-grid">
+          <div v-for="rule in alertRules" :key="rule.id" class="tile">
+            <div class="tile-header">
+              <span class="tile-title">{{ rule.name }}</span>
+              <el-switch v-model="rule.enabled" />
+            </div>
+            <div class="tile-meta">
+              <span>类型：{{ rule.type }}</span>
+              <span>阈值：{{ rule.threshold }}{{ rule.unit }}</span>
+              <span>通知：{{ rule.notify_channels.join('、') }}</span>
+            </div>
+          </div>
         </div>
-      </template>
-      
-      <!-- 预警统计 -->
-      <el-row :gutter="10" class="alert-stats">
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num" style="color: #F56C6C;">{{ inventoryStats.low_stock_count }}</span>
-            <span class="label">库存不足</span>
+
+        <h4 class="subsection-title">预警列表</h4>
+        <div class="tile-grid">
+          <div v-for="alert in inventoryAlerts" :key="alert.id" class="tile alert-tile" :class="'alert-' + alert.level">
+            <div class="tile-header">
+              <span class="alert-head">
+                <el-tag :type="alert.level === 'critical' ? 'danger' : alert.level === 'high' ? 'warning' : 'info'">
+                  {{ alert.level === 'critical' ? '紧急' : alert.level === 'high' ? '高' : alert.level === 'medium' ? '中' : '低' }}
+                </el-tag>
+                <span class="tile-title">{{ alert.type }}</span>
+              </span>
+              <el-tag :type="alert.status === '待处理' ? 'danger' : alert.status === '处理中' ? 'warning' : 'success'">
+                {{ alert.status }}
+              </el-tag>
+            </div>
+            <div class="tile-meta">
+              <span>产品：{{ alert.product }}</span>
+              <span>仓库：{{ alert.warehouse }}</span>
+              <span>{{ alert.message }}</span>
+            </div>
+            <div class="tile-actions alert-footer">
+              <span class="alert-time">{{ alert.created_at }}</span>
+              <el-button v-if="alert.status === '待处理'" type="primary" link @click="resolveAlert(alert.id)">
+                标记处理
+              </el-button>
+            </div>
           </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num" style="color: #E6A23C;">{{ inventoryStats.overstock_count }}</span>
-            <span class="label">库存过多</span>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat-item">
-            <span class="num" style="color: #909399;">{{ inventoryStats.expiring_soon_count }}</span>
-            <span class="label">临期预警</span>
-          </div>
-        </el-col>
-      </el-row>
-      
-      <!-- 预警规则 -->
-      <el-divider>⚙️ 预警规则</el-divider>
-      <div class="alert-rules">
-        <el-card v-for="rule in alertRules" :key="rule.id" class="rule-card">
-          <div class="rule-header">
-            <span class="rule-name">{{ rule.name }}</span>
-            <el-switch v-model="rule.enabled" size="small" />
-          </div>
-          <div class="rule-info">
-            <span>类型: {{ rule.type }}</span>
-            <span>阈值: {{ rule.threshold }}{{ rule.unit }}</span>
-            <span>通知: {{ rule.notify_channels.join(', ') }}</span>
-          </div>
-        </el-card>
+        </div>
+      </SectionCard>
+    </div>
+
+    <!-- 货主管理 -->
+    <div v-show="activeTab === 'owner'">
+      <div class="stat-grid">
+        <StatCard :value="ownerStats.total" title="货主总数" :icon="User" />
+        <StatCard :value="ownerStats.active" title="正常运营" type="success" :icon="CircleCheck" />
+        <StatCard :value="ownerStats.warehouses" title="仓库数量" :icon="OfficeBuilding" />
+        <StatCard :value="ownerStats.zones" title="温区数量" :icon="Odometer" />
       </div>
-      
-      <!-- 预警列表 -->
-      <el-divider>📋 预警列表</el-divider>
-      <div class="alert-list">
-        <el-card v-for="alert in inventoryAlerts" :key="alert.id" class="alert-card" 
-          :class="'alert-' + alert.level">
-          <div class="alert-header">
-            <el-tag :type="alert.level === 'critical' ? 'danger' : alert.level === 'high' ? 'warning' : 'info'" size="small">
-              {{ alert.level === 'critical' ? '紧急' : alert.level === 'high' ? '高' : alert.level === 'medium' ? '中' : '低' }}
-            </el-tag>
-            <span class="alert-type">{{ alert.type }}</span>
-            <el-tag :type="alert.status === '待处理' ? 'danger' : alert.status === '处理中' ? 'warning' : 'success'" size="small">
-              {{ alert.status }}
-            </el-tag>
+
+      <SectionCard title="货主管理" :icon="User" no-padding>
+        <template #extra>
+          <el-button :icon="Refresh" @click="loadOwnerData">刷新</el-button>
+          <el-button type="primary" :icon="Plus" @click="showOwnerDialog()">添加货主</el-button>
+        </template>
+        <el-table :data="ownerList">
+          <el-table-column prop="code" label="货主编码" width="110" />
+          <el-table-column prop="name" label="货主名称" min-width="150" />
+          <el-table-column prop="contact" label="联系人" width="100" />
+          <el-table-column prop="phone" label="联系电话" width="130" />
+          <el-table-column prop="email" label="邮箱" min-width="180" />
+          <el-table-column prop="address" label="地址" min-width="180" />
+          <el-table-column prop="status" label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '正常' ? 'success' : 'danger'">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="130" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="editOwner(row)">编辑</el-button>
+              <el-button type="danger" link @click="deleteOwner(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </SectionCard>
+    </div>
+
+    <!-- 入库管理 -->
+    <div v-show="activeTab === 'inbound'">
+      <SectionCard title="入库管理" :icon="Bottom">
+        <template #extra>
+          <el-radio-group v-model="inboundSubTab">
+            <el-radio-button label="appointments">预约管理</el-radio-button>
+            <el-radio-button label="orders">入库单</el-radio-button>
+            <el-radio-button label="suggestions">上架建议</el-radio-button>
+          </el-radio-group>
+        </template>
+
+        <el-table v-show="inboundSubTab === 'appointments'" :data="appointmentList">
+          <el-table-column prop="id" label="预约号" width="150" />
+          <el-table-column prop="owner" label="货主" min-width="110" />
+          <el-table-column prop="vehicle_no" label="车牌号" width="110" />
+          <el-table-column prop="driver" label="司机" width="80" />
+          <el-table-column prop="estimated_arrival" label="预计到达" width="160" />
+          <el-table-column prop="expected_quantity" label="预计数量" width="90" />
+          <el-table-column prop="dock" label="月台" width="70" />
+          <el-table-column prop="status" label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '已完成' ? 'success' : row.status === '收货中' ? 'warning' : 'info'">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="showAppointmentDetail(row)">详情</el-button>
+              <el-button v-if="row.status === '待签到'" type="primary" link @click="signInAppointment(row)">签到</el-button>
+              <el-button v-if="row.status === '已签到'" type="primary" link @click="startReceive(row)">开始收货</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-table v-show="inboundSubTab === 'orders'" :data="inboundOrders">
+          <el-table-column prop="id" label="入库单号" width="160" />
+          <el-table-column prop="owner" label="货主" min-width="110" />
+          <el-table-column prop="inbound_date" label="入库日期" width="120" />
+          <el-table-column prop="total_items" label="SKU 数" width="80" />
+          <el-table-column prop="total_quantity" label="总数量" width="90" />
+          <el-table-column prop="received_quantity" label="已收货" width="90" />
+          <el-table-column prop="qualified_quantity" label="合格数" width="90" />
+          <el-table-column prop="status" label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '已入库' || row.status === '已完成' ? 'success' : row.status === '收货中' ? 'warning' : 'info'">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="130" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="showInboundDetail(row)">详情</el-button>
+              <el-button v-if="row.status === '待收货' || row.status === '收货中'" type="primary" link @click="receiveGoods(row)">收货</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-show="inboundSubTab === 'suggestions'">
+          <el-alert title="智能上架建议基于商品温度要求、库存均衡、拣货路径优化等因素" type="info" :closable="false" class="section-alert" />
+          <el-table :data="putawaySuggestions">
+            <el-table-column prop="sku" label="SKU" width="110" />
+            <el-table-column prop="name" label="商品名称" min-width="140" />
+            <el-table-column prop="quantity" label="数量" width="80" />
+            <el-table-column prop="suggested_location" label="推荐货位" width="120" />
+            <el-table-column prop="zone" label="温区" width="100" />
+            <el-table-column prop="reason" label="推荐原因" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.reason === '温度匹配' ? 'success' : row.reason === '库存均衡' ? 'warning' : 'info'">{{ row.reason }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="confidence" label="置信度" width="140">
+              <template #default="{ row }">
+                <span>{{ (row.confidence * 100).toFixed(2) }}%</span>
+                <el-progress
+                  :percentage="row.confidence * 100"
+                  :color="levelColor(row.confidence, 0.9, 0.8)"
+                  :show-text="false"
+                  class="confidence-bar"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link @click="confirmPutaway(row)">确认上架</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </SectionCard>
+    </div>
+
+    <!-- 作业管理 -->
+    <div v-show="activeTab === 'operation'">
+      <SectionCard title="作业管理" :icon="Operation">
+        <template #extra>
+          <el-radio-group v-model="operationSubTab">
+            <el-radio-button label="tasks">任务列表</el-radio-button>
+            <el-radio-button label="performance">人员绩效</el-radio-button>
+            <el-radio-button label="batch">智能批次</el-radio-button>
+          </el-radio-group>
+        </template>
+
+        <el-table v-show="operationSubTab === 'tasks'" :data="operationTasks">
+          <el-table-column prop="id" label="任务编号" width="140" />
+          <el-table-column prop="type" label="作业类型" width="90" />
+          <el-table-column prop="priority" label="优先级" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.priority === '紧急' ? 'danger' : row.priority === '高' ? 'warning' : 'info'">{{ row.priority }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="owner" label="货主" min-width="100" />
+          <el-table-column prop="location" label="库位" width="100" />
+          <el-table-column prop="quantity" label="数量" width="70" />
+          <el-table-column prop="assigned_to" label="执行人" width="90" />
+          <el-table-column prop="status" label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === '已完成' ? 'success' : row.status === '执行中' ? 'warning' : 'info'">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="barcode" label="条码" width="130" />
+        </el-table>
+
+        <el-table v-show="operationSubTab === 'performance'" :data="performanceData">
+          <el-table-column prop="employee_id" label="工号" width="100" />
+          <el-table-column prop="name" label="姓名" width="90" />
+          <el-table-column prop="department" label="部门" min-width="100" />
+          <el-table-column prop="tasks_completed" label="完成任务" width="90" />
+          <el-table-column prop="error_count" label="错误数" width="80" />
+          <el-table-column prop="accuracy_rate" label="准确率" width="90">
+            <template #default="{ row }">{{ (row.accuracy_rate * 100).toFixed(1) }}%</template>
+          </el-table-column>
+          <el-table-column prop="avg_task_time" label="平均耗时(分钟)" width="130" />
+          <el-table-column prop="score" label="绩效评分" min-width="160">
+            <template #default="{ row }">
+              <el-progress :percentage="row.score" :color="levelColor(row.score, 80, 60)" />
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-show="operationSubTab === 'batch'">
+          <div class="metric-grid batch-metrics">
+            <div class="metric"><span class="metric-value">{{ batchStats.pending_orders }}</span><span class="metric-label">待处理订单</span></div>
+            <div class="metric"><span class="metric-value">{{ batchStats.suggested_batches }}</span><span class="metric-label">建议批次</span></div>
+            <div class="metric"><span class="metric-value">{{ batchStats.estimated_time_saved }}</span><span class="metric-label">预计节省时间</span></div>
           </div>
-          <div class="alert-content">
-            <p>📦 产品: {{ alert.product }}</p>
-            <p>🏭 仓库: {{ alert.warehouse }}</p>
-            <p>📊 {{ alert.message }}</p>
-          </div>
-          <div class="alert-footer">
-            <span class="alert-time">{{ alert.created_at }}</span>
-            <el-button v-if="alert.status === '待处理'" type="primary" size="small" link @click="resolveAlert(alert.id)">
-              标记处理
-            </el-button>
-          </div>
-        </el-card>
-      </div>
-    </el-card>
-    
+          <el-table :data="batchSuggestions">
+            <el-table-column prop="id" label="批次号" width="120" />
+            <el-table-column prop="type" label="类型" width="100" />
+            <el-table-column prop="description" label="描述" min-width="220" />
+            <el-table-column prop="orders" label="包含订单" min-width="180">
+              <template #default="{ row }">{{ row.orders.join(', ') }}</template>
+            </el-table-column>
+            <el-table-column prop="total_items" label="商品数" width="80" />
+            <el-table-column prop="estimated_pick_time" label="预计拣货时间" width="120" />
+            <el-table-column prop="priority" label="优先级" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.priority === '高' ? 'danger' : 'info'">{{ row.priority }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default>
+                <el-button type="primary" link>创建批次</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </SectionCard>
+    </div>
+
     <!-- 添加/编辑仓库对话框 -->
-    <el-dialog v-model="warehouseDialogVisible" :title="isEditWarehouse ? '编辑仓库' : '添加仓库'" width="95%">
-      <el-form :model="warehouseForm" label-width="70px" size="small">
+    <el-dialog v-model="warehouseDialogVisible" :title="isEditWarehouse ? '编辑仓库' : '添加仓库'" class="dialog-md">
+      <el-form :model="warehouseForm" label-width="90px">
         <el-form-item label="仓库名称" required>
-          <el-input v-model="warehouseForm.name" placeholder="如: 北京冷库" />
+          <el-input v-model="warehouseForm.name" placeholder="如：北京冷库" />
         </el-form-item>
         <el-form-item label="地址" required>
           <el-input v-model="warehouseForm.address" placeholder="仓库地址" />
         </el-form-item>
-        <el-row :gutter="10">
-          <el-col :span="12">
-            <el-form-item label="容量(m³)" style="margin-bottom: 10px;">
-              <el-input-number v-model="warehouseForm.capacity" :min="1" style="width: 100%" />
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="容量(m³)">
+              <el-input-number v-model="warehouseForm.capacity" :min="1" class="w-full" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="面积(㎡)" style="margin-bottom: 10px;">
-              <el-input-number v-model="warehouseForm.area" :min="1" style="width: 100%" />
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="面积(㎡)">
+              <el-input-number v-model="warehouseForm.area" :min="1" class="w-full" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="10">
-          <el-col :span="12">
-            <el-form-item label="温度(°C)" style="margin-bottom: 10px;">
-              <el-input-number v-model="warehouseForm.temperature" :min="-30" :max="10" style="width: 100%" />
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="温度(°C)">
+              <el-input-number v-model="warehouseForm.temperature" :min="-30" :max="10" class="w-full" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="湿度(%)" style="margin-bottom: 10px;">
-              <el-input-number v-model="warehouseForm.humidity" :min="0" :max="100" style="width: 100%" />
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="湿度(%)">
+              <el-input-number v-model="warehouseForm.humidity" :min="0" :max="100" class="w-full" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="状态">
-          <el-select v-model="warehouseForm.status" style="width: 100%">
+          <el-select v-model="warehouseForm.status" class="w-full">
             <el-option label="正常" value="正常" />
             <el-option label="维护中" value="维护中" />
             <el-option label="已满" value="已满" />
@@ -537,24 +563,24 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="warehouseDialogVisible = false" size="small">取消</el-button>
-        <el-button type="primary" @click="saveWarehouse" size="small">保存</el-button>
+        <el-button @click="warehouseDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveWarehouse">保存</el-button>
       </template>
     </el-dialog>
-    
+
     <!-- 添加/编辑车辆对话框 -->
-    <el-dialog v-model="vehicleDialogVisible" :title="isEditVehicle ? '编辑车辆' : '添加车辆'" width="95%">
-      <el-form :model="vehicleForm" label-width="80px" size="small">
+    <el-dialog v-model="vehicleDialogVisible" :title="isEditVehicle ? '编辑车辆' : '添加车辆'" class="dialog-md">
+      <el-form :model="vehicleForm" label-width="90px">
         <div class="form-section-title">基本信息</div>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="车牌号" required>
-              <el-input v-model="vehicleForm.plate" placeholder="如: 京A12345" />
+              <el-input v-model="vehicleForm.plate" placeholder="如：京A12345" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="车型">
-              <el-select v-model="vehicleForm.vehicleType" style="width: 100%">
+              <el-select v-model="vehicleForm.vehicleType" class="w-full">
                 <el-option label="冷藏车" value="冷藏车" />
                 <el-option label="厢式货车" value="厢式货车" />
                 <el-option label="保温车" value="保温车" />
@@ -563,46 +589,46 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="载重(吨)">
-              <el-input-number v-model="vehicleForm.loadCapacity" :min="0.1" :precision="1" style="width: 100%" />
+              <el-input-number v-model="vehicleForm.loadCapacity" :min="0.1" :precision="1" class="w-full" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="车厢容积">
-              <el-input v-model="vehicleForm.volume" placeholder="如: 50立方米" />
+              <el-input v-model="vehicleForm.volume" placeholder="如：50立方米" />
             </el-form-item>
           </el-col>
         </el-row>
         <div class="form-section-title">司机信息</div>
-        <el-row :gutter="10">
-          <el-col :span="12">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="司机" required>
               <el-input v-model="vehicleForm.driver" placeholder="司机姓名" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="电话">
               <el-input v-model="vehicleForm.phone" placeholder="联系电话" />
             </el-form-item>
           </el-col>
         </el-row>
         <div class="form-section-title">设备信息</div>
-        <el-row :gutter="10">
-          <el-col :span="12">
-            <el-form-item label="GPS设备">
-              <el-input v-model="vehicleForm.gpsDevice" placeholder="GPS设备编号" />
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="GPS 设备">
+              <el-input v-model="vehicleForm.gpsDevice" placeholder="GPS 设备编号" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="温度范围">
-              <el-input v-model="vehicleForm.tempRange" placeholder="如: -25°C~5°C" />
+              <el-input v-model="vehicleForm.tempRange" placeholder="如：-25°C~5°C" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="状态">
-          <el-select v-model="vehicleForm.status" style="width: 100%">
+          <el-select v-model="vehicleForm.status" class="w-full">
             <el-option label="空闲" value="空闲" />
             <el-option label="运输中" value="运输中" />
             <el-option label="维修中" value="维修中" />
@@ -610,73 +636,13 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="vehicleDialogVisible = false" size="small">取消</el-button>
-        <el-button type="primary" @click="saveVehicle" size="small">保存</el-button>
+        <el-button @click="vehicleDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveVehicle">保存</el-button>
       </template>
     </el-dialog>
 
-    <!-- 货主管理 -->
-    <el-card v-if="activeTab === 'owner'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>🏢 货主管理</span>
-          <div>
-            <el-button type="primary" size="small" @click="showOwnerDialog()">+ 添加货主</el-button>
-            <el-button type="primary" size="small" @click="loadOwnerData">🔄 刷新</el-button>
-          </div>
-        </div>
-      </template>
-      
-      <el-row :gutter="10" class="owner-stats">
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num">{{ ownerStats.total }}</span>
-            <span class="label">货主总数</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num" style="color: #67C23A;">{{ ownerStats.active }}</span>
-            <span class="label">正常运营</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num" style="color: #409EFF;">{{ ownerStats.warehouses }}</span>
-            <span class="label">仓库数量</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <span class="num" style="color: #E6A23C;">{{ ownerStats.zones }}</span>
-            <span class="label">温区数量</span>
-          </div>
-        </el-col>
-      </el-row>
-      
-      <el-table :data="ownerList" stripe style="width: 100%; margin-top: 15px;">
-        <el-table-column prop="code" label="货主编码" width="100" />
-        <el-table-column prop="name" label="货主名称" width="150" />
-        <el-table-column prop="contact" label="联系人" width="100" />
-        <el-table-column prop="phone" label="联系电话" width="130" />
-        <el-table-column prop="email" label="邮箱" width="180" />
-        <el-table-column prop="address" label="地址" width="180" />
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === '正常' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" link @click="editOwner(row)">编辑</el-button>
-            <el-button type="danger" size="small" link @click="deleteOwner(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
     <!-- 添加/编辑货主对话框 -->
-    <el-dialog v-model="ownerDialogVisible" :title="isEditOwner ? '编辑货主' : '添加货主'" width="500px">
+    <el-dialog v-model="ownerDialogVisible" :title="isEditOwner ? '编辑货主' : '添加货主'" class="dialog-sm">
       <el-form :model="ownerForm" label-width="80px">
         <el-form-item label="货主名称" required>
           <el-input v-model="ownerForm.name" placeholder="请输入货主名称" />
@@ -694,7 +660,7 @@
           <el-input v-model="ownerForm.address" placeholder="请输入地址" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="ownerForm.status" style="width: 100%">
+          <el-select v-model="ownerForm.status" class="w-full">
             <el-option label="正常" value="正常" />
             <el-option label="暂停" value="暂停" />
           </el-select>
@@ -707,7 +673,7 @@
     </el-dialog>
 
     <!-- 预约详情对话框 -->
-    <el-dialog v-model="appointmentDetailVisible" title="预约详情" width="600px">
+    <el-dialog v-model="appointmentDetailVisible" title="预约详情" class="dialog-md">
       <el-descriptions :column="2" border v-if="currentAppointment">
         <el-descriptions-item label="预约号">{{ currentAppointment.id }}</el-descriptions-item>
         <el-descriptions-item label="货主">{{ currentAppointment.owner }}</el-descriptions-item>
@@ -724,13 +690,13 @@
       </el-descriptions>
       <template #footer>
         <el-button @click="appointmentDetailVisible = false">关闭</el-button>
-        <el-button type="success" @click="signInAppointment(currentAppointment)" v-if="currentAppointment.status === '待签到'">签到</el-button>
-        <el-button type="warning" @click="startReceive(currentAppointment)" v-if="currentAppointment.status === '已签到'">开始收货</el-button>
+        <el-button v-if="currentAppointment.status === '待签到'" type="primary" @click="signInAppointment(currentAppointment)">签到</el-button>
+        <el-button v-if="currentAppointment.status === '已签到'" type="primary" @click="startReceive(currentAppointment)">开始收货</el-button>
       </template>
     </el-dialog>
 
     <!-- 入库单详情对话框 -->
-    <el-dialog v-model="inboundDetailVisible" title="入库单详情" width="700px">
+    <el-dialog v-model="inboundDetailVisible" title="入库单详情" class="dialog-lg">
       <el-descriptions :column="2" border v-if="currentInboundOrder">
         <el-descriptions-item label="入库单号">{{ currentInboundOrder.id }}</el-descriptions-item>
         <el-descriptions-item label="货主">{{ currentInboundOrder.owner }}</el-descriptions-item>
@@ -738,46 +704,46 @@
         <el-descriptions-item label="状态">
           <el-tag :type="currentInboundOrder.status === '已入库' ? 'success' : currentInboundOrder.status === '收货中' ? 'warning' : 'info'">{{ currentInboundOrder.status }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="SKU数">{{ currentInboundOrder.total_items }}</el-descriptions-item>
+        <el-descriptions-item label="SKU 数">{{ currentInboundOrder.total_items }}</el-descriptions-item>
         <el-descriptions-item label="总数量">{{ currentInboundOrder.total_quantity }}</el-descriptions-item>
         <el-descriptions-item label="已收货">{{ currentInboundOrder.received_quantity }}</el-descriptions-item>
         <el-descriptions-item label="合格数">{{ currentInboundOrder.qualified_quantity }}</el-descriptions-item>
       </el-descriptions>
-      <el-divider>货物明细</el-divider>
-      <el-table :data="currentInboundOrder.items || []" stripe size="small">
+      <h4 class="subsection-title">货物明细</h4>
+      <el-table :data="currentInboundOrder.items || []">
         <el-table-column prop="sku" label="SKU" width="120" />
-        <el-table-column prop="name" label="商品名称" width="150" />
+        <el-table-column prop="name" label="商品名称" min-width="140" />
         <el-table-column prop="expected_qty" label="预期数量" width="90" />
         <el-table-column prop="received_qty" label="已收数量" width="90" />
         <el-table-column prop="qualified_qty" label="合格数" width="90" />
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag size="small" :type="row.status === '已完成' ? 'success' : row.status === '部分收货' ? 'warning' : 'info'">{{ row.status }}</el-tag>
+            <el-tag :type="row.status === '已完成' ? 'success' : row.status === '部分收货' ? 'warning' : 'info'">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
       </el-table>
       <template #footer>
         <el-button @click="inboundDetailVisible = false">关闭</el-button>
-        <el-button type="primary" @click="receiveGoods(currentInboundOrder)" v-if="currentInboundOrder.status === '待收货' || currentInboundOrder.status === '收货中'">收货</el-button>
+        <el-button v-if="currentInboundOrder.status === '待收货' || currentInboundOrder.status === '收货中'" type="primary" @click="receiveGoods(currentInboundOrder)">收货</el-button>
       </template>
     </el-dialog>
 
     <!-- 收货对话框 -->
-    <el-dialog v-model="receiveDialogVisible" title="收货入库" width="500px">
-      <el-form :model="receiveForm" label-width="100px">
+    <el-dialog v-model="receiveDialogVisible" title="收货入库" class="dialog-sm">
+      <el-form :model="receiveForm" label-width="90px">
         <el-form-item label="入库单号">
           <el-input v-model="receiveForm.orderId" disabled />
         </el-form-item>
         <el-form-item label="SKU">
-          <el-select v-model="receiveForm.sku" placeholder="请选择SKU" style="width: 100%">
+          <el-select v-model="receiveForm.sku" placeholder="请选择 SKU" class="w-full">
             <el-option v-for="item in receiveForm.items" :key="item.sku" :label="`${item.sku} - ${item.name}`" :value="item.sku" />
           </el-select>
         </el-form-item>
         <el-form-item label="收货数量">
-          <el-input-number v-model="receiveForm.quantity" :min="1" :max="receiveForm.maxQty" style="width: 100%" />
+          <el-input-number v-model="receiveForm.quantity" :min="1" :max="receiveForm.maxQty" class="w-full" />
         </el-form-item>
         <el-form-item label="合格数量">
-          <el-input-number v-model="receiveForm.qualifiedQty" :min="0" :max="receiveForm.quantity" style="width: 100%" />
+          <el-input-number v-model="receiveForm.qualifiedQty" :min="0" :max="receiveForm.quantity" class="w-full" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="receiveForm.remark" type="textarea" :rows="2" placeholder="请输入备注" />
@@ -788,204 +754,19 @@
         <el-button type="primary" @click="submitReceive">确认收货</el-button>
       </template>
     </el-dialog>
-
-    <!-- 入库管理 -->
-    <el-card v-if="activeTab === 'inbound'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>📥 入库管理</span>
-          <el-radio-group v-model="inboundSubTab" size="small">
-            <el-radio-button label="appointments">预约管理</el-radio-button>
-            <el-radio-button label="orders">入库单</el-radio-button>
-            <el-radio-button label="suggestions">上架建议</el-radio-button>
-          </el-radio-group>
-        </div>
-      </template>
-      
-      <div v-if="inboundSubTab === 'appointments'">
-        <el-table :data="appointmentList" stripe>
-          <el-table-column prop="id" label="预约号" width="140" />
-          <el-table-column prop="owner" label="货主" width="100" />
-          <el-table-column prop="vehicle_no" label="车牌号" width="100" />
-          <el-table-column prop="driver" label="司机" width="80" />
-          <el-table-column prop="estimated_arrival" label="预计到达" width="150" />
-          <el-table-column prop="expected_quantity" label="预计数量" width="90" />
-          <el-table-column prop="dock" label="月台" width="60" />
-          <el-table-column prop="status" label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.status === '已完成' ? 'success' : row.status === '收货中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="180">
-            <template #default="{ row }">
-              <el-button type="primary" size="small" link @click="showAppointmentDetail(row)">详情</el-button>
-              <el-button type="success" size="small" link @click="signInAppointment(row)" v-if="row.status === '待签到'">签到</el-button>
-              <el-button type="warning" size="small" link @click="startReceive(row)" v-if="row.status === '已签到'">开始收货</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      
-      <div v-if="inboundSubTab === 'orders'">
-        <el-table :data="inboundOrders" stripe>
-          <el-table-column prop="id" label="入库单号" width="150" />
-          <el-table-column prop="owner" label="货主" width="100" />
-          <el-table-column prop="inbound_date" label="入库日期" width="120" />
-          <el-table-column prop="total_items" label="SKU数" width="70" />
-          <el-table-column prop="total_quantity" label="总数量" width="90" />
-          <el-table-column prop="received_quantity" label="已收货" width="90" />
-          <el-table-column prop="qualified_quantity" label="合格数" width="90" />
-          <el-table-column prop="status" label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.status === '已入库' ? 'success' : row.status === '收货中' ? 'warning' : row.status === '已完成' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150">
-            <template #default="{ row }">
-              <el-button type="primary" size="small" link @click="showInboundDetail(row)">详情</el-button>
-              <el-button type="success" size="small" link @click="receiveGoods(row)" v-if="row.status === '待收货' || row.status === '收货中'">收货</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      
-      <div v-if="inboundSubTab === 'suggestions'">
-        <el-alert title="智能上架建议基于商品温度要求、库存均衡、拣货路径优化等因素" type="info" :closable="false" style="margin-bottom: 15px;" />
-        <el-table :data="putawaySuggestions" stripe>
-          <el-table-column prop="sku" label="SKU" width="100" />
-          <el-table-column prop="name" label="商品名称" width="150" />
-          <el-table-column prop="quantity" label="数量" width="80" />
-          <el-table-column prop="suggested_location" label="推荐货位" width="120" />
-          <el-table-column prop="zone" label="温区" width="100" />
-          <el-table-column prop="reason" label="推荐原因" width="180">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.reason === '温度匹配' ? 'success' : row.reason === '库存均衡' ? 'warning' : 'info'">{{ row.reason }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="confidence" label="置信度" width="120">
-            <template #default="{ row }">
-              <span>{{ (row.confidence * 100).toFixed(2) }}%</span>
-              <el-progress :percentage="row.confidence * 100" :color="row.confidence > 0.9 ? '#67C23A' : row.confidence > 0.8 ? '#E6A23C' : '#F56C6C'" :show-text="false" style="margin-top: 4px;" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="100">
-            <template #default="{ row }">
-              <el-button type="primary" size="small" link @click="confirmPutaway(row)">确认上架</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-    </el-card>
-
-    <!-- 作业管理 -->
-    <el-card v-if="activeTab === 'operation'" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span>⚙️ 作业管理</span>
-          <el-radio-group v-model="operationSubTab" size="small">
-            <el-radio-button label="tasks">任务列表</el-radio-button>
-            <el-radio-button label="performance">人员绩效</el-radio-button>
-            <el-radio-button label="batch">智能批次</el-radio-button>
-          </el-radio-group>
-        </div>
-      </template>
-      
-      <div v-if="operationSubTab === 'tasks'">
-        <el-table :data="operationTasks" stripe>
-          <el-table-column prop="id" label="任务编号" width="130" />
-          <el-table-column prop="type" label="作业类型" width="80" />
-          <el-table-column prop="priority" label="优先级" width="70">
-            <template #default="{ row }">
-              <el-tag :type="row.priority === '紧急' ? 'danger' : row.priority === '高' ? 'warning' : 'info'" size="small">{{ row.priority }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="owner" label="货主" width="80" />
-          <el-table-column prop="location" label="库位" width="100" />
-          <el-table-column prop="quantity" label="数量" width="70" />
-          <el-table-column prop="assigned_to" label="执行人" width="80" />
-          <el-table-column prop="status" label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.status === '已完成' ? 'success' : row.status === '执行中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="barcode" label="条码" width="120" />
-        </el-table>
-      </div>
-      
-      <div v-if="operationSubTab === 'performance'">
-        <el-table :data="performanceData" stripe>
-          <el-table-column prop="employee_id" label="工号" width="100" />
-          <el-table-column prop="name" label="姓名" width="80" />
-          <el-table-column prop="department" label="部门" width="100" />
-          <el-table-column prop="tasks_completed" label="完成任务" width="90" />
-          <el-table-column prop="error_count" label="错误数" width="70" />
-          <el-table-column prop="accuracy_rate" label="准确率" width="80">
-            <template #default="{ row }">
-              {{ (row.accuracy_rate * 100).toFixed(1) }}%
-            </template>
-          </el-table-column>
-          <el-table-column prop="avg_task_time" label="平均耗时(分钟)" width="120" />
-          <el-table-column prop="score" label="绩效评分" width="80">
-            <template #default="{ row }">
-              <el-progress :percentage="row.score" :color="row.score >= 80 ? '#67C23A' : row.score >= 60 ? '#E6A23C' : '#F56C6C'" />
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      
-      <div v-if="operationSubTab === 'batch'">
-        <el-row :gutter="10" class="batch-stats">
-          <el-col :span="8">
-            <div class="stat-item">
-              <span class="num">{{ batchStats.pending_orders }}</span>
-              <span class="label">待处理订单</span>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="stat-item">
-              <span class="num" style="color: #409EFF;">{{ batchStats.suggested_batches }}</span>
-              <span class="label">建议批次</span>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="stat-item">
-              <span class="num" style="color: #67C23A;">{{ batchStats.estimated_time_saved }}</span>
-              <span class="label">预计节省时间</span>
-            </div>
-          </el-col>
-        </el-row>
-        <el-table :data="batchSuggestions" stripe style="margin-top: 15px;">
-          <el-table-column prop="id" label="批次号" width="120" />
-          <el-table-column prop="type" label="类型" width="100" />
-          <el-table-column prop="description" label="描述" width="250" />
-          <el-table-column prop="orders" label="包含订单" width="180">
-            <template #default="{ row }">
-              {{ row.orders.join(', ') }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="total_items" label="商品数" width="70" />
-          <el-table-column prop="estimated_pick_time" label="预计拣货时间" width="120" />
-          <el-table-column prop="priority" label="优先级" width="70">
-            <template #default="{ row }">
-              <el-tag :type="row.priority === '高' ? 'danger' : 'info'" size="small">{{ row.priority }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="100">
-            <template #default>
-              <el-button type="primary" size="small">创建批次</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataAnalysis, OfficeBuilding, Van, Box, Location, TrendCharts, CircleCheck, Warning, User, Bottom, Operation } from '@element-plus/icons-vue'
+import {
+  Bell, Bottom, Box, CircleCheck, CircleClose, Clock, DataAnalysis, Document, Goods, Location, OfficeBuilding,
+  Odometer, Operation, Plus, Position, Refresh, Search, TrendCharts, User, Van, Warning
+} from '@element-plus/icons-vue'
+import type { ModuleNavGroup } from '../components/ui/ModuleNav.vue'
+import { themeColors, levelColor } from '../utils/theme'
 
 declare global {
   interface Window {
@@ -994,20 +775,39 @@ declare global {
 }
 
 const activeTab = ref('monitor')
-const setActiveTab = (tab: string) => { activeTab.value = tab }
-
-const navItems = [
-  { key: 'monitor', label: '实时监控', icon: DataAnalysis, color: '#3B82F6' },
-  { key: 'warehouse', label: '仓库管理', icon: OfficeBuilding, color: '#10B981' },
-  { key: 'vehicle', label: '车辆管理', icon: Van, color: '#F59E0B' },
-  { key: 'transport', label: '运输追踪', icon: Location, color: '#8B5CF6' },
-  { key: 'inventory', label: '库存管理', icon: Box, color: '#EC4899' },
-  { key: 'analytics', label: '数据分析', icon: TrendCharts, color: '#06B6D4' },
-  { key: 'quality', label: '品控管理', icon: CircleCheck, color: '#10B981' },
-  { key: 'alert', label: '库存预警', icon: Warning, color: '#EF4444' },
-  { key: 'owner', label: '货主管理', icon: User, color: '#F97316' },
-  { key: 'inbound', label: '入库管理', icon: Bottom, color: '#6366F1' },
-  { key: 'operation', label: '作业管理', icon: Operation, color: '#14B8A6' }
+// 11 项按业务分组（spec §3.5）：监测 / 仓储 / 运输 / 运营
+const navGroups: ModuleNavGroup[] = [
+  {
+    label: '监测',
+    items: [
+      { key: 'monitor', label: '实时监控', icon: DataAnalysis },
+      { key: 'alert', label: '库存预警', icon: Warning },
+      { key: 'analytics', label: '数据分析', icon: TrendCharts }
+    ]
+  },
+  {
+    label: '仓储',
+    items: [
+      { key: 'warehouse', label: '仓库管理', icon: OfficeBuilding },
+      { key: 'inventory', label: '库存管理', icon: Box },
+      { key: 'inbound', label: '入库管理', icon: Bottom },
+      { key: 'quality', label: '品控管理', icon: CircleCheck }
+    ]
+  },
+  {
+    label: '运输',
+    items: [
+      { key: 'vehicle', label: '车辆管理', icon: Van },
+      { key: 'transport', label: '运输追踪', icon: Location }
+    ]
+  },
+  {
+    label: '运营',
+    items: [
+      { key: 'owner', label: '货主管理', icon: User },
+      { key: 'operation', label: '作业管理', icon: Operation }
+    ]
+  }
 ]
 
 // 页面加载时获取数据
@@ -1053,16 +853,17 @@ const initWarehouseMap = () => {
     const container = document.getElementById('warehouseMap')
     if (!container) return
 
+    // 面板用 v-show 常驻：地图只建一次（首次必须在容器可见时），之后清空覆盖物重画
     if (warehouseMap) {
-      warehouseMap.destroy()
-      warehouseMap = null
+      warehouseMap.clearMap()
+    } else {
+      warehouseMap = new window.AMap.Map('warehouseMap', {
+        zoom: 10,
+        center: [117.12, 36.65],
+        viewMode: '2D',
+        resizeEnable: true
+      })
     }
-
-    warehouseMap = new window.AMap.Map('warehouseMap', {
-      zoom: 10,
-      center: [117.12, 36.65],
-      viewMode: '2D'
-    })
 
     // 添加仓库标记
     if (warehouses.value.length > 0) {
@@ -1089,15 +890,15 @@ const initTransportMap = () => {
     if (!container) return
 
     if (transportMap) {
-      transportMap.destroy()
-      transportMap = null
+      transportMap.clearMap()
+    } else {
+      transportMap = new window.AMap.Map('transportMap', {
+        zoom: 5,
+        center: [117.12, 36.65],
+        viewMode: '2D',
+        resizeEnable: true
+      })
     }
-
-    transportMap = new window.AMap.Map('transportMap', {
-      zoom: 5,
-      center: [117.12, 36.65],
-      viewMode: '2D'
-    })
 
     // 地理编码器
     const geocoder = new window.AMap.Geocoder({ radius: 1000 })
@@ -1249,11 +1050,29 @@ const initTransportMap = () => {
   })
 }
 
+// GET /monitoring/temperature 的单条传感器读数
+interface SensorReading {
+  location: string
+  address: string | null
+  current_temp: number | null
+  target_temp: number
+  humidity: number | null
+  status: string
+}
+
 // 加载监控数据
 const loadMonitorData = async () => {
   try {
-    const res = await axios.get('/api/cold-chain/monitoring/temperature')
-    temperatureData.value = res.data
+    const res = await axios.get<SensorReading[]>('/api/cold-chain/monitoring/temperature')
+    // 接口字段（location / address / current_temp）映射为视图字段
+    temperatureData.value = res.data.map((s) => ({
+      warehouse: s.location,
+      location: s.address ?? '—',
+      currentTemp: s.current_temp,
+      targetTemp: s.target_temp,
+      humidity: s.humidity == null ? '—' : `${s.humidity}%`,
+      status: s.status
+    }))
   } catch (e) { console.error('加载监控数据失败', e) }
 }
 
@@ -1291,23 +1110,40 @@ watch(activeTab, (newTab) => {
   if (newTab === 'operation' && operationTasks.value.length === 0) {
     loadOperationData()
   }
+  // v-show 切换后容器已可见（init 内部 nextTick），不再需要延时
   if (newTab === 'warehouse') {
-    setTimeout(initWarehouseMap, 300)
+    initWarehouseMap()
   }
   if (newTab === 'transport') {
-    setTimeout(initTransportMap, 300)
+    initTransportMap()
   }
 })
 
+onBeforeUnmount(() => {
+  warehouseMap?.destroy()
+  transportMap?.destroy()
+  warehouseMap = null
+  transportMap = null
+})
+
 // 监控数据
-const monitorData = ref([
-  { title: '在线车辆', value: '12', color: '#67C23A' },
-  { title: '在线仓库', value: '5', color: '#409EFF' },
-  { title: '温度异常', value: '0', color: '#F56C6C' },
-  { title: '今日运输', value: '28', color: '#E6A23C' }
+const monitorData = ref<{ title: string; value: string; type: 'primary' | 'success' | 'danger'; icon: typeof Van }[]>([
+  { title: '在线车辆', value: '12', type: 'success', icon: Van },
+  { title: '在线仓库', value: '5', type: 'primary', icon: OfficeBuilding },
+  { title: '温度异常', value: '0', type: 'danger', icon: Warning },
+  { title: '今日运输', value: '28', type: 'primary', icon: Position }
 ])
 
-const temperatureData = ref([
+interface TempTile {
+  warehouse: string
+  location: string
+  currentTemp: number | null
+  targetTemp: number
+  humidity: string
+  status: string
+}
+
+const temperatureData = ref<TempTile[]>([
   { warehouse: 'A冷库', location: '北京仓', currentTemp: -18, targetTemp: -18, humidity: '45%', status: '正常' },
   { warehouse: 'B冷库', location: '上海仓', currentTemp: -20, targetTemp: -18, humidity: '42%', status: '正常' },
   { warehouse: '京A12345', location: '运输中-京沪高速', currentTemp: -16, targetTemp: -18, humidity: '50%', status: '正常' },
@@ -1316,6 +1152,11 @@ const temperatureData = ref([
 
 // 仓库数据
 const warehouses = ref<any[]>([])
+
+// 仓库增删改后，若地图正在显示则重画标记
+watch(warehouses, () => {
+  if (activeTab.value === 'warehouse') initWarehouseMap()
+})
 
 // 加载仓库数据
 const loadWarehouses = async () => {
@@ -1861,9 +1702,9 @@ const traceForm = reactive({ code: '' })
 const traceResult = ref<any>(null)
 
 const getTempColor = (temp: number) => {
-  if (temp > -15) return '#F56C6C'
-  if (temp < -20) return '#409EFF'
-  return '#67C23A'
+  if (temp > -15) return 'var(--color-danger)'
+  if (temp < -20) return 'var(--primary)'
+  return 'var(--color-success)'
 }
 
 const traceProduct = () => {
@@ -1883,239 +1724,134 @@ const traceProduct = () => {
 </script>
 
 <style scoped>
-.cold-chain-container {
-  padding: 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-  background: var(--bg-secondary, #F8FAFC);
-  min-height: calc(100vh - 64px);
+.stat-grid--flush {
+  margin-bottom: 0;
 }
 
-/* ========== 页面头部 ========== */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 28px;
+.temp-value {
+  font-weight: 600;
 }
 
-.header-left {
-  flex: 1;
+.map-box {
+  width: 100%;
+  height: 240px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
 }
 
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary, #0F172A);
-  margin: 0 0 8px 0;
-  letter-spacing: -0.02em;
-}
-
-.page-subtitle {
-  font-size: 15px;
-  color: var(--text-secondary, #475569);
-  margin: 0;
-}
-
-/* ========== 快捷入口导航 ========== */
-.quick-nav-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.map-box--lg {
+  height: 300px;
   margin-bottom: 20px;
 }
 
-.nav-card {
-  position: relative;
-  background: var(--bg-primary, #FFFFFF);
-  border: 1px solid var(--border-color, #E2E8F0);
-  border-radius: 14px;
-  padding: 16px 12px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  overflow: hidden;
-  animation: fadeInUp 0.4s ease forwards;
-  animation-delay: var(--delay);
-  opacity: 0;
+.transport-select {
+  margin-bottom: 16px;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.timeline-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.nav-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent);
+.timeline-info {
+  margin-top: 4px;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 
-.nav-card-glow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s ease;
+.inline-tag {
+  margin-left: 6px;
 }
 
-.nav-card:hover .nav-card-glow {
-  transform: scaleX(1);
+.trace-form {
+  margin-bottom: 4px;
 }
 
-.nav-card-content {
-  position: relative;
+.trace-result {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
 }
 
-.nav-icon-wrapper {
-  width: 52px;
-  height: 52px;
+.trace-result dt {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+.trace-result dd {
+  margin: 2px 0 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.analytics-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.analytics-note {
+  margin: 8px 0 0;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+/* 预警左侧级别条 */
+.alert-tile {
+  border-left-width: 4px;
+}
+
+.alert-critical { border-left-color: var(--color-danger); }
+.alert-high { border-left-color: var(--color-warning); }
+.alert-medium { border-left-color: var(--primary); }
+.alert-low { border-left-color: var(--color-info); }
+
+.alert-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--bg-secondary, #F8FAFC);
-  border-radius: 12px;
-  margin: 0 auto 12px;
-  transition: all 0.3s ease;
+  gap: 8px;
 }
 
-.nav-card:hover .nav-icon-wrapper {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+.alert-footer {
+  align-items: center;
+  justify-content: space-between;
 }
 
-.nav-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary, #0F172A);
+.alert-time {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 
-/* ========== 响应式 ========== */
-@media (max-width: 1200px) {
-  .quick-nav-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.section-alert {
+  margin-bottom: 16px;
+}
+
+.confidence-bar {
+  margin-top: 4px;
+}
+
+.batch-metrics {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 768px) {
-  .cold-chain-container {
-    padding: 20px;
+  .analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .quick-nav-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
-  .nav-card {
-    padding: 12px 8px;
-  }
-
-  .nav-icon-wrapper {
-    width: 40px;
-    height: 40px;
-  }
-
-  .nav-label {
-    font-size: 12px;
+  .map-box--lg {
+    height: 240px;
   }
 }
-
-@media (max-width: 480px) {
-  .quick-nav-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-.monitor-cards { margin-bottom: 10px; }
-.monitor-card { margin-bottom: 10px; }
-.monitor-info h3 { font-size: 24px; margin: 0; }
-.monitor-info p { margin: 5px 0 0; font-size: 12px; color: #909399; }
-
-.section-card { margin-bottom: 10px; }
-.section-card { animation: fadeIn 0.3s ease; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.card-header span { font-size: 14px; font-weight: 500; }
-
-.stat-item { text-align: center; padding: 10px; background: #f5f7fa; border-radius: 8px; }
-.stat-item .num { display: block; font-size: 20px; font-weight: bold; color: #409eff; }
-.stat-item .label { font-size: 11px; color: #909399; }
-
-.warehouse-list, .inventory-list { display: flex; flex-direction: column; gap: 10px; }
-.vehicle-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-@media (max-width: 768px) {
-  .vehicle-list { grid-template-columns: 1fr; }
-}
-.warehouse-card, .vehicle-card, .inventory-card { padding: 12px; }
-
-.warehouse-header, .vehicle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.warehouse-title { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; }
-.warehouse-info p { margin: 2px 0; font-size: 12px; color: #606266; }
-.warehouse-actions, .vehicle-actions { display: flex; gap: 5px; margin-top: 6px; }
-
-.vehicle-info { flex: 1; margin: 0 10px; }
-.vehicle-info h4 { margin: 0; font-size: 14px; }
-.vehicle-info p { margin: 2px 0 0; font-size: 11px; color: #909399; }
-.vehicle-detail { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; }
-.vehicle-detail span { background: #f5f7fa; padding: 2px 6px; border-radius: 4px; }
-
-.inventory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.product-name { font-weight: 500; font-size: 14px; }
-.inventory-info { display: flex; gap: 15px; font-size: 12px; color: #606266; align-items: center; }
-
-.transport-map { margin-bottom: 15px; }
-.timeline-info { margin: 5px 0 0; color: #909399; font-size: 12px; }
-.timeline-info span { margin-right: 10px; }
-
-.chart-placeholder { text-align: center; padding: 15px; }
-.chart-placeholder p { margin: 10px 0 0; font-size: 12px; color: #909399; }
-.analytics-note { font-size: 12px; color: #909399; text-align: center; margin-top: 5px; }
-
-.loss-item { text-align: center; padding: 10px; background: #f5f7fa; border-radius: 8px; }
-.loss-item .num { display: block; font-size: 18px; font-weight: bold; color: #67C23A; }
-.loss-item .label { font-size: 11px; color: #909399; }
-
-.trace-result { padding: 15px; background: #f5f7fa; border-radius: 8px; margin-top: 10px; }
-.trace-result h4 { margin: 0 0 10px; }
-.trace-result p { margin: 5px 0; font-size: 12px; }
-
-.analytics-section { margin-bottom: 15px; }
-.analytics-section h4 { font-size: 14px; margin: 0 0 10px 0; }
-
-/* 品控管理 */
-.quality-stats, .alert-stats { margin-bottom: 15px; }
-.quality-standards, .alert-rules { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
-.standard-card, .rule-card { padding: 10px; }
-.standard-header, .rule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.standard-name, .rule-name { font-weight: 500; }
-.standard-info, .rule-info { font-size: 12px; color: #606266; display: flex; flex-wrap: wrap; gap: 10px; }
-.standard-info span, .rule-info span { display: block; }
-
-/* 库存预警 */
-.alert-list { display: flex; flex-direction: column; gap: 10px; }
-.alert-card { padding: 10px; border-left: 4px solid #909399; }
-.alert-card.alert-critical { border-left-color: #F56C6C; }
-.alert-card.alert-high { border-left-color: #E6A23C; }
-.alert-card.alert-medium { border-left-color: #409EFF; }
-.alert-card.alert-low { border-left-color: #909399; }
-.alert-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.alert-type { flex: 1; font-weight: 500; }
-.alert-content { font-size: 12px; color: #606266; }
-.alert-content p { margin: 3px 0; }
-.alert-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-.alert-time { font-size: 11px; color: #909399; }
 </style>

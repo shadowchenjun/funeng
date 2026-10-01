@@ -111,6 +111,22 @@ defineEmits<{
   color: var(--primary);
 }
 
+@media (max-width: 768px) {
+  .ui-nav-card {
+    gap: 8px;
+    padding: 14px 6px;
+  }
+
+  .nav-icon-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+
+  .nav-label {
+    font-size: var(--font-xs);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-nav-card,
   .nav-card-glow,

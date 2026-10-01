@@ -90,8 +90,35 @@
 | **总分** | **89/100** | |
 
 ### Sprint U3: 世代②核心（SmartAgriculture、ColdChain）
-- [ ] 灰底统计块 → StatCard；section 卡 → SectionCard；导航卡 → NavCard（冷链 11 项按四组重排）
-- [ ] 冷链 v-if → v-show + 地图初始化守卫 / `map.resize()`；内联样式清零
+
+**实现清单：**
+- [x] 新组件 `ModuleNav`：NavCard 分组导航（组宽∝项数，宽屏一行、窄屏按组换行，v-model）；冷链 11 项分「监测/仓储/运输/运营」，智慧农业 7 项分「生产管理/物联监测/决策与追溯」
+- [x] 全局工具类：`.tile*`（卡中卡统一浅底 12px）、`.metric*`（区块内指标）、`.subsection-title`（替代 emoji el-divider）、`.stat-grid--3`、`.w-full`；`utils/theme.ts`（SVG/地图用色值 + `levelColor`）
+- [x] 两页：灰底统计 → StatCard（区块外）/ metric（区块内）；el-card → SectionCard；emoji、EP 旧色、内联样式全部清零；弹窗套宽度档，表单 `:xs=24 :sm=12` 响应式
+- [x] **冷链 tab 机制（§6 例外）**：v-if → v-show；地图只建一次（`resizeEnable`），再次显示/数据变化时 `clearMap()` 重画；去掉 300ms 延时；卸载时销毁；仓库增删改后重画标记
+- [x] **智慧农业地图**：农场概览图原在隐藏面板中创建（0 尺寸）且进入「农场信息」不会重建——改为同一生命周期模式，进入 farm/device 面板时重画；卸载时销毁三张地图
+- [x] 修复温度监控卡片空白：接口字段（location/address/current_temp）与页面字段不一致，在 `loadMonitorData` 中映射；离线传感器（current_temp=null）显示「暂无读数」
+- [x] responsive.css 删除两页容器规则
+
+**验证记录（2026-10-01，headless Chrome，后端连 funeng.db 副本，高德地图实际加载）：**
+- 18 个面板 × 1440/390px：无横向溢出、无控制台错误；导航宽屏 1 行，手机按组 4/3 行
+- 冷链「仓库↔品控↔运输↔监控」切换 3 轮后，`#warehouseMap`、`#transportMap` 各仅 1 个地图实例，尺寸 1300×238
+- 品控数据 3 轮切换仅请求 1 次（懒加载保持）
+- 智慧农业农场概览图隐藏时创建、显示后尺寸恢复为 1300×238
+- `vue-tsc`、`npm run build` ✅；`agent-lint` 0 error，`: any` 未增加；两页旧色/emoji 清零
+
+**发现但未修（超出纯表现层）：**
+- `/api/cold-chain/warehouses/list` 不返回 `lat/lng`，仓库分布图从未显示过标记（需后端补字段）
+- 本地 funeng.db 中部分仓库 `status` 为英文 `normal/warning`（旧数据），页面按「正常」统计为 0；种子数据为中文，属数据清洗问题
+
+**自评估（Generator 填写）：**
+| 维度 | 自评分 | 说明 |
+|------|--------|------|
+| 功能完整性 | 36/40 | 18 个面板全部迁移；地图生命周期修正并实测；两项后端/数据问题仅记录 |
+| 代码质量 | 27/30 | ColdChain 2121→1857 行、SA 1684→1371 行；导航/卡片沉淀为共享组件与工具类 |
+| 视觉设计 | 18/20 | 与首页同代；冷链 11 项一行分组 |
+| 测试覆盖 | 7/10 | 类型检查、构建、lint、浏览器脚本（地图实例数/尺寸/懒加载）；前端无单测 |
+| **总分** | **88/100** | |
 
 ### Sprint U4: 世代②③收尾（DigitalMarketing、Dashboard、Products、Categories）
 - [ ] 列表模式统一；去 emoji；删 `:header-cell-style`；自定义按钮 → el-button；弹窗 `:deep` 覆盖删除、套宽度档

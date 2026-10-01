@@ -315,6 +315,101 @@ body {
   margin-bottom: 24px;
 }
 
+/* 3 项统计 */
+.stat-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* 区块内的信息小卡（卡中卡统一形态：浅底、12px、无阴影） */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tile-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 标签: 值 的信息行 */
+.tile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.tile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+/* 区块内的指标小块（区块外用 StatCard，区块内用 metric，避免卡中卡） */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.metric-value {
+  display: block;
+  font-size: var(--font-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-label {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+/* 区块内的小节标题（替代带 emoji 的 el-divider） */
+.subsection-title {
+  margin: 24px 0 12px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subsection-title:first-child {
+  margin-top: 0;
+}
+
+.w-full {
+  width: 100%;
+}
+
 /* 区块纵向间距 */
 .section-stack {
   display: flex;
@@ -330,7 +425,7 @@ body {
 }
 
 @media (max-width: 1024px) {
-  .stat-grid {
+  .stat-grid:not(.stat-grid--3) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
