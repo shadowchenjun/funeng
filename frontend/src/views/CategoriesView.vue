@@ -35,10 +35,6 @@
           <div class="category-info">
             <h3 class="category-name">{{ category.name }}</h3>
             <p class="category-count">{{ category.productCount || 0 }} 个产品</p>
-            <div class="category-status">
-              <span :class="['status-dot', category.status === 'active' ? 'active' : 'inactive']"></span>
-              {{ category.status === 'active' ? '启用' : '禁用' }}
-            </div>
           </div>
           <div class="card-actions" v-if="isAdmin">
             <button class="action-btn edit" @click="editCategory(category)">
@@ -96,15 +92,6 @@
         <el-form-item label="颜色">
           <el-color-picker v-model="categoryForm.color" />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-switch
-            v-model="categoryForm.status"
-            active-value="active"
-            inactive-value="inactive"
-            active-text="启用"
-            inactive-text="禁用"
-          />
-        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -140,7 +127,6 @@ interface Category {
   icon: string
   color: string
   productCount: number
-  status: string
 }
 
 const iconMap: Record<string, any> = {
@@ -169,29 +155,14 @@ const fetchCategories = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    // 并行获取分类和产品数据
-    const [catRes, prodRes] = await Promise.all([
-      axios.get('/api/categories/'),
-      axios.get('/api/products/', { params: { limit: 1000 } })
-    ])
-
-    // 统计每个分类的产品数量
-    const productCounts: Record<number, number> = {}
-    const products = prodRes.data.items || prodRes.data || []
-    products.forEach((p: { category_id?: number | null }) => {
-      const catId = p.category_id
-      if (catId) {
-        productCounts[catId] = (productCounts[catId] || 0) + 1
-      }
-    })
-
-    categories.value = (catRes.data as ApiCategory[]).map((c) => ({
+    // 后端聚合产品数量，单次请求
+    const response = await axios.get<(ApiCategory & { product_count: number })[]>('/api/categories/with-count')
+    categories.value = response.data.map((c) => ({
       id: c.id,
       name: c.name,
       icon: c.icon || 'Box',
       color: c.color || '#409eff',
-      productCount: productCounts[c.id] || 0,
-      status: 'active'
+      productCount: c.product_count
     }))
   } catch (e) {
     console.error('加载分类失败', e)
@@ -215,8 +186,7 @@ const editingId = ref<number>()
 const categoryForm = reactive({
   name: '',
   icon: 'Box',
-  color: '#409eff',
-  status: 'active'
+  color: '#409eff'
 })
 
 const showAddDialog = () => {
@@ -224,8 +194,7 @@ const showAddDialog = () => {
   Object.assign(categoryForm, {
     name: '',
     icon: 'Box',
-    color: '#409eff',
-    status: 'active'
+    color: '#409eff'
   })
   dialogVisible.value = true
 }
@@ -236,8 +205,7 @@ const editCategory = (category: Category) => {
   Object.assign(categoryForm, {
     name: category.name,
     icon: category.icon,
-    color: category.color,
-    status: category.status
+    color: category.color
   })
   dialogVisible.value = true
 }
@@ -420,28 +388,6 @@ const deleteCategory = async (category: Category) => {
   font-size: 14px;
   color: var(--text-secondary, #475569);
   margin: 0 0 8px 0;
-}
-
-.category-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-tertiary, #94A3B8);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-dot.active {
-  background: #10B981;
-}
-
-.status-dot.inactive {
-  background: #94A3B8;
 }
 
 .card-actions {

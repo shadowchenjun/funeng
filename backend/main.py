@@ -4,7 +4,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import get_current_user
-from app.config import CORS_ORIGINS, CORS_ORIGIN_REGEX
+from app.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, IS_PRODUCTION
 from app.api import auth, products, categories, dashboard, public
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
 from app.api.admin import router as admin_router
@@ -21,8 +21,9 @@ from app.seeds.smart_agriculture import seed_smart_agriculture
 from app.database import engine, get_db
 import bcrypt
 
-# 创建数据库表
-base.Base.metadata.create_all(bind=engine)
+# Production schema is maintained by a reviewed migration, outside request startup.
+if not IS_PRODUCTION:
+    base.Base.metadata.create_all(bind=engine)
 
 # 创建默认数据（如果不存在）- 不会删除已有数据
 def seed_default_data():
@@ -181,8 +182,9 @@ def seed_default_data():
     finally:
         db.close()
 
-# 启动时初始化数据
-seed_default_data()
+# Test accounts must never be created implicitly in production.
+if not IS_PRODUCTION:
+    seed_default_data()
 
 app = FastAPI(
     title="现代农业赋能平台 API",

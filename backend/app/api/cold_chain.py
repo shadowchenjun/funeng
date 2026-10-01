@@ -150,16 +150,16 @@ def get_transport_detail(transport_id: str, db: Session = Depends(get_db)):
 
 # ========== 仓库 ==========
 
-def _warehouse_key(warehouse_id: str):
-    # 旧库 warehouses.id 可能是字符串（迁移前），新库为整数
-    return int(warehouse_id) if warehouse_id.isdigit() else warehouse_id
+def _warehouse_key(warehouse_id: str) -> str:
+    # warehouses.id 为字符串主键（与 Supabase 生产库一致），不能转 int：Postgres 不允许 varchar = integer
+    return warehouse_id
 
 
 @router.get("/warehouse")
 def get_warehouses(db: Session = Depends(get_db)):
     """获取仓储列表"""
     result = []
-    for w in db.query(Warehouse).order_by(Warehouse.id).all():
+    for w in db.query(Warehouse).order_by(Warehouse.created_at, Warehouse.id).all():
         capacity, used = w.capacity or 0, w.used or 0
         result.append({
             "id": w.id,
@@ -250,7 +250,7 @@ def _warehouse_list_dict(w: Warehouse) -> dict:
 @router.get("/warehouses/list")
 def get_warehouses_list(db: Session = Depends(get_db)):
     """获取仓库列表"""
-    return [_warehouse_list_dict(w) for w in db.query(Warehouse).order_by(Warehouse.id.desc()).all()]
+    return [_warehouse_list_dict(w) for w in db.query(Warehouse).order_by(Warehouse.created_at.desc(), Warehouse.id.desc()).all()]
 
 
 @router.post("/warehouses")

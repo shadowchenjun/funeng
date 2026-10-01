@@ -4,6 +4,7 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text
 from sqlalchemy.sql import func
 from app.models.base import Base
+import uuid
 
 class Land(Base):
     """地块模型"""
@@ -74,7 +75,8 @@ class Warehouse(Base):
     """冷链仓库模型"""
     __tablename__ = "warehouses"
     
-    id = Column(Integer, primary_key=True, index=True)
+    # 生产库（Supabase）为 VARCHAR(20)；新建仓库自动生成 W + 10 位十六进制
+    id = Column(String(20), primary_key=True, index=True, default=lambda: f"W{uuid.uuid4().hex[:10].upper()}")
     name = Column(String(100), nullable=False, comment="仓库名称")
     address = Column(String(200), comment="仓库地址")
     lat = Column(Float, comment="纬度")

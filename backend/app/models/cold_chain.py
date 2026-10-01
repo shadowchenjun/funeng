@@ -299,3 +299,25 @@ class OperatingCost(Base):
     month = Column(String(7), nullable=False)  # 2026-09
     category = Column(String(20), nullable=False)  # electricity/fuel/maintenance
     amount = Column(Float, nullable=False)
+
+
+# ========== 迁移兼容 ==========
+
+
+class ColdChainWarehouse(Base):
+    """Legacy table retained so an existing database can be migrated losslessly."""
+
+    __tablename__ = "cold_chain_warehouses"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    address = Column(String)
+    lat = Column(Float)
+    lng = Column(Float)
+    capacity = Column(Float)
+    used = Column(Float)
+    temperature = Column(Float)
+    humidity = Column(Float)
+    status = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)

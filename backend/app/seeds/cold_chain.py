@@ -312,8 +312,8 @@ def seed_cold_chain(db: Session) -> bool:
         created = True
 
     if _empty(db, Warehouse):
-        for name, address, lat, lng, cap, used, area, temp, hum, manager, phone in _WAREHOUSES:
-            db.add(Warehouse(name=name, address=address, lat=lat, lng=lng, capacity=cap, used=used, area=area,
+        for i, (name, address, lat, lng, cap, used, area, temp, hum, manager, phone) in enumerate(_WAREHOUSES, 1):
+            db.add(Warehouse(id=f"W{i:04d}", name=name, address=address, lat=lat, lng=lng, capacity=cap, used=used, area=area,
                              temperature=temp, humidity=hum, inventory=0, manager=manager, phone=phone,
                              status="正常"))
         created = True

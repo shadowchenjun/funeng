@@ -34,14 +34,18 @@ export const useAuthStore = defineStore('auth', () => {
   // 登录
   async function login(username: string, password: string) {
     try {
-      const formData = new FormData()
-      formData.append('username', username)
-      formData.append('password', password)
+      // OAuth2PasswordRequestForm expects a real URL-encoded body. FormData is
+      // multipart/form-data, so labelling it as urlencoded leaves the backend
+      // waiting for fields that were never encoded in the request body.
+      const formData = new URLSearchParams()
+      formData.set('username', username)
+      formData.set('password', password)
 
       const response = await axios.post(`${API_BASE}/auth/login`, formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        },
+        timeout: 20000
       })
 
       const { access_token, user: userData } = response.data

@@ -12,8 +12,8 @@ import csv
 import io
 import uuid
 import time
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
 from datetime import datetime, timedelta
@@ -21,8 +21,11 @@ from typing import Optional, List, Dict
 from collections import defaultdict
 import os
 
-from app.database import get_db
+from app.config import IS_PRODUCTION, STORAGE_EXPORT_BUCKET
+from app.database import get_db, SessionLocal
 from app.cache import cached, get_cache, invalidate_cache
+from app.models.export_task import ExportTaskRecord
+from app import storage
 from app.models.admin import (
     AdminUser, AdoptionOrder, RentalOrder, LandParcel, Device
 )
@@ -33,74 +36,80 @@ from app.api.admin.auth import get_current_admin
 
 router = APIRouter()
 
-# 导出文件存储目录
+# Local development fallback. Production always uses Supabase Storage.
 EXPORT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "exports")
-os.makedirs(EXPORT_DIR, exist_ok=True)
 
 
 # ============ 优化 1: 异步导出 /api/export/data ============
 
 class ExportTask:
-    """导出任务状态管理 (内存中，生产环境应使用 Redis)"""
-    _tasks: dict = {}
+    """Database-backed export status, shared across serverless instances."""
     
     @classmethod
-    def create(cls, export_type: str) -> str:
-        task_id = str(uuid.uuid4())[:8]
-        cls._tasks[task_id] = {
-            "type": export_type,
-            "status": "pending",
-            "progress": 0,
-            "file_path": None,
-            "error": None,
-            "created_at": datetime.now().isoformat()
-        }
+    def create(cls, export_type: str, admin_id: int) -> str:
+        task_id = str(uuid.uuid4())
+        with SessionLocal() as db:
+            db.add(ExportTaskRecord(
+                id=task_id,
+                admin_user_id=admin_id,
+                export_type=export_type,
+                status="pending",
+                progress=0,
+            ))
+            db.commit()
         return task_id
     
     @classmethod
-    def update(cls, task_id: str, status: str = None, progress: int = None, file_path: str = None, error: str = None):
-        if task_id in cls._tasks:
+    def update(cls, task_id: str, status: str = None, progress: int = None, storage_key: str = None, error: str = None):
+        with SessionLocal() as db:
+            task = db.get(ExportTaskRecord, task_id)
+            if task is None:
+                return
             if status:
-                cls._tasks[task_id]["status"] = status
+                task.status = status
             if progress is not None:
-                cls._tasks[task_id]["progress"] = progress
-            if file_path:
-                cls._tasks[task_id]["file_path"] = file_path
+                task.progress = progress
+            if storage_key:
+                task.storage_key = storage_key
             if error:
-                cls._tasks[task_id]["error"] = error
+                task.error = error[:2000]
+            db.commit()
     
     @classmethod
     def get(cls, task_id: str):
-        return cls._tasks.get(task_id)
+        with SessionLocal() as db:
+            task = db.get(ExportTaskRecord, task_id)
+            if task is None:
+                return None
+            return {
+                "task_id": task.id,
+                "type": task.export_type,
+                "status": task.status,
+                "progress": task.progress,
+                "storage_key": task.storage_key,
+                "error": task.error,
+                "created_at": task.created_at.isoformat() if task.created_at else None,
+                "admin_user_id": task.admin_user_id,
+            }
 
 
-def _generate_csv(data: List[Dict], filename: str) -> str:
-    """生成 CSV 文件并返回路径"""
-    if not data:
-        return ""
-    
-    file_path = os.path.join(EXPORT_DIR, f"{filename}.csv")
-    
-    with open(file_path, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=data[0].keys())
+def _generate_csv(data: List[Dict]) -> bytes:
+    """Render CSV in memory; persistence is handled by Supabase Storage."""
+    buffer = io.StringIO(newline="")
+    if data:
+        writer = csv.DictWriter(buffer, fieldnames=data[0].keys())
         writer.writeheader()
         writer.writerows(data)
-    
-    return file_path
+    return buffer.getvalue().encode("utf-8-sig")
 
 
-def _export_worker(db_url: str, task_id: str, export_type: str, filters: dict):
+def _export_worker(task_id: str, export_type: str):
     """
     后台导出任务 (在独立线程中执行，不阻塞主请求)
     
     优化前: 同步导出，API 阻塞 4.2s
     优化后: 后台线程处理，立即返回 task_id
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    
-    engine = create_engine(db_url)
-    SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
     
     try:
@@ -151,7 +160,7 @@ def _export_worker(db_url: str, task_id: str, export_type: str, filters: dict):
                 })
             
             ExportTask.update(task_id, progress=80)
-            file_path = _generate_csv(data, f"orders_export_{task_id}")
+            csv_content = _generate_csv(data)
             
         elif export_type == "users":
             # 导出用户数据
@@ -163,7 +172,7 @@ def _export_worker(db_url: str, task_id: str, export_type: str, filters: dict):
                 "是否管理员": "是" if u.is_admin else "否",
                 "创建时间": u.created_at.isoformat() if u.created_at else "",
             } for u in users]
-            file_path = _generate_csv(data, f"users_export_{task_id}")
+            csv_content = _generate_csv(data)
             ExportTask.update(task_id, progress=80)
         
         elif export_type == "products":
@@ -179,13 +188,22 @@ def _export_worker(db_url: str, task_id: str, export_type: str, filters: dict):
                 "活跃状态": "是" if p.is_active else "否",
                 "创建时间": p.created_at.isoformat() if p.created_at else "",
             } for p in products]
-            file_path = _generate_csv(data, f"products_export_{task_id}")
+            csv_content = _generate_csv(data)
             ExportTask.update(task_id, progress=80)
         
         else:
             raise ValueError(f"未知导出类型: {export_type}")
         
-        ExportTask.update(task_id, status="completed", progress=100, file_path=file_path)
+        storage_key = f"{export_type}_export_{task_id}.csv"
+        if storage.is_configured():
+            storage.upload(STORAGE_EXPORT_BUCKET, storage_key, csv_content, "text/csv")
+        elif not IS_PRODUCTION:
+            os.makedirs(EXPORT_DIR, exist_ok=True)
+            with open(os.path.join(EXPORT_DIR, storage_key), "wb") as target:
+                target.write(csv_content)
+        else:
+            raise RuntimeError("Export storage is not configured")
+        ExportTask.update(task_id, status="completed", progress=100, storage_key=storage_key)
         
     except Exception as e:
         ExportTask.update(task_id, status="failed", error=str(e))
@@ -197,8 +215,6 @@ def _export_worker(db_url: str, task_id: str, export_type: str, filters: dict):
 def export_data(
     export_type: str = "orders",
     current_admin: AdminUser = Depends(get_current_admin),
-    background_tasks: BackgroundTasks = None,
-    db: Session = Depends(get_db)
 ):
     """
     异步数据导出接口
@@ -212,27 +228,28 @@ def export_data(
     if export_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"不支持的导出类型，支持: {valid_types}")
     
-    task_id = ExportTask.create(export_type)
-    
-    # 获取数据库 URL 用于后台任务
-    db_url = str(db.bind.url)
-    
-    # 调度后台任务
-    background_tasks.add_task(_export_worker, db_url, task_id, export_type, {})
+    task_id = ExportTask.create(export_type, current_admin.id)
+    # Vercel may freeze the process after a response. Complete the export before
+    # returning, then let callers use the existing status/download endpoints.
+    _export_worker(task_id, export_type)
+    task = ExportTask.get(task_id)
     
     return {
         "task_id": task_id,
-        "status": "pending",
-        "message": "导出任务已创建，请在任务完成后使用 /export/status/{task_id} 查询结果"
+        "status": task["status"],
+        "message": "导出任务已处理，请使用 /export/download/{task_id} 下载结果"
     }
 
 
 @router.get("/export/status/{task_id}")
-def export_status(task_id: str):
+def export_status(task_id: str, current_admin: AdminUser = Depends(get_current_admin)):
     """查询导出任务状态"""
     task = ExportTask.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if task["admin_user_id"] != current_admin.id:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    task.pop("admin_user_id")
     return task
 
 
@@ -245,28 +262,35 @@ def download_export(
     task = ExportTask.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if task["admin_user_id"] != current_admin.id:
+        raise HTTPException(status_code=404, detail="任务不存在")
     
     if task["status"] != "completed":
         raise HTTPException(status_code=400, detail=f"任务未完成，当前状态: {task['status']}")
     
-    file_path = task["file_path"]
-    if not file_path or not os.path.exists(file_path):
+    storage_key = task["storage_key"]
+    if not storage_key:
         raise HTTPException(status_code=404, detail="文件不存在")
-    
-    filename = os.path.basename(file_path)
-    
-    def iterfile():
-        with open(file_path, "rb") as f:
-            while True:
-                chunk = f.read(8192)
-                if not chunk:
-                    break
-                yield chunk
-    
-    return StreamingResponse(
-        iterfile(),
+    if storage.is_configured():
+        try:
+            content = storage.download(STORAGE_EXPORT_BUCKET, storage_key)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="文件不存在") from exc
+        except storage.StorageError as exc:
+            raise HTTPException(status_code=503, detail="导出存储暂不可用") from exc
+    elif not IS_PRODUCTION:
+        file_path = os.path.join(EXPORT_DIR, storage_key)
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="文件不存在")
+        with open(file_path, "rb") as source:
+            content = source.read()
+    else:
+        raise HTTPException(status_code=503, detail="导出存储未配置")
+
+    return Response(
+        content,
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{storage_key}"}
     )
 
 

@@ -11,7 +11,7 @@ LIST_PATHS = [
     "/inbound/appointments", "/inbound/orders", "/operation/tasks", "/operation/performance",
 ]
 STAT_PATHS = ["/analytics", "/inventory/stats", "/inventory/rules", "/operation/batch/suggestions",
-              "/transport/T0001", "/warehouse/1", "/inbound/suggestions/IOR2026090003"]
+              "/transport/T0001", "/warehouse/W0001", "/inbound/suggestions/IOR2026090003"]
 
 
 @pytest.mark.parametrize("path", LIST_PATHS + STAT_PATHS)
@@ -340,7 +340,8 @@ def test_warehouse_crud(client, user_headers):
     r = client.post(f"{API}/warehouses", json=payload, headers=user_headers)
     assert r.status_code == 200, r.text
     wid = r.json()["id"]
-    assert isinstance(wid, int)
+    # warehouses.id 与 Supabase 生产库一致为 VARCHAR(20)，自动生成 W + 10 位十六进制
+    assert isinstance(wid, str) and wid.startswith("W") and len(wid) <= 20
     assert client.put(f"{API}/warehouses/{wid}", json={"capacity": 900}, headers=user_headers).status_code == 200
     row = next(w for w in client.get(f"{API}/warehouses/list", headers=user_headers).json() if w["id"] == wid)
     assert row["capacity"] == 900 and row["name"] == "测试冷库"
