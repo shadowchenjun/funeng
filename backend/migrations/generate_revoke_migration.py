@@ -1,14 +1,34 @@
--- 收回 Data API 角色（anon / authenticated）对 funeng 表的权限 —— r2（按 review 修订）
+"""生成 supabase/migrations/20261001150000_revoke_public_api_grants.sql。
+
+目标名单 = 仓库迁移所建的 funeng 表（repo_tables.created_tables），保证与 backend/tests 的名单校验一致。
+运行（仓库根目录）：python3 backend/migrations/generate_revoke_migration.py
+"""
+from pathlib import Path
+
+from repo_tables import MIGRATIONS_DIR, created_tables
+
+MIGRATION_NAME = "20261001150000_revoke_public_api_grants"
+
+
+def table_array(names: list[str], indent: str = "    ") -> str:
+    rows = [", ".join(f"'{n}'" for n in names[i:i + 5]) for i in range(0, len(names), 5)]
+    return (",\n" + indent).join(rows)
+
+
+def render() -> str:
+    names = sorted(created_tables(exclude=(MIGRATION_NAME,)))
+    arr = table_array(names)
+    return f"""-- 收回 Data API 角色（anon / authenticated）对 funeng 表的权限 —— r2（按 review 修订）
 -- 由 backend/migrations/generate_revoke_migration.py 生成，请勿手改名单。
 --
--- 范围：仅仓库迁移所建的 69 张 funeng 表（下方名单，backend/tests/test_revoke_public_api_grants_allowlist.py 校验一致）
+-- 范围：仅仓库迁移所建的 {len(names)} 张 funeng 表（下方名单，backend/tests/test_revoke_public_api_grants_allowlist.py 校验一致）
 --       及其拥有的序列。todos 等非 funeng 对象不在名单内，本迁移不改动，且会校验其 ACL 前后一致。
 -- 依据：funeng 前端/管理后台不直连 Supabase；后端以 postgres 经 pooler、Storage 以 service_role 访问。
 --       products/categories/lands/crops/farm_info 上的 USING(true) 公开读取策略来自未合并的旧分支
 --       feature/supabase-aliyun-oss（anon key 直连），经用户确认一并收回；策略本身保留不动（收回表权限后即失效）。
 -- 默认权限：仅修改「postgres 在 public 中新建对象」的默认 ACL；supabase_admin 的默认 ACL 本迁移无权也不修改，
 --       由 supabase_admin 新建的对象仍会默认授予 anon/authenticated（见 supabase/checks/public_api_grants.sql [6]）。
--- 回滚：supabase/rollback/20261001150000_revoke_public_api_grants.rollback.sql，按本迁移写入的快照精确恢复。
+-- 回滚：supabase/rollback/{MIGRATION_NAME}.rollback.sql，按本迁移写入的快照精确恢复。
 -- 失败即整体回滚：目标非 postgres 所有、收回后仍有有效权限（含 PUBLIC / 继承角色 / 列级）、非目标对象 ACL 被改动。
 BEGIN;
 
@@ -38,20 +58,7 @@ JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
   AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
   AND c.relname = ANY (ARRAY[
-    'activities', 'admin_operation_logs', 'admin_roles', 'admin_users', 'adoption_categories',
-    'adoption_configs', 'adoption_orders', 'agri_data_import_runs', 'agri_data_sources', 'campaigns',
-    'cargo_owners', 'categories', 'cold_chain_inbound_appointments', 'cold_chain_inbound_order_items', 'cold_chain_inbound_orders',
-    'cold_chain_inventory_alerts', 'cold_chain_inventory_rules', 'cold_chain_operating_costs', 'cold_chain_operation_batches', 'cold_chain_operation_tasks',
-    'cold_chain_operators', 'cold_chain_quality_inspections', 'cold_chain_reference_nodes', 'cold_chain_sensors', 'cold_chain_temperature_alerts',
-    'cold_chain_temperature_readings', 'cold_chain_warehouses', 'cold_chain_zones', 'coupons', 'crop_growth_models',
-    'crops', 'decision_records', 'device_logs', 'device_types', 'devices',
-    'environment_readings', 'export_tasks', 'farm_info', 'funeng_migration_conflicts', 'industry_observations',
-    'iot_devices', 'irrigation_records', 'irrigation_zones', 'land_parcels', 'lands',
-    'market_price_observations', 'marketing_orders', 'marketing_traffic_daily', 'members', 'monitoring_points',
-    'monitoring_records', 'products', 'rental_orders', 'scf_credit_assessments', 'scf_financing_orders',
-    'scf_insurance_policies', 'scf_receivables', 'system_configs', 'traceability_chain_nodes', 'traceability_configs',
-    'traceability_nodes', 'traceability_record_entries', 'traceability_records', 'transports', 'uploaded_files',
-    'user_groups', 'users', 'vehicles', 'warehouses'
+    {arr}
   ]);
 
 -- 目标表拥有的序列（serial / identity）
@@ -89,7 +96,7 @@ WHERE n.nspname = 'public'
 
 -- ===== 2. 快照（仅 anon/authenticated 的授权项；重复执行不覆盖首次快照）=====
 INSERT INTO funeng_ops.acl_snapshot (migration, object_kind, object_name, grantee, privilege, is_grantable, grantor)
-SELECT '20261001150000_revoke_public_api_grants',
+SELECT '{MIGRATION_NAME}',
        CASE WHEN c.relkind = 'S' THEN 'sequence' ELSE 'table' END,
        c.relname, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable, pg_get_userbyid(a.grantor)
 FROM pg_class c
@@ -99,7 +106,7 @@ WHERE c.oid IN (SELECT oid FROM _target_tables UNION SELECT oid FROM _target_seq
 ON CONFLICT DO NOTHING;
 
 INSERT INTO funeng_ops.acl_snapshot (migration, object_kind, object_name, column_name, grantee, privilege, is_grantable, grantor)
-SELECT '20261001150000_revoke_public_api_grants', 'column', c.relname, att.attname,
+SELECT '{MIGRATION_NAME}', 'column', c.relname, att.attname,
        pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable, pg_get_userbyid(a.grantor)
 FROM pg_class c
 JOIN pg_attribute att ON att.attrelid = c.oid AND att.attacl IS NOT NULL
@@ -109,7 +116,7 @@ WHERE c.oid IN (SELECT oid FROM _target_tables)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO funeng_ops.acl_snapshot (migration, object_kind, object_name, grantee, privilege, is_grantable, grantor)
-SELECT '20261001150000_revoke_public_api_grants', 'default:' || d.defaclobjtype::text, '',
+SELECT '{MIGRATION_NAME}', 'default:' || d.defaclobjtype::text, '',
        pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable, pg_get_userbyid(a.grantor)
 FROM pg_default_acl d
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
@@ -185,3 +192,10 @@ BEGIN
 END $$;
 
 COMMIT;
+"""
+
+
+if __name__ == "__main__":
+    out = MIGRATIONS_DIR / f"{MIGRATION_NAME}.sql"
+    out.write_text(render(), encoding="utf-8")
+    print(f"wrote {out}")

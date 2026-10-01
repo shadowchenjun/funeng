@@ -9,9 +9,7 @@ Only CREATE TABLE / CREATE INDEX / ENABLE RLS statements are emitted, all idempo
 (IF NOT EXISTS). Column drift on existing tables is reported to stderr, never altered.
 Review the output before applying it through Supabase's migration tool.
 """
-import re
 import sys
-from pathlib import Path
 
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
@@ -20,17 +18,7 @@ from app.models import Base
 import app.models.smart_agriculture  # noqa: F401 - registers tables
 import app.api.digital_marketing  # noqa: F401 - registers legacy columns
 
-MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-CREATE_RE = re.compile(r'CREATE TABLE IF NOT EXISTS (?:public\.)?"?(\w+)"? \((.*?)\n\)', re.S)
-
-
-def applied_tables() -> dict:
-    """Map table name -> column names, from every migration already in the repo."""
-    tables = {}
-    for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
-        for name, body in CREATE_RE.findall(path.read_text(encoding="utf-8")):
-            tables[name] = set(re.findall(r'^\s*"?(\w+)"? ', body, re.M))
-    return tables
+from repo_tables import created_tables as applied_tables  # noqa: E402  共用表名解析（兼容无 IF NOT EXISTS 写法）
 
 
 def main() -> None:

@@ -65,17 +65,26 @@
 
 本地验证：嵌入式 Postgres 依次应用全部迁移（新迁移重复应用一次），后端以迁移建出的表结构运行，`create_all` 未补建任何表；后端测试在该库上 242 项通过（排除 2 个依赖仓库相对路径的未跟踪测试文件）。
 
-## 收回 Data API 角色的 public 表权限（2026-10-01 起草，待执行）
+## 收回 Data API 角色对 funeng 表的权限（r2，按 review 修订，待执行）
 
-基线迁移沿用了 Supabase 默认授权：82 张既有表对 `anon` / `authenticated` 开放全部权限。均启用 RLS 且无策略，目前默认拒绝；收回是纵深防御，防止日后误加宽松策略即对外暴露。本平台前端与管理后台不直连 Supabase，后端以 `postgres` 角色经 pooler 访问、Storage 用 `service_role`，均不受影响。
+Review：[`docs/reviews/2026-10-01-revoke-public-api-grants-review.md`](reviews/2026-10-01-revoke-public-api-grants-review.md)。r1 草稿的三项问题（回滚扩大权限、全量收回波及非 funeng 对象、自检不检查有效权限）均已修正。
 
-| 步骤 | 文件 | 说明 |
-|------|------|------|
-| 1. 执行前核查（只读） | [`supabase/checks/public_api_grants.sql`](../supabase/checks/public_api_grants.sql) | 记录 anon/authenticated 的表、序列、默认权限；**确认 public 对象属主均为 `postgres`**（否则迁移会报错并整体回滚） |
-| 2. 应用迁移 | [`20261001150000_revoke_public_api_grants.sql`](../supabase/migrations/20261001150000_revoke_public_api_grants.sql) | 单事务：REVOKE 存量表/视图/序列 + 修改 `postgres` 的默认权限；末尾自检有残留即回滚；可重复执行 |
-| 3. 执行后核查 | 同步骤 1 | 预期 table/sequence 两类为空，默认权限只剩 `service_role` |
-| 回滚 | [`supabase/rollback/…rollback.sql`](../supabase/rollback/20261001150000_revoke_public_api_grants.rollback.sql) | 仅在确需 Data API 直连且已配 RLS 策略时使用 |
+**生产现状（review 只读核查）**：public 70 张表（69 张 funeng + `todos`），全部属主 `postgres`、RLS 开启；`anon`/`authenticated` 各对 41 张表（40 funeng + `todos`）、49 个序列有权限；29 张为后端专用无授权。9 条 RLS 策略：`products`/`categories`/`lands`/`crops`/`farm_info` 有 `USING(true)` 公开读取——当前可被 anon key 读取（含 `farm_info` 负责人电话）；`todos` 有 4 条 `auth.uid()` 策略，属其他应用。公开读取策略来源于未合并旧分支 `feature/supabase-aliyun-oss` 的 anon key 直连代码，用户已确认一并收回。
 
-影响：之后如需 Supabase Data API（anon key 直连），须对具体表显式 GRANT 并配置 RLS 策略。未改动 schema USAGE、函数 EXECUTE、`service_role`、RLS 开关及任何数据。
+**范围与机制**：
+- 目标：仓库迁移所建 69 张 funeng 表及其序列（名单由 `backend/migrations/generate_revoke_migration.py` 生成，`backend/tests/test_revoke_public_api_grants_allowlist.py` 校验与迁移/核查 SQL 一致）。`todos` 等非 funeng 对象不改动，迁移内校验其 ACL 前后一致
+- 执行前将目标对象上 anon/authenticated 的表级、列级、序列与 `postgres` 默认 ACL 授权项写入私有快照 `funeng_ops.acl_snapshot`（对 API 角色不可见）；回滚只按快照恢复，不给原本无授权的对象新增权限
+- 自检按有效权限（`has_table_privilege` / `has_any_column_privilege` / `has_sequence_privilege`，覆盖 PUBLIC 与继承角色）；有残留、目标非 `postgres` 所有、或非目标对象被改动即整体回滚
+- 默认权限只改 `postgres` 在 public 的默认 ACL。**`supabase_admin` 的默认 ACL 不在本迁移范围**：由其新建的对象仍会默认开放（核查 SQL [6] 可见），需另行处理或确保建表统一由 `postgres` 执行
+- RLS 策略本身保留不动；表权限收回后 funeng 表上面向 anon/authenticated 的策略即不再生效
 
-本地验证（嵌入式 Postgres，模拟 Supabase 默认授权）：执行前 40 张表、49 个序列对 anon/authenticated 有授权 → 执行后 0；`service_role` 仍覆盖 69 张表；新建表不再自动授予 anon/authenticated；重复执行、回滚后再执行均正常；以非属主角色执行时报错并整体回滚、无部分生效；后端测试在收回后的库上 242 项通过（以 `postgres` 运行）。
+| 步骤 | 文件 |
+|------|------|
+| 1. 执行前核查（只读，保存输出） | [`supabase/checks/public_api_grants.sql`](../supabase/checks/public_api_grants.sql)：[1][2] 有效权限、[3] 非 funeng 对象、[4] 策略、[5] 属主、[6] 默认 ACL |
+| 2. 应用迁移 | [`20261001150000_revoke_public_api_grants.sql`](../supabase/migrations/20261001150000_revoke_public_api_grants.sql) |
+| 3. 执行后核查 | 同步骤 1：[1][2] 应全为 0；[3] 与执行前一致；[7] 出现快照 |
+| 回滚 | [`supabase/rollback/…rollback.sql`](../supabase/rollback/20261001150000_revoke_public_api_grants.rollback.sql)：按快照精确恢复并校验 |
+
+**验证**：`uv run --python 3.12 --with pgserver --with "psycopg[binary]" --with pytest pytest -q supabase/tests`（嵌入式 Postgres 模拟上述生产事实，含 postgres 与 supabase_admin 两套默认 ACL、`todos` 及其策略、5 条公开读取策略）。r2 14/14 通过；同一套测试对 r1 草稿 11 项失败。覆盖：有效权限清零、`service_role`/属主不受影响、公开读取策略失效但保留、`todos` 不变、回滚与原 ACL 逐项一致（含 29 张私有表不被开放）、幂等与快照保留、快照不对 API 角色开放、经 PUBLIC / 继承角色的残留被检测并整体回滚、序列仅 SELECT 与列级 SELECT 的收回和恢复、非 `postgres` 属主中止、默认权限范围仅 `postgres`。
+
+**未核实（执行前需确认）**：Supabase 项目是否绑定 GitHub 自动应用迁移；是否有 funeng 仓库之外的客户端依赖上述 5 张表的公开读取（旧分支已确认，其他未知）。
