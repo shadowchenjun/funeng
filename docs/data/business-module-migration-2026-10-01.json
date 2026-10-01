@@ -1,0 +1,2343 @@
+{
+  "project_id": "uzxmomyfgkqkbxxkzskc",
+  "migration_file": "supabase/migrations/20261001120000_funeng_business_module_tables.sql",
+  "remote_migration": {
+    "version": "20261001002742",
+    "name": "funeng_business_module_tables"
+  },
+  "verified_at": "2026-10-01T08:30:02.229709+08:00",
+  "scope": "schema_only_no_demo_seed",
+  "verification": {
+    "schemaSame": true,
+    "contentSame": true,
+    "permissionOK": true,
+    "allEmpty": true
+  },
+  "new_tables": [
+    "cold_chain_inbound_appointments",
+    "cold_chain_inbound_orders",
+    "cold_chain_inventory_alerts",
+    "cold_chain_inventory_rules",
+    "cold_chain_operating_costs",
+    "cold_chain_operation_batches",
+    "cold_chain_operation_tasks",
+    "cold_chain_operators",
+    "cold_chain_quality_inspections",
+    "cold_chain_sensors",
+    "cold_chain_temperature_alerts",
+    "cold_chain_zones",
+    "environment_readings",
+    "irrigation_records",
+    "irrigation_zones",
+    "marketing_orders",
+    "marketing_traffic_daily",
+    "scf_credit_assessments",
+    "scf_financing_orders",
+    "scf_insurance_policies",
+    "cold_chain_inbound_order_items",
+    "cold_chain_temperature_readings",
+    "scf_receivables"
+  ],
+  "new_table_columns": 259,
+  "new_secondary_indexes": 23,
+  "permissions": [
+    {
+      "table_name": "cold_chain_inbound_appointments",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_inbound_order_items",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_inbound_orders",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_inventory_alerts",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_inventory_rules",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_operating_costs",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_operation_batches",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_operation_tasks",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_operators",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_quality_inspections",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_sensors",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_temperature_alerts",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_temperature_readings",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "cold_chain_zones",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "environment_readings",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "irrigation_records",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "irrigation_zones",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "marketing_orders",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "marketing_traffic_daily",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "scf_credit_assessments",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "scf_financing_orders",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "scf_insurance_policies",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    },
+    {
+      "table_name": "scf_receivables",
+      "rls": true,
+      "owner": "postgres",
+      "anon_any": false,
+      "authenticated_any": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true,
+      "backend_delete": true,
+      "policies": 0
+    }
+  ],
+  "new_table_row_counts": [
+    {
+      "table_name": "cold_chain_inbound_appointments",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_inbound_orders",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_inventory_alerts",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_inventory_rules",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_operating_costs",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_operation_batches",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_operation_tasks",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_operators",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_quality_inspections",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_sensors",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_temperature_alerts",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_zones",
+      "row_count": 0
+    },
+    {
+      "table_name": "environment_readings",
+      "row_count": 0
+    },
+    {
+      "table_name": "irrigation_records",
+      "row_count": 0
+    },
+    {
+      "table_name": "irrigation_zones",
+      "row_count": 0
+    },
+    {
+      "table_name": "marketing_orders",
+      "row_count": 0
+    },
+    {
+      "table_name": "marketing_traffic_daily",
+      "row_count": 0
+    },
+    {
+      "table_name": "scf_credit_assessments",
+      "row_count": 0
+    },
+    {
+      "table_name": "scf_financing_orders",
+      "row_count": 0
+    },
+    {
+      "table_name": "scf_insurance_policies",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_inbound_order_items",
+      "row_count": 0
+    },
+    {
+      "table_name": "cold_chain_temperature_readings",
+      "row_count": 0
+    },
+    {
+      "table_name": "scf_receivables",
+      "row_count": 0
+    }
+  ],
+  "existing_schema_before": [
+    {
+      "table_name": "activities",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "30177e5d22c4fb2e4ff93a6a316f0dbd",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "2fc91235c9d8c520594658ec547d8992"
+    },
+    {
+      "table_name": "admin_operation_logs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "10b03439f7ec724a8b1fe4db9f81b00e",
+      "constraints_md5": "0beea3d5f93fef7966983a692ce5b2fe",
+      "indexes_md5": "ef8df32e7593499683f907a64f28bac6"
+    },
+    {
+      "table_name": "admin_roles",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "dc1fbac6ab19a4eeea61f5f68051c41f",
+      "constraints_md5": "6fb918cb25bebe9a6e9fec8e074fb48b",
+      "indexes_md5": "e421ce1d194663ad0384d971fb60e293"
+    },
+    {
+      "table_name": "admin_users",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "1b7da65e35134faaf7a211205b467e3f",
+      "constraints_md5": "def4d13d4f21a9fa7d74237f7e21b689",
+      "indexes_md5": "93fb5f8445e9da244ca96739f7dd2b65"
+    },
+    {
+      "table_name": "adoption_categories",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d6ec6bae286be6a724f8e138cdc4928e",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "fcd330913e16246e5886ad000a4264db"
+    },
+    {
+      "table_name": "adoption_configs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "8908a00874262e3e132c4d7d0a83214d",
+      "constraints_md5": "90a22dac26e4cd782b2ce1b2dc0dd075",
+      "indexes_md5": "02607c0f639fb3c54a7041d7c4706444"
+    },
+    {
+      "table_name": "adoption_orders",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "a000a0926ad33e330e0fc2594c9523a0",
+      "constraints_md5": "d17e16b85fc7a39214a7c5426d066cd4",
+      "indexes_md5": "3bc562fb8da81c806a643e4d2b6abbe1"
+    },
+    {
+      "table_name": "agri_data_import_runs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "e4effa8f95be19937a44953fea0b2136",
+      "constraints_md5": "9daef5d97be830e2bb5c30a917150998",
+      "indexes_md5": "08ef43c2aeede8fae425a7a5526c6c9c"
+    },
+    {
+      "table_name": "agri_data_sources",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "9c74caa08178e259eb975b3e1836ecce",
+      "constraints_md5": "f70bc2fcc4cd23fa8153f73dc3c9bb9c",
+      "indexes_md5": "cc6d7b1070626e4b2f05592b4c654d71"
+    },
+    {
+      "table_name": "campaigns",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d6cca1fd0790ac18356c8e9b38a7ee8e",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "531e0e18b448eb01d078cec013bacd98"
+    },
+    {
+      "table_name": "cargo_owners",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "e92f948c7fb06d66b2ef6941a0c49915",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "a8e62f963172f1b0f88e3348056377a7"
+    },
+    {
+      "table_name": "categories",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "efdabfb38140a75dd10f8ade60ca6705",
+      "constraints_md5": "3a2c541386770ed4d0adf919c4143a2a",
+      "indexes_md5": "dfa51f00a256f11c6ae595ddc708f96f"
+    },
+    {
+      "table_name": "cold_chain_reference_nodes",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "60f946d7a14097e9b421867a75456a75",
+      "constraints_md5": "63688346e3c691305f4e632c3143fef4",
+      "indexes_md5": "15ba479aa03e89ce92ca5b3ae8b596c3"
+    },
+    {
+      "table_name": "cold_chain_warehouses",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "93abf72e38cfdae8b6847c826003f03f",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "51d1daa82a1f44f6831e9e4509de267c"
+    },
+    {
+      "table_name": "coupons",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "6c8cb42f2aa282d6ee36ede9fcd886b8",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "e481ca2f13ba4db71a5b1ed8cca8b9d5"
+    },
+    {
+      "table_name": "crop_growth_models",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "5b536ca5f7e6eeaf37d1ad9f447a1d78",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "5a23e195cc6dd8377837614826df694b"
+    },
+    {
+      "table_name": "crops",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "13ea943b944459c6d73e48a82aad4c68",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "8b83ab568bfe99fd28cbe33cf9e5ed34"
+    },
+    {
+      "table_name": "decision_records",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "807eb060f4a5f10955eea543c09ba4df",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "94477bdb3ccdfaf88dc1aeda895a3efb"
+    },
+    {
+      "table_name": "device_logs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "9bac927cababc791f5d3a4118b51612e",
+      "constraints_md5": "7f72075c86bfddd6d32afdc5604cc118",
+      "indexes_md5": "8f9b256f8d86c6b9acc0e4440e1549e8"
+    },
+    {
+      "table_name": "device_types",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "570c981206ef8bebc4adeb99ed59d929",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "ff29a29e101207a845797158cbeb397c"
+    },
+    {
+      "table_name": "devices",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "68a7322ae783b4ed5e3e9b03778eb285",
+      "constraints_md5": "3d2f37471b15663f92509c48f5c32b5e",
+      "indexes_md5": "24ad0ca051c5ad72e67da9f17c9738d7"
+    },
+    {
+      "table_name": "export_tasks",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "b4fa52564c1fbb400ce5da3760308e56",
+      "constraints_md5": "0beea3d5f93fef7966983a692ce5b2fe",
+      "indexes_md5": "a4c79e88188d9124845abadb03a3062f"
+    },
+    {
+      "table_name": "farm_info",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "b3e5ee1286d32a23363f66a566574a3f",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "0350078d2096be6e8a9fa1578c2616dc"
+    },
+    {
+      "table_name": "funeng_migration_conflicts",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "f620b8b6bd5e1e1ce4d864e0f0fdb7a1",
+      "constraints_md5": "55567a5808a24d6e2828c89e77c053a5",
+      "indexes_md5": "32ea5ff94a905fa6c7f5d3d2c73e152c"
+    },
+    {
+      "table_name": "industry_observations",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "1f3c9b31e3a27fc274c3ef9a1b1aa445",
+      "constraints_md5": "2348f301362485c8357d598627f8bb70",
+      "indexes_md5": "de4d8307950635afc02ddb17cc406c02"
+    },
+    {
+      "table_name": "iot_devices",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "0d6a6f5cdb7e10aed030aee3eada2528",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "e81c1f50ca6efd6fec48ebfd3a354388"
+    },
+    {
+      "table_name": "land_parcels",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "db4b654b4f0fcfd92e652efe5542df39",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "43e036079182ffc17ef7fa18909f0fa8"
+    },
+    {
+      "table_name": "lands",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "1c7476e0effd5983e3f4fd48187b7db1",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "a1618bdda6239be2918ec179565634c3"
+    },
+    {
+      "table_name": "market_price_observations",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "0a9e70f65a0827491836391283dd2f26",
+      "constraints_md5": "bec15adc0659fdc0564b5b1efd0b3053",
+      "indexes_md5": "1940bd12143ad34888bc59b944f76883"
+    },
+    {
+      "table_name": "members",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "97689ca2ccc3cb15252e2217afac21e4",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "98f6c0edfa0fed10269e52e53eb52639"
+    },
+    {
+      "table_name": "monitoring_points",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "68eda599ec74c90254141ebc0510a44f",
+      "constraints_md5": "7f72075c86bfddd6d32afdc5604cc118",
+      "indexes_md5": "258c5d3555e1436918e9fdafeeb73090"
+    },
+    {
+      "table_name": "monitoring_records",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d425ab4109ac8510a6809bef66ff17c9",
+      "constraints_md5": "27eb10c8b09ae6af93dce528f98e6779",
+      "indexes_md5": "61fcd5efbdb8f612b67099894656d5c6"
+    },
+    {
+      "table_name": "products",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "f75e7b0fd50c7b3a50976055fc61aaed",
+      "constraints_md5": "11a674c260c348b37b837f016cbce901",
+      "indexes_md5": "6e5aa40b64bdaf5e18aa3025f0ed5991"
+    },
+    {
+      "table_name": "rental_orders",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "81d435000eeffd285976a45c65ce96cc",
+      "constraints_md5": "dffc2386c04809c3803dcb7eac8be14e",
+      "indexes_md5": "383cea6f9b45d695238eaaf21c745419"
+    },
+    {
+      "table_name": "system_configs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "959ad13db0acdcd7b1794f948faaf0bf",
+      "constraints_md5": "d85772137e89dda9151a598b68a33ae8",
+      "indexes_md5": "579fd02a8934a58ae0e2800f0fe62d26"
+    },
+    {
+      "table_name": "todos",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "ac38ed679fed58514cd8d2633b08c2a3",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "3a3f4e422bb9e928085261354065fed2"
+    },
+    {
+      "table_name": "traceability_chain_nodes",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "003ebd8b4bf83d311ce266220c277776",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "3999462e67ca05136b023ad51279282c"
+    },
+    {
+      "table_name": "traceability_configs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "881d1cc956ea508f57fb79740234dbe7",
+      "constraints_md5": "1f68717df8eedfab0227f011e71ca8c1",
+      "indexes_md5": "eb6d581ec8f064b7651b8c49c7691d42"
+    },
+    {
+      "table_name": "traceability_nodes",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "ba6660348b65eaf3eb4ebeb42433ac58",
+      "constraints_md5": "0e1cf408ef5f477d6d0439490f89aa56",
+      "indexes_md5": "3e234e9e6965e5b620059cd293c2cfde"
+    },
+    {
+      "table_name": "traceability_record_entries",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "4282930aa5da4c60a9639547fd32aba4",
+      "constraints_md5": "4bd4119304cea12268f57e6057314224",
+      "indexes_md5": "a932fd54c5cedbbe1b0eaa8fd97890a1"
+    },
+    {
+      "table_name": "traceability_records",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "3051dfc5c14a48494f1aaa0c5c1ed998",
+      "constraints_md5": "d3be8d989d8b92b8f20150f4ae40cf03",
+      "indexes_md5": "bd0a12808b44aedf3bac86a77a424382"
+    },
+    {
+      "table_name": "transports",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "bad3b6e8277fc7be3a6c100044642599",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "33dd79018d57daee151ec3b335fc757b"
+    },
+    {
+      "table_name": "uploaded_files",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "65cb21f9c7970bf468602a9b647961c3",
+      "constraints_md5": "9df115148a565ab2bf59e5e8beb24c3a",
+      "indexes_md5": "1c222c8a3ac4d7f893cdff91e004eca6"
+    },
+    {
+      "table_name": "user_groups",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "ef2394132f6f99e10f97cba65ce79e90",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "5c59749ea5d415faa32861093ce77b26"
+    },
+    {
+      "table_name": "users",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "727f75c86baa97f0d02217d104e750c5",
+      "constraints_md5": "09ca45b19b6106486fbbf11256dd3b25",
+      "indexes_md5": "74cd071606caa0993c6d40c9b3ffe09e"
+    },
+    {
+      "table_name": "vehicles",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d33e1c470b1c6596029fd00f1a257909",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "ad6b66a5f42ece5e59e36a3298b232df"
+    },
+    {
+      "table_name": "warehouses",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "34d55f1c7bc20c172c4af9edc1874c48",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "b703cd9aa7f8ee8dda42e1e067c982fd"
+    }
+  ],
+  "existing_schema_after": [
+    {
+      "table_name": "activities",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "30177e5d22c4fb2e4ff93a6a316f0dbd",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "2fc91235c9d8c520594658ec547d8992"
+    },
+    {
+      "table_name": "admin_operation_logs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "10b03439f7ec724a8b1fe4db9f81b00e",
+      "constraints_md5": "0beea3d5f93fef7966983a692ce5b2fe",
+      "indexes_md5": "ef8df32e7593499683f907a64f28bac6"
+    },
+    {
+      "table_name": "admin_roles",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "dc1fbac6ab19a4eeea61f5f68051c41f",
+      "constraints_md5": "6fb918cb25bebe9a6e9fec8e074fb48b",
+      "indexes_md5": "e421ce1d194663ad0384d971fb60e293"
+    },
+    {
+      "table_name": "admin_users",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "1b7da65e35134faaf7a211205b467e3f",
+      "constraints_md5": "def4d13d4f21a9fa7d74237f7e21b689",
+      "indexes_md5": "93fb5f8445e9da244ca96739f7dd2b65"
+    },
+    {
+      "table_name": "adoption_categories",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d6ec6bae286be6a724f8e138cdc4928e",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "fcd330913e16246e5886ad000a4264db"
+    },
+    {
+      "table_name": "adoption_configs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "8908a00874262e3e132c4d7d0a83214d",
+      "constraints_md5": "90a22dac26e4cd782b2ce1b2dc0dd075",
+      "indexes_md5": "02607c0f639fb3c54a7041d7c4706444"
+    },
+    {
+      "table_name": "adoption_orders",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "a000a0926ad33e330e0fc2594c9523a0",
+      "constraints_md5": "d17e16b85fc7a39214a7c5426d066cd4",
+      "indexes_md5": "3bc562fb8da81c806a643e4d2b6abbe1"
+    },
+    {
+      "table_name": "agri_data_import_runs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "e4effa8f95be19937a44953fea0b2136",
+      "constraints_md5": "9daef5d97be830e2bb5c30a917150998",
+      "indexes_md5": "08ef43c2aeede8fae425a7a5526c6c9c"
+    },
+    {
+      "table_name": "agri_data_sources",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "9c74caa08178e259eb975b3e1836ecce",
+      "constraints_md5": "f70bc2fcc4cd23fa8153f73dc3c9bb9c",
+      "indexes_md5": "cc6d7b1070626e4b2f05592b4c654d71"
+    },
+    {
+      "table_name": "campaigns",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d6cca1fd0790ac18356c8e9b38a7ee8e",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "531e0e18b448eb01d078cec013bacd98"
+    },
+    {
+      "table_name": "cargo_owners",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "e92f948c7fb06d66b2ef6941a0c49915",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "a8e62f963172f1b0f88e3348056377a7"
+    },
+    {
+      "table_name": "categories",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "efdabfb38140a75dd10f8ade60ca6705",
+      "constraints_md5": "3a2c541386770ed4d0adf919c4143a2a",
+      "indexes_md5": "dfa51f00a256f11c6ae595ddc708f96f"
+    },
+    {
+      "table_name": "cold_chain_reference_nodes",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "60f946d7a14097e9b421867a75456a75",
+      "constraints_md5": "63688346e3c691305f4e632c3143fef4",
+      "indexes_md5": "15ba479aa03e89ce92ca5b3ae8b596c3"
+    },
+    {
+      "table_name": "cold_chain_warehouses",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "93abf72e38cfdae8b6847c826003f03f",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "51d1daa82a1f44f6831e9e4509de267c"
+    },
+    {
+      "table_name": "coupons",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "6c8cb42f2aa282d6ee36ede9fcd886b8",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "e481ca2f13ba4db71a5b1ed8cca8b9d5"
+    },
+    {
+      "table_name": "crop_growth_models",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "5b536ca5f7e6eeaf37d1ad9f447a1d78",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "5a23e195cc6dd8377837614826df694b"
+    },
+    {
+      "table_name": "crops",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "13ea943b944459c6d73e48a82aad4c68",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "8b83ab568bfe99fd28cbe33cf9e5ed34"
+    },
+    {
+      "table_name": "decision_records",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "807eb060f4a5f10955eea543c09ba4df",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "94477bdb3ccdfaf88dc1aeda895a3efb"
+    },
+    {
+      "table_name": "device_logs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "9bac927cababc791f5d3a4118b51612e",
+      "constraints_md5": "7f72075c86bfddd6d32afdc5604cc118",
+      "indexes_md5": "8f9b256f8d86c6b9acc0e4440e1549e8"
+    },
+    {
+      "table_name": "device_types",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "570c981206ef8bebc4adeb99ed59d929",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "ff29a29e101207a845797158cbeb397c"
+    },
+    {
+      "table_name": "devices",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "68a7322ae783b4ed5e3e9b03778eb285",
+      "constraints_md5": "3d2f37471b15663f92509c48f5c32b5e",
+      "indexes_md5": "24ad0ca051c5ad72e67da9f17c9738d7"
+    },
+    {
+      "table_name": "export_tasks",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "b4fa52564c1fbb400ce5da3760308e56",
+      "constraints_md5": "0beea3d5f93fef7966983a692ce5b2fe",
+      "indexes_md5": "a4c79e88188d9124845abadb03a3062f"
+    },
+    {
+      "table_name": "farm_info",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "b3e5ee1286d32a23363f66a566574a3f",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "0350078d2096be6e8a9fa1578c2616dc"
+    },
+    {
+      "table_name": "funeng_migration_conflicts",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "f620b8b6bd5e1e1ce4d864e0f0fdb7a1",
+      "constraints_md5": "55567a5808a24d6e2828c89e77c053a5",
+      "indexes_md5": "32ea5ff94a905fa6c7f5d3d2c73e152c"
+    },
+    {
+      "table_name": "industry_observations",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "1f3c9b31e3a27fc274c3ef9a1b1aa445",
+      "constraints_md5": "2348f301362485c8357d598627f8bb70",
+      "indexes_md5": "de4d8307950635afc02ddb17cc406c02"
+    },
+    {
+      "table_name": "iot_devices",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "0d6a6f5cdb7e10aed030aee3eada2528",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "e81c1f50ca6efd6fec48ebfd3a354388"
+    },
+    {
+      "table_name": "land_parcels",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "db4b654b4f0fcfd92e652efe5542df39",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "43e036079182ffc17ef7fa18909f0fa8"
+    },
+    {
+      "table_name": "lands",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "1c7476e0effd5983e3f4fd48187b7db1",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "a1618bdda6239be2918ec179565634c3"
+    },
+    {
+      "table_name": "market_price_observations",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "0a9e70f65a0827491836391283dd2f26",
+      "constraints_md5": "bec15adc0659fdc0564b5b1efd0b3053",
+      "indexes_md5": "1940bd12143ad34888bc59b944f76883"
+    },
+    {
+      "table_name": "members",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "97689ca2ccc3cb15252e2217afac21e4",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "98f6c0edfa0fed10269e52e53eb52639"
+    },
+    {
+      "table_name": "monitoring_points",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "68eda599ec74c90254141ebc0510a44f",
+      "constraints_md5": "7f72075c86bfddd6d32afdc5604cc118",
+      "indexes_md5": "258c5d3555e1436918e9fdafeeb73090"
+    },
+    {
+      "table_name": "monitoring_records",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d425ab4109ac8510a6809bef66ff17c9",
+      "constraints_md5": "27eb10c8b09ae6af93dce528f98e6779",
+      "indexes_md5": "61fcd5efbdb8f612b67099894656d5c6"
+    },
+    {
+      "table_name": "products",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "f75e7b0fd50c7b3a50976055fc61aaed",
+      "constraints_md5": "11a674c260c348b37b837f016cbce901",
+      "indexes_md5": "6e5aa40b64bdaf5e18aa3025f0ed5991"
+    },
+    {
+      "table_name": "rental_orders",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "81d435000eeffd285976a45c65ce96cc",
+      "constraints_md5": "dffc2386c04809c3803dcb7eac8be14e",
+      "indexes_md5": "383cea6f9b45d695238eaaf21c745419"
+    },
+    {
+      "table_name": "system_configs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "959ad13db0acdcd7b1794f948faaf0bf",
+      "constraints_md5": "d85772137e89dda9151a598b68a33ae8",
+      "indexes_md5": "579fd02a8934a58ae0e2800f0fe62d26"
+    },
+    {
+      "table_name": "todos",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "ac38ed679fed58514cd8d2633b08c2a3",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "3a3f4e422bb9e928085261354065fed2"
+    },
+    {
+      "table_name": "traceability_chain_nodes",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "003ebd8b4bf83d311ce266220c277776",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "3999462e67ca05136b023ad51279282c"
+    },
+    {
+      "table_name": "traceability_configs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "881d1cc956ea508f57fb79740234dbe7",
+      "constraints_md5": "1f68717df8eedfab0227f011e71ca8c1",
+      "indexes_md5": "eb6d581ec8f064b7651b8c49c7691d42"
+    },
+    {
+      "table_name": "traceability_nodes",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "ba6660348b65eaf3eb4ebeb42433ac58",
+      "constraints_md5": "0e1cf408ef5f477d6d0439490f89aa56",
+      "indexes_md5": "3e234e9e6965e5b620059cd293c2cfde"
+    },
+    {
+      "table_name": "traceability_record_entries",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "4282930aa5da4c60a9639547fd32aba4",
+      "constraints_md5": "4bd4119304cea12268f57e6057314224",
+      "indexes_md5": "a932fd54c5cedbbe1b0eaa8fd97890a1"
+    },
+    {
+      "table_name": "traceability_records",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "3051dfc5c14a48494f1aaa0c5c1ed998",
+      "constraints_md5": "d3be8d989d8b92b8f20150f4ae40cf03",
+      "indexes_md5": "bd0a12808b44aedf3bac86a77a424382"
+    },
+    {
+      "table_name": "transports",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "bad3b6e8277fc7be3a6c100044642599",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "33dd79018d57daee151ec3b335fc757b"
+    },
+    {
+      "table_name": "uploaded_files",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "65cb21f9c7970bf468602a9b647961c3",
+      "constraints_md5": "9df115148a565ab2bf59e5e8beb24c3a",
+      "indexes_md5": "1c222c8a3ac4d7f893cdff91e004eca6"
+    },
+    {
+      "table_name": "user_groups",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "ef2394132f6f99e10f97cba65ce79e90",
+      "constraints_md5": "71231660e2d57763ef1b065aa3cd5eb9",
+      "indexes_md5": "5c59749ea5d415faa32861093ce77b26"
+    },
+    {
+      "table_name": "users",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "727f75c86baa97f0d02217d104e750c5",
+      "constraints_md5": "09ca45b19b6106486fbbf11256dd3b25",
+      "indexes_md5": "74cd071606caa0993c6d40c9b3ffe09e"
+    },
+    {
+      "table_name": "vehicles",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "d33e1c470b1c6596029fd00f1a257909",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "ad6b66a5f42ece5e59e36a3298b232df"
+    },
+    {
+      "table_name": "warehouses",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "relacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns_md5": "34d55f1c7bc20c172c4af9edc1874c48",
+      "constraints_md5": "4c6419b3704337bbfe50f018842a9ad3",
+      "indexes_md5": "b703cd9aa7f8ee8dda42e1e067c982fd"
+    }
+  ],
+  "existing_content_before": [
+    {
+      "table_name": "activities",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "admin_operation_logs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "admin_roles",
+      "row_count": 1,
+      "content_md5": "c93e5372875cc8c428c9edefff17299c"
+    },
+    {
+      "table_name": "admin_users",
+      "row_count": 1,
+      "content_md5": "c902d2c91b1efe4248bad4c694fbe230"
+    },
+    {
+      "table_name": "adoption_categories",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "adoption_configs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "adoption_orders",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "agri_data_import_runs",
+      "row_count": 1,
+      "content_md5": "1eb31891580aa1852bec3a9945dfa1b1"
+    },
+    {
+      "table_name": "agri_data_sources",
+      "row_count": 17,
+      "content_md5": "2eb4ed559599b2b5b6529f8ab57f2ba9"
+    },
+    {
+      "table_name": "campaigns",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "cargo_owners",
+      "row_count": 5,
+      "content_md5": "512d19297b1c958925b999282e7a9cd5"
+    },
+    {
+      "table_name": "categories",
+      "row_count": 5,
+      "content_md5": "03b46bb68efcb42f423c55a32b565dfb"
+    },
+    {
+      "table_name": "cold_chain_reference_nodes",
+      "row_count": 5,
+      "content_md5": "e28869f30bbbee6cfe92e97f59638065"
+    },
+    {
+      "table_name": "cold_chain_warehouses",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "coupons",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "crop_growth_models",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "crops",
+      "row_count": 7,
+      "content_md5": "f2eaa77cd472da56934131581d25542f"
+    },
+    {
+      "table_name": "decision_records",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "device_logs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "device_types",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "devices",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "export_tasks",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "farm_info",
+      "row_count": 2,
+      "content_md5": "50f76d2883c8f992bfc98ce8508e1499"
+    },
+    {
+      "table_name": "funeng_migration_conflicts",
+      "row_count": 2,
+      "content_md5": "3de1eb9c157a143944f9fe2e905dd170"
+    },
+    {
+      "table_name": "industry_observations",
+      "row_count": 121,
+      "content_md5": "ad3f7355385a6f656691f70c47b13acd"
+    },
+    {
+      "table_name": "iot_devices",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "land_parcels",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "lands",
+      "row_count": 5,
+      "content_md5": "e01c9626aa788f5f571d4e0b61c4d5b1"
+    },
+    {
+      "table_name": "market_price_observations",
+      "row_count": 1148,
+      "content_md5": "1a1337545492266920aff3b69696b048"
+    },
+    {
+      "table_name": "members",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "monitoring_points",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "monitoring_records",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "products",
+      "row_count": 14,
+      "content_md5": "6fb00d97b95031cdf567e897d0af8ef4"
+    },
+    {
+      "table_name": "rental_orders",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "system_configs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "todos",
+      "row_count": 22,
+      "content_md5": "85541d2a0542c2a7b89a3d236acd0a07"
+    },
+    {
+      "table_name": "traceability_chain_nodes",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_configs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_nodes",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_record_entries",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_records",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "transports",
+      "row_count": 5,
+      "content_md5": "2c849ee92c495695b4409a675eee3b07"
+    },
+    {
+      "table_name": "uploaded_files",
+      "row_count": 4,
+      "content_md5": "dd822dab37defda05ec3f88700c21b07"
+    },
+    {
+      "table_name": "user_groups",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "users",
+      "row_count": 2,
+      "content_md5": "8d2e50023e7025d790501c33b7a21c2b"
+    },
+    {
+      "table_name": "vehicles",
+      "row_count": 5,
+      "content_md5": "a2a5abcd2292d8da57005768e388ad4e"
+    },
+    {
+      "table_name": "warehouses",
+      "row_count": 4,
+      "content_md5": "9964582158ea5c32ac1b7f47625d4cf4"
+    }
+  ],
+  "existing_content_after": [
+    {
+      "table_name": "activities",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "admin_operation_logs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "admin_roles",
+      "row_count": 1,
+      "content_md5": "c93e5372875cc8c428c9edefff17299c"
+    },
+    {
+      "table_name": "admin_users",
+      "row_count": 1,
+      "content_md5": "c902d2c91b1efe4248bad4c694fbe230"
+    },
+    {
+      "table_name": "adoption_categories",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "adoption_configs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "adoption_orders",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "agri_data_import_runs",
+      "row_count": 1,
+      "content_md5": "1eb31891580aa1852bec3a9945dfa1b1"
+    },
+    {
+      "table_name": "agri_data_sources",
+      "row_count": 17,
+      "content_md5": "2eb4ed559599b2b5b6529f8ab57f2ba9"
+    },
+    {
+      "table_name": "campaigns",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "cargo_owners",
+      "row_count": 5,
+      "content_md5": "512d19297b1c958925b999282e7a9cd5"
+    },
+    {
+      "table_name": "categories",
+      "row_count": 5,
+      "content_md5": "03b46bb68efcb42f423c55a32b565dfb"
+    },
+    {
+      "table_name": "cold_chain_reference_nodes",
+      "row_count": 5,
+      "content_md5": "e28869f30bbbee6cfe92e97f59638065"
+    },
+    {
+      "table_name": "cold_chain_warehouses",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "coupons",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "crop_growth_models",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "crops",
+      "row_count": 7,
+      "content_md5": "f2eaa77cd472da56934131581d25542f"
+    },
+    {
+      "table_name": "decision_records",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "device_logs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "device_types",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "devices",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "export_tasks",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "farm_info",
+      "row_count": 2,
+      "content_md5": "50f76d2883c8f992bfc98ce8508e1499"
+    },
+    {
+      "table_name": "funeng_migration_conflicts",
+      "row_count": 2,
+      "content_md5": "3de1eb9c157a143944f9fe2e905dd170"
+    },
+    {
+      "table_name": "industry_observations",
+      "row_count": 121,
+      "content_md5": "ad3f7355385a6f656691f70c47b13acd"
+    },
+    {
+      "table_name": "iot_devices",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "land_parcels",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "lands",
+      "row_count": 5,
+      "content_md5": "e01c9626aa788f5f571d4e0b61c4d5b1"
+    },
+    {
+      "table_name": "market_price_observations",
+      "row_count": 1148,
+      "content_md5": "1a1337545492266920aff3b69696b048"
+    },
+    {
+      "table_name": "members",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "monitoring_points",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "monitoring_records",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "products",
+      "row_count": 14,
+      "content_md5": "6fb00d97b95031cdf567e897d0af8ef4"
+    },
+    {
+      "table_name": "rental_orders",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "system_configs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "todos",
+      "row_count": 22,
+      "content_md5": "85541d2a0542c2a7b89a3d236acd0a07"
+    },
+    {
+      "table_name": "traceability_chain_nodes",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_configs",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_nodes",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_record_entries",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "traceability_records",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "transports",
+      "row_count": 5,
+      "content_md5": "2c849ee92c495695b4409a675eee3b07"
+    },
+    {
+      "table_name": "uploaded_files",
+      "row_count": 4,
+      "content_md5": "dd822dab37defda05ec3f88700c21b07"
+    },
+    {
+      "table_name": "user_groups",
+      "row_count": 0,
+      "content_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "users",
+      "row_count": 2,
+      "content_md5": "8d2e50023e7025d790501c33b7a21c2b"
+    },
+    {
+      "table_name": "vehicles",
+      "row_count": 5,
+      "content_md5": "a2a5abcd2292d8da57005768e388ad4e"
+    },
+    {
+      "table_name": "warehouses",
+      "row_count": 4,
+      "content_md5": "9964582158ea5c32ac1b7f47625d4cf4"
+    }
+  ],
+  "checks": {
+    "orm_structure_matches": true,
+    "pytest_passed": 258,
+    "pytest_warnings": 4,
+    "agent_lint_errors": 0
+  },
+  "relevant_security_advisors": [
+    {
+      "name": "rls_enabled_no_policy",
+      "title": "RLS Enabled No Policy",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "SECURITY"
+      ],
+      "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "count": 64,
+      "findings": [
+        {
+          "detail": "Table \\`public.activities\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "activities",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.admin_operation_logs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "admin_operation_logs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.admin_roles\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "admin_roles",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.admin_users\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "admin_users",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.adoption_categories\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "adoption_categories",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.adoption_configs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "adoption_configs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.adoption_orders\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "adoption_orders",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.agri_data_import_runs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "agri_data_import_runs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.agri_data_sources\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "agri_data_sources",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.campaigns\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "campaigns",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cargo_owners\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cargo_owners",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_inbound_appointments\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_inbound_appointments",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_inbound_order_items\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_inbound_order_items",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_inbound_orders\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_inbound_orders",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_inventory_alerts\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_inventory_alerts",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_inventory_rules\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_inventory_rules",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_operating_costs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_operating_costs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_operation_batches\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_operation_batches",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_operation_tasks\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_operation_tasks",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_operators\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_operators",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_quality_inspections\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_quality_inspections",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_reference_nodes\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_reference_nodes",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_sensors\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_sensors",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_temperature_alerts\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_temperature_alerts",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_temperature_readings\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_temperature_readings",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_warehouses\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_warehouses",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.cold_chain_zones\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "cold_chain_zones",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.coupons\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "coupons",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.crop_growth_models\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "crop_growth_models",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.decision_records\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "decision_records",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.device_logs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "device_logs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.device_types\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "device_types",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.devices\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "devices",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.environment_readings\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "environment_readings",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.export_tasks\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "export_tasks",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.funeng_migration_conflicts\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "funeng_migration_conflicts",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.industry_observations\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "industry_observations",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.iot_devices\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "iot_devices",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.irrigation_records\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "irrigation_records",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.irrigation_zones\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "irrigation_zones",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.land_parcels\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "land_parcels",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.market_price_observations\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "market_price_observations",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.marketing_orders\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "marketing_orders",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.marketing_traffic_daily\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "marketing_traffic_daily",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.members\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "members",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.monitoring_points\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "monitoring_points",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.monitoring_records\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "monitoring_records",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.rental_orders\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "rental_orders",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.scf_credit_assessments\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "scf_credit_assessments",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.scf_financing_orders\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "scf_financing_orders",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.scf_insurance_policies\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "scf_insurance_policies",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.scf_receivables\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "scf_receivables",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.system_configs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "system_configs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.traceability_chain_nodes\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "traceability_chain_nodes",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.traceability_configs\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "traceability_configs",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.traceability_nodes\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "traceability_nodes",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.traceability_record_entries\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "traceability_record_entries",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.traceability_records\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "traceability_records",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.transports\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "transports",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.uploaded_files\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "uploaded_files",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.user_groups\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "user_groups",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.users\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "users",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.vehicles\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "vehicles",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        },
+        {
+          "detail": "Table \\`public.warehouses\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "warehouses",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-10-01T00:28:59.210Z"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "No frontend or backend production release performed in this task.",
+    "Optional demo seed not executed.",
+    "Local migration filename preserved; remote assigned timestamp is recorded by name.",
+    "Independent external evaluator review pending."
+  ]
+}

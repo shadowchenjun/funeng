@@ -129,6 +129,17 @@ def read_products(db: Session = Depends(get_db),
 6. **冷链订单状态机不可逆** — 已完成的订单不能回退到待处理状态
 7. **所有金额计算使用 Decimal** — 禁止使用 float 计算金额，防止精度丢失
 
+## 外部农业统计持久化（2026-10-01）
+
+已采集的行情、年度/季度产业指标、来源目录和冷链节点存入现有Supabase PostgreSQL项目。上述SQLite说明仍适用于本地兼容路径和临时测试库，不能据此把生产采集数据写入Vercel本地SQLite。
+
+- `market_price_observations`与商品库存、平台售价分表。
+- `industry_observations`使用精确NUMERIC，保留单位、统计期、gt下限、证据及人工/程序来源状态。
+- `agri_data_sources`、`cold_chain_reference_nodes`、`agri_data_import_runs`保存目录、节点和幂等导入核验。
+- 新表启用RLS，仅后端权限访问；正式统计API及Vue读取仍待接入，当前原型读取本地快照。
+
+详见[入库报告](agri-supabase-import.md)和[数据口径](agri-industry-data.md)。
+
 ---
 
 ## Data Flow Example

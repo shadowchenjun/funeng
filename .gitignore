@@ -55,3 +55,6 @@ dist/
 htmlcov/
 backend/exports/
 .superpowers/
+
+# Supabase CLI 本地临时目录
+supabase/.temp/

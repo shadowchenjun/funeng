@@ -1,0 +1,21 @@
+{
+  "expected": {
+    "agri_data_sources": {
+      "count": 17,
+      "content_md5": "32d6b805f68fc1b538c1c6d1f5465bd5"
+    },
+    "market_price_observations": {
+      "count": 1148,
+      "content_md5": "9988b399f679b2529621ce3996672cd8"
+    },
+    "industry_observations": {
+      "count": 121,
+      "content_md5": "3a662a040560073ec20cc92b932d905d"
+    },
+    "cold_chain_reference_nodes": {
+      "count": 5,
+      "content_md5": "47b76a99e1c3f22e5d4ea8da8e666235"
+    }
+  },
+  "query": "SELECT 'agri_data_sources' AS table_name, count(*) AS count, md5(string_agg(md5(jsonb_build_array(source_id::text, name::text, domain::text, source_url::text, status::text, coverage::text)::text), '' ORDER BY source_id COLLATE \"C\")) AS content_md5, max(updated_at)::text AS last_updated FROM public.agri_data_sources UNION ALL SELECT 'market_price_observations' AS table_name, count(*) AS count, md5(string_agg(md5(jsonb_build_array(external_key::text, source_id::text, source_url::text, market_name::text, province::text, category::text, commodity::text, specification::text, origin::text, observed_date::text, period_start::text, period_end::text, quote_type::text, source_unit::text, trim_scale(price_min)::text, trim_scale(price_avg)::text, trim_scale(price_max)::text, trim_scale(price_min_yuan_per_kg)::text, trim_scale(price_avg_yuan_per_kg)::text, trim_scale(price_max_yuan_per_kg)::text, quality_flag::text, source_row_key::text)::text), '' ORDER BY external_key COLLATE \"C\")) AS content_md5, max(updated_at)::text AS last_updated FROM public.market_price_observations UNION ALL SELECT 'industry_observations' AS table_name, count(*) AS count, md5(string_agg(md5(jsonb_build_array(external_key::text, source_id::text, source_url::text, metric::text, metric_name::text, region::text, category::text, frequency::text, unit::text, measure_type::text, qualifier::text, evidence::text, review_status::text, trim_scale(value)::text, trim_scale(yoy_percent)::text, period_start::text, period_end::text)::text), '' ORDER BY external_key COLLATE \"C\")) AS content_md5, max(updated_at)::text AS last_updated FROM public.industry_observations UNION ALL SELECT 'cold_chain_reference_nodes' AS table_name, count(*) AS count, md5(string_agg(md5(jsonb_build_array(external_key::text, source_id::text, source_url::text, name::text, province::text, city::text, reported::text, scope::text, snapshot_date::text)::text), '' ORDER BY external_key COLLATE \"C\")) AS content_md5, max(updated_at)::text AS last_updated FROM public.cold_chain_reference_nodes;"
+}

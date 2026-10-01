@@ -1,0 +1,22 @@
+{
+  "normalizer_version": 1,
+  "snapshot_date": "2026-10-01",
+  "expected_counts": {
+    "agri_data_sources": 17,
+    "market_price_observations": 1148,
+    "industry_observations": 121,
+    "cold_chain_reference_nodes": 5
+  },
+  "price_overlap_removed": 11,
+  "price_categories": {
+    "蔬菜": 438,
+    "水果": 150,
+    "肉蛋禽": 373,
+    "水产": 186,
+    "奶": 1
+  },
+  "source_files": {
+    "agri-industry-dashboard.snapshot.json": "482edfa372f4bd8f3202c43a5ef8e19f9f63333d6cc6c8f318ca0d22c9ed2760",
+    "agri-market-dashboard.snapshot.json": "53ea4fd4fc36f060dad060e3059f9cb9a916312314987964cff6aba977d27958"
+  }
+}

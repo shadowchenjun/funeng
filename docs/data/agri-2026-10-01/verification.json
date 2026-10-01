@@ -1,0 +1,262 @@
+{
+  "content_matches": true,
+  "source_metadata_matches": true,
+  "full_snapshot_reimport_unchanged": true,
+  "table_digests": [
+    {
+      "table_name": "agri_data_sources",
+      "count": 17,
+      "content_md5": "32d6b805f68fc1b538c1c6d1f5465bd5",
+      "last_updated": "2026-09-30 23:30:13.453406+00"
+    },
+    {
+      "table_name": "market_price_observations",
+      "count": 1148,
+      "content_md5": "9988b399f679b2529621ce3996672cd8",
+      "last_updated": "2026-09-30 23:32:13.474383+00"
+    },
+    {
+      "table_name": "industry_observations",
+      "count": 121,
+      "content_md5": "3a662a040560073ec20cc92b932d905d",
+      "last_updated": "2026-09-30 23:32:23.08677+00"
+    },
+    {
+      "table_name": "cold_chain_reference_nodes",
+      "count": 5,
+      "content_md5": "47b76a99e1c3f22e5d4ea8da8e666235",
+      "last_updated": "2026-09-30 23:32:25.943158+00"
+    }
+  ],
+  "permissions": [
+    {
+      "table_name": "agri_data_import_runs",
+      "rls": true,
+      "anon_select": false,
+      "authenticated_select": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true
+    },
+    {
+      "table_name": "agri_data_sources",
+      "rls": true,
+      "anon_select": false,
+      "authenticated_select": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true
+    },
+    {
+      "table_name": "cold_chain_reference_nodes",
+      "rls": true,
+      "anon_select": false,
+      "authenticated_select": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true
+    },
+    {
+      "table_name": "industry_observations",
+      "rls": true,
+      "anon_select": false,
+      "authenticated_select": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true
+    },
+    {
+      "table_name": "market_price_observations",
+      "rls": true,
+      "anon_select": false,
+      "authenticated_select": false,
+      "backend_select": true,
+      "backend_insert": true,
+      "backend_update": true
+    }
+  ],
+  "audit": {
+    "quality": [
+      {
+        "records": 13,
+        "quality_flag": "unknown_unit"
+      },
+      {
+        "records": 1,
+        "quality_flag": "missing_unit"
+      },
+      {
+        "records": 1134,
+        "quality_flag": "ok"
+      }
+    ],
+    "baseline": {
+      "users": 2,
+      "products": 14,
+      "categories": 5,
+      "transports": 5,
+      "warehouses": 4,
+      "uploaded_files": 4
+    },
+    "financial": [
+      {
+        "unit": "亿元",
+        "value": "1200",
+        "metric": "agri_insurance_claims",
+        "qualifier": "gt",
+        "period_end": "2025-12-31",
+        "yoy_percent": null,
+        "period_start": "2025-01-01"
+      },
+      {
+        "unit": "万亿元",
+        "value": "5",
+        "metric": "agri_insurance_coverage",
+        "qualifier": "gt",
+        "period_end": "2025-12-31",
+        "yoy_percent": null,
+        "period_start": "2025-01-01"
+      },
+      {
+        "unit": "亿元",
+        "value": "1550",
+        "metric": "agri_insurance_premium",
+        "qualifier": "gt",
+        "period_end": "2025-12-31",
+        "yoy_percent": null,
+        "period_start": "2025-01-01"
+      },
+      {
+        "unit": "亿元",
+        "value": "517",
+        "metric": "agri_insurance_subsidy",
+        "qualifier": "exact",
+        "period_end": "2025-12-31",
+        "yoy_percent": null,
+        "period_start": "2025-01-01"
+      },
+      {
+        "unit": "万亿元",
+        "value": "53.57",
+        "metric": "agricultural_related_credit",
+        "qualifier": "exact",
+        "period_end": "2025-12-31",
+        "yoy_percent": "6.5",
+        "period_start": "2025-12-31"
+      },
+      {
+        "unit": "万亿元",
+        "value": "6.89",
+        "metric": "agriculture_credit",
+        "qualifier": "exact",
+        "period_end": "2025-12-31",
+        "yoy_percent": "8.3",
+        "period_start": "2025-12-31"
+      },
+      {
+        "unit": "万亿元",
+        "value": "18.42",
+        "metric": "farm_household_credit",
+        "qualifier": "exact",
+        "period_end": "2025-12-31",
+        "yoy_percent": "1.0",
+        "period_start": "2025-12-31"
+      },
+      {
+        "unit": "万亿元",
+        "value": "39.24",
+        "metric": "rural_credit",
+        "qualifier": "exact",
+        "period_end": "2025-12-31",
+        "yoy_percent": "6.3",
+        "period_start": "2025-12-31"
+      }
+    ],
+    "price_types": [
+      {
+        "records": 1049,
+        "quote_type": "market_wholesale"
+      },
+      {
+        "records": 34,
+        "quote_type": "market_weekly"
+      },
+      {
+        "records": 1,
+        "quote_type": "producer_raw_milk"
+      },
+      {
+        "records": 64,
+        "quote_type": "national_wholesale_mean"
+      }
+    ],
+    "price_period": {
+      "to": "2026-09-30",
+      "from": "2026-09-18"
+    },
+    "source_status": [
+      {
+        "status": "collected",
+        "records": 10
+      },
+      {
+        "status": "pending",
+        "records": 2
+      },
+      {
+        "status": "manual_reviewed",
+        "records": 4
+      },
+      {
+        "status": "reference_only",
+        "records": 1
+      }
+    ],
+    "orphan_sources": 0,
+    "price_categories": [
+      {
+        "records": 1,
+        "category": "奶"
+      },
+      {
+        "records": 186,
+        "category": "水产"
+      },
+      {
+        "records": 150,
+        "category": "水果"
+      },
+      {
+        "records": 373,
+        "category": "肉蛋禽"
+      },
+      {
+        "records": 438,
+        "category": "蔬菜"
+      }
+    ],
+    "duplicate_price_keys": 0,
+    "fake_platform_metrics": 0,
+    "invalid_kg_conversion": 0
+  },
+  "tests": {
+    "agent_lint_errors": 0,
+    "pytest_passed": 258
+  },
+  "advisor_notes": {
+    "security": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+      }
+    ],
+    "performance": [
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      }
+    ]
+  }
+}

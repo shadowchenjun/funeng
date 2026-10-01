@@ -55,10 +55,12 @@
 
 ## 业务模块补充迁移（2026-10-01）
 
-合入 `optimize/full-pass` 后 ORM 新增 23 张表（冷链 WMS 14、供应链金融 4、智慧农业环境/灌溉 3、数字营销 2），线上经 `to_regclass` 核查均不存在。生产不执行 `create_all`，需按顺序：
+合入 `optimize/full-pass` 后 ORM 新增 23 张表（冷链 WMS 14、供应链金融 4、智慧农业环境/灌溉 3、数字营销 2），此前线上核查均不存在。**2026-10-01 已按用户授权完成生产补建并核验**，目标项目 `uzxmomyfgkqkbxxkzskc`。生产不执行 `create_all`，部署步骤及当前状态：
 
-1. 应用 [`20261001120000_funeng_business_module_tables.sql`](../supabase/migrations/20261001120000_funeng_business_module_tables.sql)：仅 `CREATE TABLE/INDEX IF NOT EXISTS`，不触碰已有表；全部启用 RLS，并收回 `anon`/`authenticated` 权限。由 [`generate_supabase_delta.py`](../backend/migrations/generate_supabase_delta.py) 按「ORM − 已有迁移」生成。
+1. **已应用** [`20261001120000_funeng_business_module_tables.sql`](../supabase/migrations/20261001120000_funeng_business_module_tables.sql)：仅 `CREATE TABLE/INDEX IF NOT EXISTS`，不触碰已有表；全部启用 RLS，并收回 `anon`/`authenticated` 权限。由 [`generate_supabase_delta.py`](../backend/migrations/generate_supabase_delta.py) 按「ORM − 已有迁移」生成。远端迁移名称 `funeng_business_module_tables`、实际版本 `20261001002742`；本地保留原文件名，后续部署须按名称核对，不能误判为未执行。
 2. 可选：执行 [`supabase/seeds/20261001_business_module_demo_data.sql`](../supabase/seeds/20261001_business_module_demo_data.sql) 写入演示数据（1054 行，仅新表，`ON CONFLICT DO NOTHING`，可重复执行）。不执行则对应页面为空态。
 3. 部署后端。
+
+本次生产核验：23 张表的 259 个字段、23 个二级索引及 ORM 主键/外键/唯一约束匹配；有效权限满足后端专用访问。原有 47 张表共 1376 行的数据及结构指纹未改变。新表为空，演示数据尚未执行。本地门禁 258 项测试通过、0 lint 错误。[执行计划与验收](plans/2026-10-01-business-module-production-migration.md)，[核验记录](data/business-module-migration-2026-10-01.json)。此次仅更新数据库，未进行应用生产发布。
 
 本地验证：嵌入式 Postgres 依次应用全部迁移（新迁移重复应用一次），后端以迁移建出的表结构运行，`create_all` 未补建任何表；后端测试在该库上 242 项通过（排除 2 个依赖仓库相对路径的未跟踪测试文件）。
