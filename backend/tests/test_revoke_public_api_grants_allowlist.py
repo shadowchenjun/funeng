@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "migrations"))
 from repo_tables import MIGRATIONS_DIR, created_tables  # noqa: E402
+from generate_revoke_migration import render  # noqa: E402
 
 MIGRATION = MIGRATIONS_DIR / "20261001150000_revoke_public_api_grants.sql"
 CHECKS = MIGRATIONS_DIR.parent / "checks" / "public_api_grants.sql"
@@ -33,3 +34,7 @@ def test_checks_use_the_same_allowlist():
 def test_non_funeng_objects_are_not_targeted():
     targets = _arrays(MIGRATION.read_text(encoding="utf-8"))[0]
     assert "todos" not in targets
+
+
+def test_generated_migration_matches_generator():
+    assert MIGRATION.read_text(encoding="utf-8") == render()

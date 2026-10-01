@@ -1,7 +1,7 @@
 """收回 Data API 权限迁移（20261001150000）的数据库级测试 —— 在嵌入式 Postgres 上模拟 Supabase 生产状态。
 
 模拟的生产事实（来自 docs/reviews/2026-10-01-revoke-public-api-grants-review.md 的只读核查）：
-- postgres 与 supabase_admin 都配置了 public 默认 ACL，向 anon/authenticated 授予表与序列权限
+- postgres 与 supabase_admin 都配置了 public 默认 ACL，向 anon/authenticated 授予表、序列与函数权限
 - 仓库迁移建出 69 张 funeng 表，其中 40 张对 anon/authenticated 有授权，29 张为后端专用（无授权）
 - 另有非 funeng 的 todos 表（authenticated 按 auth.uid 访问的 4 条策略）
 - products/categories/lands/crops/farm_info 有 USING(true) 的公开读取策略
@@ -49,6 +49,7 @@ def server():
         for creator in ("postgres", "supabase_admin"):
             c.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {creator} IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role")
             c.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {creator} IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role")
+            c.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {creator} IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role")
         for name in PRIOR_MIGRATIONS:
             c.execute((MIGRATIONS / name).read_text(encoding="utf-8"))
         # 非 funeng 应用的表与策略
@@ -197,6 +198,124 @@ def test_snapshot_not_exposed_to_api_roles(db):
     for role in ("anon", "authenticated"):
         assert not db.execute(f"SELECT has_schema_privilege('{role}', 'funeng_ops', 'USAGE')").fetchone()[0]
         assert not db.execute(f"SELECT has_table_privilege('{role}', 'funeng_ops.acl_snapshot', 'SELECT')").fetchone()[0]
+        for table in ("acl_snapshot_runs", "acl_snapshot_objects"):
+            assert not db.execute(f"SELECT has_table_privilege('{role}', 'funeng_ops.{table}', 'SELECT')").fetchone()[0]
+
+
+def snapshot_state(conn):
+    return [conn.execute(f"SELECT * FROM funeng_ops.{table} ORDER BY 1, 2, 3").fetchall()
+            for table in ("acl_snapshot", "acl_snapshot_objects", "acl_snapshot_runs")]
+
+
+@pytest.mark.parametrize("extra_grant", [
+    "GRANT SELECT ON public.industry_observations TO anon",
+    "GRANT SELECT (value) ON public.industry_observations TO anon",
+    "GRANT SELECT ON public.products TO anon WITH GRANT OPTION",
+    "GRANT SELECT ON SEQUENCE public.products_id_seq TO anon WITH GRANT OPTION",
+    "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT ON TABLES TO anon WITH GRANT OPTION",
+])
+def test_rerun_freezes_snapshot_despite_intervening_grant(db, extra_grant):
+    before = acl_state(db)
+    db.execute(REVOKE)
+    snap = snapshot_state(db)
+    db.execute(extra_grant)
+    db.execute(REVOKE)
+    assert snapshot_state(db) == snap
+    db.execute(ROLLBACK)
+    assert acl_state(db) == before
+
+
+def test_rollback_removes_later_grants_on_originally_private_objects(db):
+    before = acl_state(db)
+    db.execute(REVOKE)
+    db.execute("GRANT SELECT ON public.industry_observations TO anon; "
+               "GRANT SELECT (value) ON public.industry_observations TO authenticated")
+    db.execute(ROLLBACK)
+    assert acl_state(db) == before
+
+
+def test_empty_first_snapshot_is_frozen_and_can_rollback(db):
+    db.execute("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated; "
+               "REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated; "
+               "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated; "
+               "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated")
+    before = acl_state(db)
+    db.execute(REVOKE)
+    assert db.execute("SELECT count(*) FROM funeng_ops.acl_snapshot").fetchone()[0] == 0
+    assert db.execute("SELECT count(*) FROM funeng_ops.acl_snapshot_objects WHERE object_kind = 'table'").fetchone()[0] == 69
+    assert db.execute("SELECT count(*) FROM funeng_ops.acl_snapshot_runs").fetchone()[0] == 1
+    snap = snapshot_state(db)
+    db.execute("GRANT SELECT ON public.industry_observations TO anon")
+    db.execute(REVOKE)
+    assert snapshot_state(db) == snap
+    db.execute(ROLLBACK)
+    assert acl_state(db) == before
+
+
+def test_preflight_runs_before_after_and_after_rollback(db):
+    checks = (ROOT / "supabase/checks/public_api_grants.sql").read_text()
+    snapshot_checks = (ROOT / "supabase/checks/public_api_snapshot.sql").read_text()
+    db.execute(checks)
+    db.execute(REVOKE)
+    db.execute(checks)
+    db.execute(snapshot_checks)
+    db.execute(ROLLBACK)
+    db.execute(checks)
+    db.execute(snapshot_checks)
+
+
+def test_function_default_acl_unchanged(db):
+    def functions():
+        return db.execute("SELECT defaclrole, defaclacl::text FROM pg_default_acl "
+                          "WHERE defaclobjtype = 'f' ORDER BY defaclrole").fetchall()
+    before = functions()
+    assert len(before) == 2
+    db.execute(REVOKE)
+    assert functions() == before
+    assert not db.execute("SELECT 1 FROM funeng_ops.acl_snapshot WHERE object_kind = 'default:f'").fetchone()
+    db.execute(ROLLBACK)
+    assert functions() == before
+
+
+def test_original_grant_options_are_restored(db):
+    db.execute("GRANT SELECT ON public.products TO anon WITH GRANT OPTION; "
+               "GRANT SELECT (value) ON public.industry_observations TO authenticated WITH GRANT OPTION")
+    before = acl_state(db)
+    db.execute(REVOKE)
+    db.execute(ROLLBACK)
+    assert acl_state(db) == before
+
+
+def test_legacy_snapshot_without_header_is_rejected(db):
+    db.execute(REVOKE)
+    db.execute("DELETE FROM funeng_ops.acl_snapshot_objects; DELETE FROM funeng_ops.acl_snapshot_runs")
+    before = acl_state(db)
+    with pytest.raises(psycopg.errors.RaiseException, match="legacy snapshot without capture marker"):
+        db.execute(REVOKE)
+    db.execute("ROLLBACK")
+    assert acl_state(db) == before
+
+
+def test_target_replacement_aborts_rerun_and_rollback(db):
+    db.execute(REVOKE)
+    db.execute("DROP TABLE public.industry_observations; CREATE TABLE public.industry_observations (value numeric)")
+    before = acl_state(db)
+    for sql, message in ((REVOKE, "target objects differ from first snapshot"),
+                         (ROLLBACK, "snapshot objects missing, replaced")):
+        with pytest.raises(psycopg.errors.RaiseException, match=message):
+            db.execute(sql)
+        db.execute("ROLLBACK")
+        assert acl_state(db) == before
+
+
+def test_new_non_target_objects_untouched_by_rollback(db):
+    db.execute(REVOKE)
+    db.execute("CREATE TABLE public.zz_later (id serial); GRANT SELECT ON public.zz_later TO anon")
+    before_rels = acl_state(db)[0]
+    db.execute(ROLLBACK)
+    after_rels = acl_state(db)[0]
+    assert after_rels["zz_later"] == before_rels["zz_later"]
+    assert after_rels["zz_later_id_seq"] == before_rels["zz_later_id_seq"]
 
 
 # ---------- 残留有效权限检测（review R3） ----------

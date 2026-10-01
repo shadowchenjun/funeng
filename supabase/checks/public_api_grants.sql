@@ -1,5 +1,6 @@
--- 只读核查：收回 Data API 权限迁移的执行前 / 执行后对比（r2，按「有效权限」检查）
+-- 只读核查：收回 Data API 权限迁移的执行前 / 执行后对比（r3，按「有效权限」检查）
 -- 每段结果独立，可在 SQL Editor 中整体执行，保存两次输出对比。
+-- 本文件不依赖快照表，首次迁移前也可完整执行；快照核查另见 public_api_snapshot.sql（仅执行后）。
 
 -- [1] funeng 目标表：anon/authenticated 的有效权限（含 PUBLIC、继承角色、列级）。执行后应全部为 false
 WITH targets AS (
@@ -91,15 +92,10 @@ FROM pg_class c
 WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p','v','m','f','S')
 GROUP BY 1, 2 ORDER BY 1, 2;
 
--- [6] public 的默认权限（所有角色）。执行后 postgres 行不应再含 anon/authenticated；
+-- [6] public 的默认权限（所有角色）。执行后仅 postgres 的 r/S 行不应再含 anon/authenticated；
+--     函数(f)等其他对象类型不在撤权范围，执行前后应保持不变。
 --     supabase_admin 行本迁移不修改，其新建对象仍会默认授予 anon/authenticated
 SELECT pg_get_userbyid(d.defaclrole) AS creator_role, d.defaclobjtype AS objtype, d.defaclacl::text AS acl
 FROM pg_default_acl d
 WHERE d.defaclnamespace = 'public'::regnamespace OR d.defaclnamespace = 0
 ORDER BY 1, 2;
-
--- [7] 迁移快照（执行后存在；回滚依据）
-SELECT object_kind, grantee, count(*) AS entries
-FROM funeng_ops.acl_snapshot
-WHERE migration = '20261001150000_revoke_public_api_grants'
-GROUP BY 1, 2 ORDER BY 1, 2;

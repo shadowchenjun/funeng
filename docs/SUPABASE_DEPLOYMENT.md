@@ -65,26 +65,33 @@
 
 本地验证：嵌入式 Postgres 依次应用全部迁移（新迁移重复应用一次），后端以迁移建出的表结构运行，`create_all` 未补建任何表；后端测试在该库上 242 项通过（排除 2 个依赖仓库相对路径的未跟踪测试文件）。
 
-## 收回 Data API 角色对 funeng 表的权限（r2，按 review 修订，待执行）
+## 收回 Data API 角色对 funeng 表的权限（r3，按复审修订，待执行）
 
 Review：[`docs/reviews/2026-10-01-revoke-public-api-grants-review.md`](reviews/2026-10-01-revoke-public-api-grants-review.md)。r1 草稿的三项问题（回滚扩大权限、全量收回波及非 funeng 对象、自检不检查有效权限）均已修正。
+
+r2 [复审记录](reviews/2026-10-01-revoke-public-api-grants-r2-review.md)发现默认权限自检混入函数、首次快照可追加、首次核查依赖不存在的表；r3 已补修并添加回归测试。r2 历史复现脚本固定读取 `6ea1196`，其 PASS 表示旧缺陷成功复现。
 
 **生产现状（review 只读核查）**：public 70 张表（69 张 funeng + `todos`），全部属主 `postgres`、RLS 开启；`anon`/`authenticated` 各对 41 张表（40 funeng + `todos`）、49 个序列有权限；29 张为后端专用无授权。9 条 RLS 策略：`products`/`categories`/`lands`/`crops`/`farm_info` 有 `USING(true)` 公开读取——当前可被 anon key 读取（含 `farm_info` 负责人电话）；`todos` 有 4 条 `auth.uid()` 策略，属其他应用。公开读取策略来源于未合并旧分支 `feature/supabase-aliyun-oss` 的 anon key 直连代码，用户已确认一并收回。
 
 **范围与机制**：
 - 目标：仓库迁移所建 69 张 funeng 表及其序列（名单由 `backend/migrations/generate_revoke_migration.py` 生成，`backend/tests/test_revoke_public_api_grants_allowlist.py` 校验与迁移/核查 SQL 一致）。`todos` 等非 funeng 对象不改动，迁移内校验其 ACL 前后一致
-- 执行前将目标对象上 anon/authenticated 的表级、列级、序列与 `postgres` 默认 ACL 授权项写入私有快照 `funeng_ops.acl_snapshot`（对 API 角色不可见）；回滚只按快照恢复，不给原本无授权的对象新增权限
+- 首次执行在同一事务内创建捕获标记 `funeng_ops.acl_snapshot_runs`、完整目标清单 `acl_snapshot_objects`（含原本空 ACL 的对象及 OID），将 anon/authenticated 的表级、列级、序列与 `postgres/public` 表及序列默认 ACL 授权项写入 `acl_snapshot`。三张快照表均开启 RLS 并撤销 API 角色权限；重复执行不会追加或覆盖首次快照，首次没有任何授权项也可识别并回滚
+- 回滚先清除首次目标清单上后来新增的直接授权，再恢复原始授权和 grant option，并校验完整清单的授权集合。清单之外的新对象不被改动；原始对象被删除、同名重建或属主变更时整体报错回滚。旧 r2 快照若没有捕获标记也拒绝自动重新采集，需先审计
 - 自检按有效权限（`has_table_privilege` / `has_any_column_privilege` / `has_sequence_privilege`，覆盖 PUBLIC 与继承角色）；有残留、目标非 `postgres` 所有、或非目标对象被改动即整体回滚
-- 默认权限只改 `postgres` 在 public 的默认 ACL。**`supabase_admin` 的默认 ACL 不在本迁移范围**：由其新建的对象仍会默认开放（核查 SQL [6] 可见），需另行处理或确保建表统一由 `postgres` 执行
+- 默认权限的捕获、撤权、自检和恢复仅覆盖 `postgres/public` 的表 `r` 与序列 `S`；函数 `f` 等其他对象类型保持不变。**`supabase_admin` 的默认 ACL 不在本迁移范围**：由其新建的对象仍会默认开放（核查 SQL [6] 可见），需另行处理或确保建表统一由 `postgres` 执行
 - RLS 策略本身保留不动；表权限收回后 funeng 表上面向 anon/authenticated 的策略即不再生效
 
 | 步骤 | 文件 |
 |------|------|
 | 1. 执行前核查（只读，保存输出） | [`supabase/checks/public_api_grants.sql`](../supabase/checks/public_api_grants.sql)：[1][2] 有效权限、[3] 非 funeng 对象、[4] 策略、[5] 属主、[6] 默认 ACL |
 | 2. 应用迁移 | [`20261001150000_revoke_public_api_grants.sql`](../supabase/migrations/20261001150000_revoke_public_api_grants.sql) |
-| 3. 执行后核查 | 同步骤 1：[1][2] 应全为 0；[3] 与执行前一致；[7] 出现快照 |
+| 3. 执行后核查 | 同步骤 1：[1][2] 权限计数应全为 0；[3] 与执行前一致。再运行 [`public_api_snapshot.sql`](../supabase/checks/public_api_snapshot.sql)，应出现版本 3 快照头和完整对象清单 |
 | 回滚 | [`supabase/rollback/…rollback.sql`](../supabase/rollback/20261001150000_revoke_public_api_grants.rollback.sql)：按快照精确恢复并校验 |
 
-**验证**：`uv run --python 3.12 --with pgserver --with "psycopg[binary]" --with pytest pytest -q supabase/tests`（嵌入式 Postgres 模拟上述生产事实，含 postgres 与 supabase_admin 两套默认 ACL、`todos` 及其策略、5 条公开读取策略）。r2 14/14 通过；同一套测试对 r1 草稿 11 项失败。覆盖：有效权限清零、`service_role`/属主不受影响、公开读取策略失效但保留、`todos` 不变、回滚与原 ACL 逐项一致（含 29 张私有表不被开放）、幂等与快照保留、快照不对 API 角色开放、经 PUBLIC / 继承角色的残留被检测并整体回滚、序列仅 SELECT 与列级 SELECT 的收回和恢复、非 `postgres` 属主中止、默认权限范围仅 `postgres`。
+`public_api_grants.sql` 不再引用快照表，可在首次迁移前、迁移后、回滚后完整执行。`public_api_snapshot.sql` 是仅迁移成功后的单独核查文件。迁移和回滚用相同事务 advisory lock 串行化；执行期间应避免其他操作者并发修改目标 DDL/ACL，锁只协调遵守此锁的迁移/回滚。
+
+**验证**：`LC_ALL=C LANG=C uv run --python 3.12 --with pgserver --with "psycopg[binary]" --with pytest pytest -q supabase/tests`。r3 **27 项通过**，夹具包含 postgres 与 supabase_admin 的表、序列、函数默认授权，`todos` 及其策略，5 条公开读取策略。回归覆盖：函数默认权限保持不变、跨两次迁移新增授权/列授权/序列授权/默认授权/授权选项、首次空快照、完整清单上的后加授权恢复、同名替换报错、清单外新对象不变、执行前后及回滚后的核查。原有有效权限清零、后端角色不受影响、PUBLIC/继承角色残留检测、私有表回滚等用例继续通过。生成器与生成结果由 backend 测试直接比对。
+
+设计依据：[Supabase Data API 安全](https://supabase.com/docs/guides/api/securing-your-api)、[PostgreSQL 默认权限](https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html)。本次验证仅在临时 PostgreSQL，生产执行及线上页面验收未进行。
 
 **未核实（执行前需确认）**：Supabase 项目是否绑定 GitHub 自动应用迁移；是否有 funeng 仓库之外的客户端依赖上述 5 张表的公开读取（旧分支已确认，其他未知）。
