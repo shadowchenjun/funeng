@@ -136,7 +136,7 @@ def read_products(db: Session = Depends(get_db),
 - `market_price_observations`与商品库存、平台售价分表。
 - `industry_observations`使用精确NUMERIC，保留单位、统计期、gt下限、证据及人工/程序来源状态。
 - `agri_data_sources`、`cold_chain_reference_nodes`、`agri_data_import_runs`保存目录、节点和幂等导入核验。
-- 新表启用RLS，仅后端权限访问；正式统计API及Vue读取仍待接入，当前原型读取本地快照。
+- 新表启用RLS，仅后端权限访问；前台 `/industry-dashboard` 经登录保护的 `/api/industry-dashboard/snapshot` 读取真实数据库。浏览器不直接连接 Supabase。开发原型保留本地快照。
 
 详见[入库报告](agri-supabase-import.md)和[数据口径](agri-industry-data.md)。
 

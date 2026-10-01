@@ -154,6 +154,7 @@ const navItems = [
   { path: '/products', label: '产品' },
   { path: '/categories', label: '分类' },
   { path: '/dashboard', label: '看板' },
+  { path: '/industry-dashboard', label: '产业大屏' },
   { path: '/smart-agriculture', label: '智慧农业' },
   { path: '/digital-marketing', label: '数字营销' },
   { path: '/cold-chain', label: '冷链物流' },

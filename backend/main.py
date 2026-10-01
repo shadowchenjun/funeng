@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import get_current_user
 from app.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, IS_PRODUCTION
-from app.api import auth, products, categories, dashboard, public
+from app.api import auth, products, categories, dashboard, public, industry_dashboard
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
 from app.api.admin import router as admin_router
 from app.api.analytics_platform import router as analytics_platform_router  # Sprint 2 性能优化
@@ -210,6 +210,7 @@ app.include_router(categories.router, prefix="/api/categories", tags=["分类管
 # 业务模块需要登录用户（前端路由均为 requiresAuth）
 login_required = [Depends(get_current_user)]
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["仪表盘"], dependencies=login_required)
+app.include_router(industry_dashboard.router, prefix="/api/industry-dashboard", tags=["产业大数据"], dependencies=login_required)
 app.include_router(upload.router, prefix="/api/upload", tags=["文件上传"])
 app.include_router(users.router, prefix="/api/users", tags=["用户管理"])
 app.include_router(smart_agriculture.router, prefix="/api/smart-agriculture", tags=["智慧农业"], dependencies=login_required)
