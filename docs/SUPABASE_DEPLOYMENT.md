@@ -65,7 +65,9 @@
 
 本地验证：嵌入式 Postgres 依次应用全部迁移（新迁移重复应用一次），后端以迁移建出的表结构运行，`create_all` 未补建任何表；后端测试在该库上 242 项通过（排除 2 个依赖仓库相对路径的未跟踪测试文件）。
 
-## 收回 Data API 角色对 funeng 表的权限（r3，按复审修订，待执行）
+## 收回 Data API 角色对 funeng 表的权限（r3，已在生产执行）
+
+**2026-10-01 18:58:58（北京时间）已执行**：源提交 `89aa362` 已推送并快进合并 main；项目 `uzxmomyfgkqkbxxkzskc` 迁移历史 `20261001105858 / funeng_revoke_public_api_grants_r3`。69 张业务表、49 个序列的 anon/authenticated 有效权限均为 0，后端权限保留。1354 行数据逐表行数不变，其他应用对象与范围外默认权限不变；线上健康检查、14 条产品、5 条分类正常。[生产执行记录](releases/2026-10-01-data-api-permissions.md)。
 
 Review：[`docs/reviews/2026-10-01-revoke-public-api-grants-review.md`](reviews/2026-10-01-revoke-public-api-grants-review.md)。r1 草稿的三项问题（回滚扩大权限、全量收回波及非 funeng 对象、自检不检查有效权限）均已修正。
 
@@ -92,6 +94,6 @@ r2 [复审记录](reviews/2026-10-01-revoke-public-api-grants-r2-review.md)发�
 
 **验证**：`LC_ALL=C LANG=C uv run --python 3.12 --with pgserver --with "psycopg[binary]" --with pytest pytest -q supabase/tests`。r3 **27 项通过**，夹具包含 postgres 与 supabase_admin 的表、序列、函数默认授权，`todos` 及其策略，5 条公开读取策略。回归覆盖：函数默认权限保持不变、跨两次迁移新增授权/列授权/序列授权/默认授权/授权选项、首次空快照、完整清单上的后加授权恢复、同名替换报错、清单外新对象不变、执行前后及回滚后的核查。原有有效权限清零、后端角色不受影响、PUBLIC/继承角色残留检测、私有表回滚等用例继续通过。生成器与生成结果由 backend 测试直接比对。
 
-设计依据：[Supabase Data API 安全](https://supabase.com/docs/guides/api/securing-your-api)、[PostgreSQL 默认权限](https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html)。本次验证仅在临时 PostgreSQL，生产执行及线上页面验收未进行。
+设计依据：[Supabase Data API 安全](https://supabase.com/docs/guides/api/securing-your-api)、[PostgreSQL 默认权限](https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html)。上述自动测试在临时 PostgreSQL；生产执行、权限核查与线上 HTTP 验收现已完成，登录后的完整业务流程未测试。
 
-**未核实（执行前需确认）**：Supabase 项目是否绑定 GitHub 自动应用迁移；是否有 funeng 仓库之外的客户端依赖上述 5 张表的公开读取（旧分支已确认，其他未知）。
+**边界**：Supabase 项目是否绑定 GitHub 自动应用迁移未单独核实；本次在 main 推送后重新查过迁移历史，尚无权限迁移，再经 MCP 手动应用并记录线上版本。funeng 仓库之外是否有客户端依赖上述 5 张表的公开读取仍未知；本次在用户明确授权后按审查范围执行。

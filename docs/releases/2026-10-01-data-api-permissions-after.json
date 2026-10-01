@@ -1,0 +1,1386 @@
+{
+  "after": {
+    "policies": [
+      {
+        "cmd": "SELECT",
+        "qual": "true",
+        "roles": [
+          "anon",
+          "authenticated"
+        ],
+        "tablename": "categories",
+        "permissive": "PERMISSIVE",
+        "policyname": "Public read categories",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "true",
+        "roles": [
+          "anon",
+          "authenticated"
+        ],
+        "tablename": "crops",
+        "permissive": "PERMISSIVE",
+        "policyname": "Public read crops",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "true",
+        "roles": [
+          "anon",
+          "authenticated"
+        ],
+        "tablename": "farm_info",
+        "permissive": "PERMISSIVE",
+        "policyname": "Public read farm_info",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "true",
+        "roles": [
+          "anon",
+          "authenticated"
+        ],
+        "tablename": "lands",
+        "permissive": "PERMISSIVE",
+        "policyname": "Public read lands",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "true",
+        "roles": [
+          "anon",
+          "authenticated"
+        ],
+        "tablename": "products",
+        "permissive": "PERMISSIVE",
+        "policyname": "Public read products",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "DELETE",
+        "qual": "(user_id = (auth.uid())::text)",
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "todos",
+        "permissive": "PERMISSIVE",
+        "policyname": "Users can delete own todos",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "INSERT",
+        "qual": null,
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "todos",
+        "permissive": "PERMISSIVE",
+        "policyname": "Users can insert own todos",
+        "schemaname": "public",
+        "with_check": "(user_id = (auth.uid())::text)"
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "(user_id = (auth.uid())::text)",
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "todos",
+        "permissive": "PERMISSIVE",
+        "policyname": "Users can read own todos",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "UPDATE",
+        "qual": "(user_id = (auth.uid())::text)",
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "todos",
+        "permissive": "PERMISSIVE",
+        "policyname": "Users can update own todos",
+        "schemaname": "public",
+        "with_check": "(user_id = (auth.uid())::text)"
+      }
+    ],
+    "relations": [
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "activities",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "activities_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "admin_operation_logs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "admin_operation_logs_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "admin_roles",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "admin_roles_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "admin_users",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "admin_users_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "adoption_categories",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "adoption_categories_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "adoption_configs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "adoption_configs_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "adoption_orders",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "adoption_orders_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "agri_data_import_runs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "agri_data_sources",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "campaigns",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "campaigns_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cargo_owners",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "cargo_owners_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "categories",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "categories_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_inbound_appointments",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_inbound_order_items",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "cold_chain_inbound_order_items_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_inbound_orders",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_inventory_alerts",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_inventory_rules",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_operating_costs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "cold_chain_operating_costs_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_operation_batches",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_operation_tasks",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_operators",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_quality_inspections",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_reference_nodes",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_sensors",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_temperature_alerts",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_temperature_readings",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "cold_chain_temperature_readings_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_warehouses",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "cold_chain_zones",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "coupons",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "coupons_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "crop_growth_models",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "crop_growth_models_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "crops",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "crops_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "decision_records",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "decision_records_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "device_logs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "device_logs_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "device_types",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "device_types_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "devices",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "devices_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "environment_readings",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "environment_readings_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "export_tasks",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "farm_info",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "farm_info_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "funeng_migration_conflicts",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "funeng_migration_conflicts_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "industry_observations",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "iot_devices",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "iot_devices_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "irrigation_records",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "irrigation_records_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "irrigation_zones",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "irrigation_zones_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "land_parcels",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "land_parcels_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "lands",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "lands_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "market_price_observations",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "market_price_observations_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "marketing_orders",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "marketing_orders_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "marketing_traffic_daily",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "marketing_traffic_daily_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "members",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "members_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "monitoring_points",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "monitoring_points_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "monitoring_records",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "monitoring_records_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "products",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "products_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "rental_orders",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "rental_orders_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "scf_credit_assessments",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "scf_credit_assessments_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "scf_financing_orders",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "scf_financing_orders_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "scf_insurance_policies",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "scf_insurance_policies_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "scf_receivables",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "scf_receivables_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "system_configs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "system_configs_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "todos",
+        "owner": "postgres",
+        "target": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "traceability_chain_nodes",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "traceability_chain_nodes_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "traceability_configs",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "traceability_configs_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "traceability_nodes",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "traceability_nodes_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "traceability_record_entries",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "traceability_record_entries_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "traceability_records",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "traceability_records_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "transports",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "uploaded_files",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "user_groups",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "user_groups_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "users",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "users_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "vehicles",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "rls": false,
+        "kind": "S",
+        "name": "vehicles_id_seq",
+        "owner": "postgres",
+        "target": true
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "kind": "r",
+        "name": "warehouses",
+        "owner": "postgres",
+        "target": true
+      }
+    ],
+    "column_acl": [],
+    "row_counts": {
+      "crops": 7,
+      "lands": 5,
+      "users": 2,
+      "coupons": 0,
+      "devices": 0,
+      "members": 0,
+      "products": 14,
+      "vehicles": 5,
+      "campaigns": 0,
+      "farm_info": 2,
+      "activities": 0,
+      "categories": 5,
+      "transports": 5,
+      "warehouses": 4,
+      "admin_roles": 1,
+      "admin_users": 1,
+      "device_logs": 0,
+      "iot_devices": 0,
+      "user_groups": 0,
+      "cargo_owners": 5,
+      "device_types": 0,
+      "export_tasks": 0,
+      "land_parcels": 0,
+      "rental_orders": 0,
+      "system_configs": 0,
+      "uploaded_files": 4,
+      "adoption_orders": 0,
+      "scf_receivables": 0,
+      "adoption_configs": 0,
+      "cold_chain_zones": 0,
+      "decision_records": 0,
+      "irrigation_zones": 0,
+      "marketing_orders": 0,
+      "agri_data_sources": 17,
+      "monitoring_points": 0,
+      "cold_chain_sensors": 0,
+      "crop_growth_models": 0,
+      "irrigation_records": 0,
+      "monitoring_records": 0,
+      "traceability_nodes": 0,
+      "adoption_categories": 0,
+      "admin_operation_logs": 0,
+      "cold_chain_operators": 0,
+      "environment_readings": 0,
+      "scf_financing_orders": 0,
+      "traceability_configs": 0,
+      "traceability_records": 0,
+      "agri_data_import_runs": 1,
+      "cold_chain_warehouses": 0,
+      "industry_observations": 121,
+      "scf_credit_assessments": 0,
+      "scf_insurance_policies": 0,
+      "marketing_traffic_daily": 0,
+      "traceability_chain_nodes": 0,
+      "cold_chain_inbound_orders": 0,
+      "market_price_observations": 1148,
+      "cold_chain_inventory_rules": 0,
+      "cold_chain_operating_costs": 0,
+      "cold_chain_operation_tasks": 0,
+      "cold_chain_reference_nodes": 5,
+      "funeng_migration_conflicts": 2,
+      "cold_chain_inventory_alerts": 0,
+      "traceability_record_entries": 0,
+      "cold_chain_operation_batches": 0,
+      "cold_chain_temperature_alerts": 0,
+      "cold_chain_inbound_order_items": 0,
+      "cold_chain_quality_inspections": 0,
+      "cold_chain_inbound_appointments": 0,
+      "cold_chain_temperature_readings": 0
+    },
+    "default_acl": [
+      {
+        "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}",
+        "kind": "S",
+        "creator": "supabase_admin",
+        "namespace": "public"
+      },
+      {
+        "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+        "kind": "f",
+        "creator": "supabase_admin",
+        "namespace": "public"
+      },
+      {
+        "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}",
+        "kind": "r",
+        "creator": "supabase_admin",
+        "namespace": "public"
+      },
+      {
+        "acl": "{postgres=rwU/postgres,service_role=rwU/postgres}",
+        "kind": "S",
+        "creator": "postgres",
+        "namespace": "public"
+      },
+      {
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "kind": "f",
+        "creator": "postgres",
+        "namespace": "public"
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "kind": "r",
+        "creator": "postgres",
+        "namespace": "public"
+      }
+    ],
+    "permissions": [
+      {
+        "role": "anon",
+        "tables_any": 0,
+        "tables_select": 0
+      },
+      {
+        "role": "authenticated",
+        "tables_any": 0,
+        "tables_select": 0
+      },
+      {
+        "role": "postgres",
+        "tables_any": 69,
+        "tables_select": 69
+      },
+      {
+        "role": "service_role",
+        "tables_any": 69,
+        "tables_select": 69
+      }
+    ],
+    "current_user": "postgres",
+    "target_tables": 69,
+    "server_version": "17.6",
+    "snapshot_exists": true,
+    "target_sequences": 49,
+    "sequence_permissions": [
+      {
+        "role": "anon",
+        "sequences_any": 0
+      },
+      {
+        "role": "authenticated",
+        "sequences_any": 0
+      },
+      {
+        "role": "postgres",
+        "sequences_any": 49
+      },
+      {
+        "role": "service_role",
+        "sequences_any": 49
+      }
+    ]
+  },
+  "verification": {
+    "permissions": [
+      {
+        "role": "anon",
+        "tables_any": 0,
+        "tables_select": 0
+      },
+      {
+        "role": "authenticated",
+        "tables_any": 0,
+        "tables_select": 0
+      },
+      {
+        "role": "postgres",
+        "tables_any": 69,
+        "tables_select": 69
+      },
+      {
+        "role": "service_role",
+        "tables_any": 69,
+        "tables_select": 69
+      }
+    ],
+    "sequence_permissions": [
+      {
+        "role": "anon",
+        "sequences_any": 0
+      },
+      {
+        "role": "authenticated",
+        "sequences_any": 0
+      },
+      {
+        "role": "postgres",
+        "sequences_any": 49
+      },
+      {
+        "role": "service_role",
+        "sequences_any": 49
+      }
+    ],
+    "row_count_changes": [],
+    "total_rows": 1354,
+    "non_target_acl_unchanged": true,
+    "policies_unchanged": true,
+    "other_defaults_unchanged": true,
+    "backend_role_direct_acl_changes": []
+  },
+  "snapshot": {
+    "runs": [
+      {
+        "migration": "20261001150000_revoke_public_api_grants",
+        "captured_at": "2026-10-01T10:58:58.637929+00:00",
+        "snapshot_version": 3
+      }
+    ],
+    "grants": 956,
+    "objects": 118,
+    "private_tables": [
+      {
+        "rls": true,
+        "name": "acl_snapshot",
+        "anon_access": false,
+        "authenticated_access": false
+      },
+      {
+        "rls": true,
+        "name": "acl_snapshot_objects",
+        "anon_access": false,
+        "authenticated_access": false
+      },
+      {
+        "rls": true,
+        "name": "acl_snapshot_runs",
+        "anon_access": false,
+        "authenticated_access": false
+      }
+    ],
+    "default_grants_remaining": 0
+  },
+  "http_before": [
+    {
+      "url": "https://funeng-7p1i.vercel.app/login",
+      "status": 200,
+      "seconds": 1.59,
+      "bytes": 4793
+    },
+    {
+      "url": "https://funeng.vercel.app/health",
+      "status": 200,
+      "seconds": 8.54,
+      "result": {
+        "status": "healthy"
+      },
+      "items": 0
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/products/?limit=1000",
+      "status": 200,
+      "seconds": 13.01,
+      "result": {
+        "total": 14
+      },
+      "items": 14
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/categories/",
+      "status": 200,
+      "seconds": 9.96,
+      "result": {},
+      "items": 5
+    }
+  ],
+  "http_after": [
+    {
+      "url": "https://funeng-7p1i.vercel.app/login",
+      "status": 200,
+      "seconds": 2.04,
+      "bytes": 4793
+    },
+    {
+      "url": "https://funeng.vercel.app/health",
+      "status": 200,
+      "seconds": 2.13,
+      "result": {
+        "status": "healthy"
+      },
+      "items": 0
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/products/?limit=1000",
+      "status": 200,
+      "seconds": 7.12,
+      "result": {
+        "total": 14
+      },
+      "items": 14
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/categories/",
+      "status": 200,
+      "seconds": 4,
+      "result": {},
+      "items": 5
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/cold-chain/warehouse",
+      "status": 401
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/supply-chain-finance/overview",
+      "status": 404
+    },
+    {
+      "url": "https://funeng-7p1i.vercel.app/api/supply-chain-finance/financing/stats",
+      "status": 401
+    }
+  ]
+}
