@@ -605,6 +605,7 @@ import {
   OfficeBuilding, Plus, Sell, ShoppingBag, Sunny, TrendCharts, Warning, WindPower
 } from '@element-plus/icons-vue'
 import type { ModuleNavGroup } from '../components/ui/ModuleNav.vue'
+import { createLatestGuard } from '../utils/latest'
 import axios from 'axios'
 
 declare global {
@@ -893,6 +894,7 @@ let farmMap: any = null
 let farmMarker: any = null
 let farmOverviewMap: any = null
 let deviceMap: any = null
+const overviewGuard = createLatestGuard()
 
 // 等待 AMap 加载完成
 const waitForAMap = (): Promise<void> => {
@@ -984,9 +986,11 @@ const initMapPicker = async () => {
 
 // 初始化农场概览地图
 const initFarmOverviewMap = () => {
+  // 农场切换/面板切换可能连续触发，只认最新一次；卸载后放弃
+  const isCurrent = overviewGuard.begin()
   nextTick(async () => {
     await waitForAMap()
-    if (!window.AMap) return
+    if (!isCurrent() || !window.AMap) return
 
     // 农场概览地图
     // 面板为 v-show 常驻：地图只建一次（resizeEnable 让隐藏时创建的地图在显示后恢复尺寸），之后清空覆盖物重画
@@ -1074,6 +1078,7 @@ watch(() => activeTab.value, (tab) => {
 })
 
 onBeforeUnmount(() => {
+  overviewGuard.invalidate()
   farmMap?.destroy()
   farmOverviewMap?.destroy()
   deviceMap?.destroy()

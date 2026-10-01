@@ -76,6 +76,7 @@ import { ref, onMounted, markRaw } from 'vue'
 import type { Component } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { useFreshOnActivate } from '../composables/useFreshOnActivate'
 import { ArrowRight, Box, Goods, Menu, Money, PieChart, Refresh, Warning } from '@element-plus/icons-vue'
 import { formatMoneyCompact } from '../utils/format'
 
@@ -145,6 +146,7 @@ const fetchData = async () => {
     }))
     recentProducts.value = recentRes.data
     lowStockProducts.value = lowStockRes.data
+    fresh.markFresh()
   } catch (e) {
     const detail = axios.isAxiosError(e) ? e.response?.data?.detail : undefined
     ElMessage.error(detail || '加载仪表盘数据失败')
@@ -156,6 +158,9 @@ const fetchData = async () => {
 const refreshData = async () => {
   await fetchData()
 }
+
+// 产品/分类在其他页变更后，回到看板自动刷新统计
+const fresh = useFreshOnActivate(['products', 'categories'], fetchData)
 
 onMounted(fetchData)
 </script>

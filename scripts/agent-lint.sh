@@ -19,6 +19,14 @@ for pkg in frontend admin; do
   fi
 done
 
+# Rule 1b: 前端单元测试（无依赖 node:test：缓存新鲜度、运输地图异步竞争）
+echo "[1b/7] frontend unit tests..."
+if [ -d frontend/node_modules ] && ! (cd frontend && npm test --silent); then
+  echo "LINT ERROR [test-failure]: frontend unit tests failed"
+  echo "  FIX: Fix the failing tests in frontend/tests/. Never delete a test to make it pass."
+  ERRORS=$((ERRORS+1))
+fi
+
 # Rule 2: 后端测试必须通过
 echo "[2/7] backend pytest..."
 if [ ! -x backend/.venv/bin/python ]; then

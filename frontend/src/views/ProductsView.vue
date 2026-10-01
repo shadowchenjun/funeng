@@ -178,6 +178,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { dataVersions } from '../utils/dataVersion'
+import { useFreshOnActivate } from '../composables/useFreshOnActivate'
 import { Plus, Search } from '@element-plus/icons-vue'
 import axios from 'axios'
 import ImageUpload from '../components/ImageUpload.vue'
@@ -236,10 +238,16 @@ const productForm = reactive({
 
 const API_BASE = '/api'
 
+// keep-alive 缓存：分类页新增分类、其他页改动产品后，回到本页自动刷新；无变化则保留筛选与分页
+const loadAll = async () => {
+  await Promise.all([fetchProducts(), fetchCategories()])
+  fresh.markFresh()
+}
+const fresh = useFreshOnActivate(['products', 'categories'], loadAll)
+
 onMounted(() => {
   window.scrollTo(0, 0)
-  fetchProducts()
-  fetchCategories()
+  loadAll()
 })
 
 const fetchProducts = async () => {
@@ -332,7 +340,9 @@ const saveProduct = async () => {
       ElMessage.success('产品添加成功！')
     }
     dialogVisible.value = false
-    fetchProducts()
+    dataVersions.bump('products')
+    await fetchProducts()
+    fresh.markFresh()
   } catch (error) {
     ElMessage.error(getErrorMessage(error, '操作失败'))
   } finally {
@@ -350,9 +360,12 @@ const deleteProduct = async (product: Product) => {
 
     await axios.delete(`${API_BASE}/products/${product.id}`)
     ElMessage.success('删除成功')
-    fetchProducts()
-  } catch {
-    // 取消
+    dataVersions.bump('products')
+    await fetchProducts()
+    fresh.markFresh()
+  } catch (e) {
+    // 确认框点「取消」以 'cancel' 拒绝，不提示；真正的删除失败需要提示
+    if (e !== 'cancel') ElMessage.error(getErrorMessage(e, '删除失败'))
   }
 }
 </script>

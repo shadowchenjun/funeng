@@ -34,7 +34,7 @@
 - 深层路由硬刷新（`/cold-chain`、`/supply-chain-finance`、`/products`）：`--el-color-primary` = `#165DFF`，primary 按钮 `rgb(22,93,255)`，表头 `#F8FAFC`/`#475569`，success tag `#10B981` ✅
 - 弹窗（产品「添加产品」）：圆角 16px、头部无渐变、底分隔线、标题 `#0F172A` ✅
 - 导航：1440/1280/1200px 9 项单行、无横向溢出；1199/390px 切换为汉堡；抽屉 9 项，点击后跳转并关闭 ✅
-- keep-alive：产品 → 分类 → 产品，返回时 0 个 API 请求（修复前 include 写的是路由名，按 KeepAlive 的组件名匹配规则不会命中；修复前状态未单独实测） ✅
+- keep-alive：产品 → 分类 → 产品，返回时 0 个 API 请求（**review R1 指出此项只验了缓存命中、未验跨页数据失效，见文末「Review 跟进」**）（修复前 include 写的是路由名，按 KeepAlive 的组件名匹配规则不会命中；修复前状态未单独实测） ✅
 - 9 路由 × 桌面/手机 截图走查：无横向溢出、无运行时错误（一次 Pinia 报错为 Vite 依赖预构建整页重载所致，复现 3 次未再出现）
 - 共享组件临时预览页截图与 mockup 对照一致（预览路由已删除）
 - `vue-tsc --noEmit` ✅；`npm run build` ✅；`bash scripts/agent-lint.sh` 0 error，后端 257 passed（旧色 24 行、emoji 83 行警告，均位于 U2–U4 待迁移视图）
@@ -161,3 +161,50 @@
 | 视觉设计 | 18/20 | 全站同代；分类卡片 emoji 图标为存量数据 |
 | 测试覆盖 | 7/10 | 类型/构建/lint/三档宽度浏览器回归；前端无单测 |
 | **总分** | **89/100** | |
+
+
+---
+
+## Review 跟进（2026-10-01，对应 `docs/reviews/2026-10-01-frontend-ui-unification-review.md`）
+
+分支 `fix/ui-review-followups`。三项均核实成立并修复；每项都先写回归、在修复前的 `main`（0e1cbb3）上确认失败，再修复至通过。
+
+### R1 keep-alive 跨页数据失效 —— 成立，且由 U1 启用缓存引入
+- `utils/dataVersion.ts`（纯逻辑）+ `composables/useFreshOnActivate.ts`：写入方 `bump('products'|'categories')`；缓存页加载后 `markFresh()`，`onActivated` 时依赖领域版本变化或超过 2 分钟 TTL 才刷新，否则保留缓存与筛选/分页状态
+- 产品页依赖 products+categories，分类页依赖 categories+products（计数），看板依赖 products+categories；各页写入后 bump 并对自身 markFresh，避免重复请求
+- 会话隔离：用户变化时短暂清空 KeepAlive `include`，丢弃其他页面缓存且**不重挂当前页**（首版用 `:key` 重建容器，回归发现退出瞬间当前页以失效 token 请求 `/api/users/*` 得 401，已改）
+- 顺带：产品删除失败原先被当作「取消」静默吞掉，改为与分类页一致的提示
+
+### R2 运输地图快速切换竞态 —— 成立（复用地图前已存在，U3 未修）
+- `utils/latest.ts` 的 `createLatestGuard`：每次重画 `begin()`，每个 await 后校验；先完成全部地理编码，再一次性 `clearMap` + 绘制 + 写时间线；`onBeforeUnmount` 先 `invalidate()` 再销毁地图
+- 同样的守卫加到冷链仓库图与智慧农业农场概览/设备图
+- 注：Codex 的复现脚本 `docs/reviews/2026-10-01-ui-map-race-repro.cjs` 断言缺陷存在且执行环境不含守卫变量，修复后不再适用；由下述两层回归替代
+
+### R3 前端验收证据 —— 成立，补齐可复查的回归
+| 层 | 位置 | 运行 | 覆盖 |
+|----|------|------|------|
+| 单元（无依赖 node:test） | `frontend/tests/*.test.mjs` | `npm --prefix frontend test`（已接入 agent-lint [1b/7]） | 数据新鲜度 5 例；运输地图 A→B 迟到、A→B→A、卸载后迟到 3 例（受控 SDK 桩，确定性） |
+| 浏览器（独立包，不进 Vercel 构建） | `scripts/ui-regression/run.mjs` | `npm --prefix scripts/ui-regression install && npm --prefix scripts/ui-regression test` | 自启后端（临时 SQLite 种子数据）+ Vite，经真实登录表单；9 路由 × 1440/1200/1199/769/768/390；管理员/普通用户；R1 跨页 CRUD 与会话隔离；R2 拦截高德地理编码令 A 迟到 3s；空态/接口 500 错误态与重试；弹窗宽度档；控制台错误 |
+
+**修复前后对比**（证据：`docs/reviews/evidence/2026-10-01-ui-review-followups/`）：
+
+| 检查 | 修复前 main 0e1cbb3 | 修复后 |
+|------|------|------|
+| 前端单元测试 | 3 例 R2 失败（R1 模块不存在） | 8/8 通过 |
+| 浏览器：缓存隔离（换账号） | ✗ 未重新请求 | ✓ |
+| 浏览器：新增分类后产品页下拉可选 | ✗ 下拉无新分类 | ✓ |
+| 浏览器：新增产品后分类计数/看板 | ✗ 看板 12→12 | ✓ |
+| 浏览器：A 迟到切 B 时间线一致 | ✗ 选 B 显示 A（杭州） | ✓（截图 `coldchain-transport-before.jpg` / `coldchain-transport.jpg`） |
+| 浏览器合计 | 7 通过 / 4 失败 | 11 通过 / 0 失败 |
+
+**边界（如实记录）**：浏览器回归使用本地种子数据，不代表生产 Supabase 数据与线上版本；高德地图需联网，离线时地图项记 skipped；视觉为截图人工核对，未做像素级对比。
+
+### 行为变更清单（非纯表现层的改动，均有对应回归）
+| 变更 | Sprint | 回归 |
+|------|--------|------|
+| KeepAlive 真正生效 + 跨页新鲜度 + 会话隔离 | U1 / Review | 浏览器 R1 四项 |
+| 冷链 v-if→v-show、地图复用与卸载销毁、重画竞态守卫 | U3 / Review | 单元 3 例 + 浏览器 R2 |
+| 智慧农业地图生命周期 + 守卫 | U3 / Review | 浏览器断点矩阵（页面可用）；守卫同 R2 机制 |
+| 温度监控接口字段映射、离线读数 | U3 | U3 浏览器验证 |
+| hero CTA 跳转 | U5 | U5 浏览器验证 |
+| 产品删除失败提示 | Review | — （错误分支，人工核对） |

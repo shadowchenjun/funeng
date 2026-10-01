@@ -106,7 +106,7 @@
         <!-- 主内容区域 -->
         <main class="app-main" :class="{ 'no-header': !showHeader }">
           <router-view v-slot="{ Component, route }">
-            <keep-alive :include="cachedViews" :max="5">
+            <keep-alive :include="cacheInclude" :max="5">
               <component :is="Component" :key="route.path" />
             </keep-alive>
           </router-view>
@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { User, SwitchButton, ArrowDown } from '@element-plus/icons-vue'
 import { useAuthStore } from './stores/auth'
@@ -135,6 +135,19 @@ const showPageSkeleton = ref(false)
 // 需要缓存的视图（保留状态，避免重复加载）
 // include 匹配组件名（<script setup> 由文件名推断），不是路由名
 const cachedViews = ['ProductsView', 'CategoriesView', 'DashboardView']
+
+// 按用户隔离页面缓存：用户变化（退出、换账号、token 失效后重新登录）时短暂清空 include，
+// 让 KeepAlive 丢弃其他页面的缓存实例；当前页不重新挂载，避免退出瞬间用失效 token 发请求
+const cacheEnabled = ref(true)
+const cacheInclude = computed(() => (cacheEnabled.value ? cachedViews : []))
+watch(
+  () => authStore.user?.id,
+  async () => {
+    cacheEnabled.value = false
+    await nextTick()
+    cacheEnabled.value = true
+  }
+)
 
 const navItems = [
   { path: '/', label: '首页' },

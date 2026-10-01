@@ -90,6 +90,8 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { dataVersions } from '../utils/dataVersion'
+import { useFreshOnActivate } from '../composables/useFreshOnActivate'
 import {
   Apple, Box, Chicken, Crop, Delete, Edit, FolderOpened, Food, Plus, WarningFilled
 } from '@element-plus/icons-vue'
@@ -167,9 +169,16 @@ const fetchCategories = async () => {
   }
 }
 
+// 产品计数依赖 products：其他页增删产品后回到本页自动刷新
+const loadFresh = async () => {
+  await fetchCategories()
+  fresh.markFresh()
+}
+const fresh = useFreshOnActivate(['categories', 'products'], loadFresh)
+
 onMounted(() => {
   window.scrollTo(0, 0)
-  fetchCategories()
+  loadFresh()
 })
 
 const dialogVisible = ref(false)
@@ -225,7 +234,8 @@ const saveCategory = async () => {
       ElMessage.success('分类添加成功！')
     }
     dialogVisible.value = false
-    await fetchCategories()
+    dataVersions.bump('categories')
+    await loadFresh()
   } catch (e) {
     ElMessage.error(getErrorMessage(e, '操作失败'))
   }
@@ -241,7 +251,8 @@ const deleteCategory = async (category: Category) => {
 
     await axios.delete(`/api/categories/${category.id}`)
     ElMessage.success('分类删除成功！')
-    await fetchCategories()
+    dataVersions.bump('categories')
+    await loadFresh()
   } catch (e) {
     // 用户在确认框点「取消」时 ElMessageBox 以 'cancel' 拒绝，不应提示失败
     if (e !== 'cancel') ElMessage.error(getErrorMessage(e, '删除失败'))

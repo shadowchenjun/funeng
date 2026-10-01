@@ -1,0 +1,60 @@
+{
+  "commit": "0e1cbb3",
+  "frontendDirty": true,
+  "date": "2026-10-01T05:35:35.160Z",
+  "dataset": "临时 SQLite，后端开发模式默认种子数据（非生产 Supabase）",
+  "passed": 7,
+  "failed": 4,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "断点矩阵（管理员）：9 路由 × 6 宽度无横向溢出、导航形态正确",
+      "status": "pass",
+      "note": "54 组合"
+    },
+    {
+      "name": "普通用户：无「管理后台」入口、无产品/分类写操作按钮",
+      "status": "pass"
+    },
+    {
+      "name": "缓存隔离：切换账号后不沿用上一会话的页面缓存",
+      "status": "fail",
+      "error": "no product request after account switch: "
+    },
+    {
+      "name": "无数据变化时命中缓存：产品→分类→产品 不重复请求产品",
+      "status": "pass"
+    },
+    {
+      "name": "分类页新增分类 → 返回产品页，添加产品的分类下拉立即可选",
+      "status": "fail",
+      "error": "options: 新鲜蔬菜,新鲜水果,土特产,肉禽蛋,粮油米面"
+    },
+    {
+      "name": "产品页新增产品 → 分类计数与看板总数同步更新",
+      "status": "fail",
+      "error": "dashboard total 12 -> 12"
+    },
+    {
+      "name": "冷链运输追踪：A 的地理编码迟到时切到 B，时间线与选择一致、地图单实例",
+      "status": "fail",
+      "error": "timeline starts at 杭州, selected B starts at 深圳 (A=杭州)"
+    },
+    {
+      "name": "错误态：分类接口失败显示 EmptyState + 重试，重试后恢复",
+      "status": "pass"
+    },
+    {
+      "name": "空态：产品搜索无结果显示「暂无产品」",
+      "status": "pass"
+    },
+    {
+      "name": "弹窗宽度档：桌面 480/640，手机满宽减 32px",
+      "status": "pass"
+    },
+    {
+      "name": "全程无控制台错误",
+      "status": "pass"
+    }
+  ]
+}

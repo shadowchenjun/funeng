@@ -767,6 +767,7 @@ import {
 } from '@element-plus/icons-vue'
 import type { ModuleNavGroup } from '../components/ui/ModuleNav.vue'
 import { themeColors, levelColor } from '../utils/theme'
+import { createLatestGuard } from '../utils/latest'
 
 declare global {
   interface Window {
@@ -823,6 +824,8 @@ onMounted(() => {
 // 高德地图实例
 let warehouseMap: any = null
 let transportMap: any = null
+const transportGuard = createLatestGuard()
+const warehouseGuard = createLatestGuard()
 
 // 等待 AMap 加载完成
 const waitForAMap = (): Promise<void> => {
@@ -846,9 +849,10 @@ const waitForAMap = (): Promise<void> => {
 
 // 初始化仓库地图
 const initWarehouseMap = () => {
+  const isCurrent = warehouseGuard.begin()
   nextTick(async () => {
     await waitForAMap()
-    if (!window.AMap) return
+    if (!isCurrent() || !window.AMap) return
 
     const container = document.getElementById('warehouseMap')
     if (!container) return
@@ -882,16 +886,17 @@ const initWarehouseMap = () => {
 
 // 初始化运输追踪地图
 const initTransportMap = () => {
+  // 快速切换路线时只认最新一次重画；每个 await 之后校验，过期或已卸载则放弃（review R2）
+  const isCurrent = transportGuard.begin()
   nextTick(async () => {
     await waitForAMap()
-    if (!window.AMap) return
+    if (!isCurrent() || !window.AMap) return
 
     const container = document.getElementById('transportMap')
     if (!container) return
 
-    if (transportMap) {
-      transportMap.clearMap()
-    } else {
+    // 地图只建一次（无运输记录时也显示底图）；覆盖物在地理编码完成后统一替换
+    if (!transportMap) {
       transportMap = new window.AMap.Map('transportMap', {
         zoom: 5,
         center: [117.12, 36.65],
@@ -939,8 +944,14 @@ const initTransportMap = () => {
       const startCity = cities[0] || '北京'
       const endCity = cities[1] || '上海'
 
-      // 添加起点和终点标记
+      // 先完成全部异步地理编码，再一次性替换覆盖物与时间线，避免过期请求逐步写入
       const startCoord = await getCoord(startCity)
+      if (!isCurrent()) return
+      const endCoord = await getCoord(endCity)
+      if (!isCurrent()) return
+
+      transportMap.clearMap()
+
       if (startCoord) {
         const startMarker = new window.AMap.Marker({
           position: startCoord,
@@ -950,7 +961,6 @@ const initTransportMap = () => {
         transportMap.add(startMarker)
       }
 
-      const endCoord = await getCoord(endCity)
       if (endCoord) {
         const endMarker = new window.AMap.Marker({
           position: endCoord,
@@ -1120,6 +1130,9 @@ watch(activeTab, (newTab) => {
 })
 
 onBeforeUnmount(() => {
+  // 先作废进行中的重画，再销毁地图，避免迟到回调写入已销毁实例
+  transportGuard.invalidate()
+  warehouseGuard.invalidate()
   warehouseMap?.destroy()
   transportMap?.destroy()
   warehouseMap = null

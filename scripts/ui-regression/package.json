@@ -1,0 +1,12 @@
+{
+  "name": "funeng-ui-regression",
+  "private": true,
+  "description": "前台 UI 统一的浏览器回归（独立于 frontend 构建，不影响 Vercel 依赖）",
+  "type": "module",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}
