@@ -66,3 +66,26 @@ def test_industry_dashboard_preserves_precision_sources_and_latest_period(client
             db.query(MarketPriceObservation).filter(MarketPriceObservation.external_key == 'c'*64).delete()
             db.query(AgriDataImportRun).filter(AgriDataImportRun.snapshot_sha256 == 'd'*64).delete()
             db.commit()
+
+
+def test_dashboard_shows_collection_freshness_and_failures(client, user_headers, monkeypatch):
+    from app.models.collection_run import AgriCollectionRun
+    monkeypatch.setenv('CRON_SECRET', 'test-cron-secret-that-is-long-enough')
+    with SessionLocal() as db:
+        db.add(AgriCollectionRun(run_id='dashboard-cron-test', source_id='mofcom',
+            target_date=date(2026, 10, 1), status='partial',
+            started_at=datetime(2026, 10, 1, 12, tzinfo=timezone.utc),
+            lease_until=datetime(2026, 10, 1, 12, 6, tzinfo=timezone.utc),
+            finished_at=datetime(2026, 10, 1, 12, 1, tzinfo=timezone.utc),
+            observed=10, inserted=10, errors=[{'error':'TimeoutError'}]))
+        db.commit()
+    try:
+        data=client.get('/api/industry-dashboard/snapshot', headers=user_headers).json()
+        assert data['meta']['automatic_collection'] is True
+        assert data['meta']['collection_scope'] == 'market'
+        assert data['meta']['last_import_at'].startswith('2026-10-01T12:01')
+        assert data['meta']['collection_runs'][0]['status'] == 'partial'
+    finally:
+        with SessionLocal() as db:
+            db.query(AgriCollectionRun).filter_by(run_id='dashboard-cron-test').delete()
+            db.commit()

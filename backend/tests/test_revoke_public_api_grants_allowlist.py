@@ -19,7 +19,7 @@ def _arrays(sql: str) -> list[set[str]]:
 
 
 def test_migration_allowlist_matches_repo_tables():
-    expected = set(created_tables(exclude=("revoke_public_api_grants",)))
+    expected = set(created_tables(exclude=("revoke_public_api_grants",), before=MIGRATION.name))
     arrays = _arrays(MIGRATION.read_text(encoding="utf-8"))
     assert arrays, "migration has no target array"
     assert arrays[0] == expected

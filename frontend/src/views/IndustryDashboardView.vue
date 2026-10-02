@@ -3,7 +3,7 @@
     <div class="screen-toolbar">
       <div class="screen-status" role="status">
         <strong>产业大数据</strong>
-        <span v-if="snapshot">最近入库 {{ importTime }} · 手动采集 · 行情 {{ snapshot.meta.price_to || '暂无数据' }}</span>
+        <span v-if="snapshot">最近入库 {{ importTime }} · {{ snapshot.meta.automatic_collection ? '行情每日定时采集' : '定时采集未启用' }} · 行情 {{ snapshot.meta.price_to || '暂无数据' }}</span>
         <span v-else>正在读取已入库的产业资料</span>
       </div>
       <div class="screen-actions">
@@ -17,6 +17,10 @@
       <el-button type="primary" @click="load">重新加载</el-button>
     </div>
     <template v-else-if="snapshot">
+      <p v-if="snapshot.meta.automatic_collection" class="coverage-note" role="status">
+        行情每日北京时间 20 点检查更新，补查最近三天；周报按实际发布期入库。年报、季度统计仍按报告更新。
+        <span v-if="failedSources">最近采集异常：{{ failedSources }}；已保留历史数据。</span>
+      </p>
       <p v-if="snapshot.meta.market_truncated" class="coverage-note">
         当前展示最新 {{ snapshot.meta.market_returned }} 条行情，数据库共 {{ snapshot.meta.market_total }} 条。
       </p>
@@ -49,6 +53,8 @@ const frameHtml = computed(() => snapshot.value ? buildIndustryFrame(snapshot.va
 const importTime = computed(() => snapshot.value?.meta.last_import_at
   ? new Date(snapshot.value.meta.last_import_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
   : '暂无导入记录')
+const failedSources = computed(() => snapshot.value?.meta.collection_runs
+  ?.filter(run => ['failed', 'partial'].includes(run.status)).map(run => run.source_id).join('、') || '')
 
 async function load(): Promise<void> {
   controller?.abort()

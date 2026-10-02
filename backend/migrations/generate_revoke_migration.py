@@ -16,7 +16,8 @@ def table_array(names: list[str], indent: str = "    ") -> str:
 
 
 def render() -> str:
-    names = sorted(created_tables(exclude=(MIGRATION_NAME,)))
+    # Released migrations must remain reproducible when later tables are added.
+    names = sorted(created_tables(exclude=(MIGRATION_NAME,), before=MIGRATION_NAME + '.sql'))
     arr = table_array(names)
     return f"""-- 收回 Data API 角色（anon / authenticated）对 funeng 表的权限 —— r3（按复审修订）
 -- 由 backend/migrations/generate_revoke_migration.py 生成，请勿手改名单。

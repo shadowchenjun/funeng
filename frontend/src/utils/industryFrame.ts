@@ -3,6 +3,7 @@ export interface DashboardSnapshot {
   meta: {
     last_import_at: string | null
     automatic_collection: boolean
+    collection_runs?: { source_id: string; status: string; finished_at: string | null }[]
     industry_total: number
     market_total: number
     market_returned: number

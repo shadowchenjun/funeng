@@ -17,7 +17,7 @@
 <div class="filters" id="filters" hidden><label for="metric">产业指标</label><select id="metric"></select><label for="region">地区</label><select id="region"></select><button class="quiet" id="reset">恢复全国视图</button></div>
 <div class="seg" id="finance-seg" hidden><button data-mode="public" aria-pressed="true">涉农金融背景</button><button data-mode="platform" aria-pressed="false">平台融资运营 · 待接入</button></div>
 <div id="content"></div>
-<footer class="footer"><span>已接入平台数据库 · 年度、季度、日报分别标注统计期</span><span>金融金额保留来源精度 / 暂无定时采集</span></footer>
+<footer class="footer"><span>已接入平台数据库 · 年度、季度、日报分别标注统计期</span><span id="collection-state">金融金额保留来源精度</span></footer>
 </main>
 <dialog class="modal" id="sources"><div class="modalhead"><h2>数据口径与来源</h2><button aria-label="关闭数据来源" id="source-close">×</button></div><div id="source-list"></div></dialog>
 <dialog class="modal" id="export-dialog"><div class="modalhead"><h2 id="export-title">导出当前数据</h2><button aria-label="关闭导出" id="export-close">×</button></div><p class="note">可下载CSV，或直接复制下方完整内容。金额、单位、统计期和原始来源均保留。</p><a id="csv-link" class="quiet" style="display:inline-block;margin:16px 0" download>下载CSV</a><textarea id="csv-preview" aria-label="CSV完整内容" readonly style="width:100%;height:240px;background:#081411;color:#edf4e8;border:1px solid #284038;padding:12px"></textarea></dialog><div class="toast" id="toast" role="status" hidden></div>
@@ -25,6 +25,7 @@
 <script>
 const DATA=__SNAPSHOT__, META=__META__, MARKET_DOCUMENT=__MARKET_DOCUMENT__;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+$('collection-state').textContent=META.automatic_collection?'行情每天定时检查 / 年报、季报按报告更新':'金融金额保留来源精度 / 定时采集未启用';
 const allRows=[...DATA.observations,...DATA.manual_observations],sourceList=[...DATA.sources,...DATA.reference_sources];
 const source=r=>sourceList.find(s=>s.source_id===r.source_id)||{},period=r=>r.frequency==='annual'?`${r.period_end?.slice(0,4)||r.period||'待接入'}年`:r.period_start&&r.period_end?(r.period_start===r.period_end?r.period_end:`${r.period_start}–${r.period_end}`):r.period||r.snapshot_date||'待接入';
 const safeUrl=u=>{try{const p=new URL(u);return ['http:','https:'].includes(p.protocol)?p.href:''}catch{return ''}};

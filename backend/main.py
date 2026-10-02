@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import get_current_user
 from app.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, IS_PRODUCTION
-from app.api import auth, products, categories, dashboard, public, industry_dashboard
+from app.api import auth, products, categories, dashboard, public, industry_dashboard, collection_cron
 from app.api import smart_agriculture, digital_marketing, cold_chain, supply_chain_finance, upload, users
 from app.api.admin import router as admin_router
 from app.api.analytics_platform import router as analytics_platform_router  # Sprint 2 性能优化
@@ -204,6 +204,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
+app.include_router(collection_cron.router, prefix="/api/cron", tags=["定时采集"])
 app.include_router(public.router, prefix="/api/public", tags=["公开统计"])
 app.include_router(products.router, prefix="/api/products", tags=["产品管理"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类管理"])

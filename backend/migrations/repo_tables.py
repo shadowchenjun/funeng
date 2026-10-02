@@ -13,10 +13,12 @@ CREATE_TABLE_RE = re.compile(
 )
 
 
-def created_tables(exclude: tuple[str, ...] = ()) -> dict[str, set[str]]:
+def created_tables(exclude: tuple[str, ...] = (), *, before: str | None = None) -> dict[str, set[str]]:
     """表名 -> 列名集合，按迁移文件名顺序汇总；exclude 为要跳过的迁移文件名片段。"""
     tables: dict[str, set[str]] = {}
     for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        if before is not None and path.name >= before:
+            continue
         if any(part in path.name for part in exclude):
             continue
         for name, body in CREATE_TABLE_RE.findall(path.read_text(encoding="utf-8")):

@@ -7,6 +7,7 @@ WITH targets AS (
   SELECT c.oid, c.relname FROM pg_class c
   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p','v','m','f')
     AND c.relname = ANY (ARRAY[
+    'agri_collection_runs',
     'activities', 'admin_operation_logs', 'admin_roles', 'admin_users', 'adoption_categories',
     'adoption_configs', 'adoption_orders', 'agri_data_import_runs', 'agri_data_sources', 'campaigns',
     'cargo_owners', 'categories', 'cold_chain_inbound_appointments', 'cold_chain_inbound_order_items', 'cold_chain_inbound_orders',
@@ -43,6 +44,7 @@ CROSS JOIN (VALUES ('anon'), ('authenticated')) r(rolname)
 WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a','i')
   AND t.relnamespace = 'public'::regnamespace
   AND t.relname = ANY (ARRAY[
+    'agri_collection_runs',
     'activities', 'admin_operation_logs', 'admin_roles', 'admin_users', 'adoption_categories',
     'adoption_configs', 'adoption_orders', 'agri_data_import_runs', 'agri_data_sources', 'campaigns',
     'cargo_owners', 'categories', 'cold_chain_inbound_appointments', 'cold_chain_inbound_order_items', 'cold_chain_inbound_orders',
@@ -65,6 +67,7 @@ SELECT c.relname, c.relkind, pg_get_userbyid(c.relowner) AS owner, c.relacl::tex
 FROM pg_class c
 WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p','v','m','f')
   AND NOT (c.relname = ANY (ARRAY[
+    'agri_collection_runs',
     'activities', 'admin_operation_logs', 'admin_roles', 'admin_users', 'adoption_categories',
     'adoption_configs', 'adoption_orders', 'agri_data_import_runs', 'agri_data_sources', 'campaigns',
     'cargo_owners', 'categories', 'cold_chain_inbound_appointments', 'cold_chain_inbound_order_items', 'cold_chain_inbound_orders',

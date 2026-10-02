@@ -11,12 +11,18 @@ FIELDS = ("source_id", "source_url", "market_name", "province", "category", "com
           "quality_flag", "source_row_key")
 
 
-def upsert_observations(session, observations):
+def upsert_observations(session, observations, *, commit=True):
+    # Batch existing keys instead of a network round trip for every price.
+    observations = list({row.external_key: row for row in observations}.values())
+    existing = {}
+    for offset in range(0, len(observations), 400):
+        keys = [row.external_key for row in observations[offset:offset + 400]]
+        existing.update({row.external_key: row for row in session.scalars(
+            select(MarketPriceObservation).where(MarketPriceObservation.external_key.in_(keys)))})
     inserted = updated = 0
     for observation in observations:
         values = {field: getattr(observation, field) for field in FIELDS}
-        saved = session.scalar(select(MarketPriceObservation).where(
-            MarketPriceObservation.external_key == observation.external_key))
+        saved = existing.get(observation.external_key)
         if saved is None:
             session.add(MarketPriceObservation(external_key=observation.external_key, **values))
             inserted += 1
@@ -24,5 +30,6 @@ def upsert_observations(session, observations):
             for field, value in values.items():
                 setattr(saved, field, value)
             updated += 1
-    session.commit()
+    if commit:
+        session.commit()
     return inserted, updated
