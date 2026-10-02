@@ -68,3 +68,27 @@ Vercel 对失败调用不会自动重试。应用在请求内处理瞬时重试�
 Vercel 回滚到前一部署会恢复此前 Cron 配置，已有行情和日志保留。也可在 Cron Jobs 页面暂停触发。禁止为停任务删除数据库表。停用密钥会让接口关闭。
 
 平台行为参考：[管理 Cron](https://vercel.com/docs/cron-jobs/manage-cron-jobs)、[函数时长](https://vercel.com/docs/functions/configuring-functions/duration)。
+
+## 2026-10-02 生产发布与试跑记录
+
+用户当场确认后，已在后端 `funeng` 保存 Production 专用 Secret `CRON_SECRET`，重新部署 main `131c27c`。后端部署 `dpl_EWsNbyiRKTJU4RXtucevoVVPCq1r` 已 READY，并绑定 `funeng.vercel.app`。密钥值不写入本记录。
+
+在 Vercel Cron Jobs 页面手动 Run 六个任务，生产 Supabase 的审计结果如下（北京时间 09:48–09:50；这是生产手动试跑，尚非首次自然定时触发）：
+
+| 来源 | 状态 | 读取条数 | 新增 | 更新 |
+|---|---|---:|---:|---:|
+| 北京新发地 | partial | 477 | 477 | 0 |
+| 广州周报 | completed | 32 | 23 | 9 |
+| 生鲜乳周报 | completed | 1 | 0 | 0 |
+| 全国日报 | completed | 11 | 0 | 0 |
+| 武汉市场 | completed | 171 | 171 | 0 |
+| 商务部 | completed | 402 | 402 | 0 |
+
+- 合计新增 1,073 条、更新 9 条，行情总数从 1,148 增至 2,221，原有产业资料仍为 121 条。最新实际行情日为 2026-10-01，不把未发布的 10 月 2 日当成新行情。
+- 广州、新发地再次 Run 均 inserted=0、updated=0，没有重复新增。
+- 新发地两次均在补查 2026-09-30 时记录 HTTPError，其 2026-10-01 的 477 条已正常入库。相同日期在本机读取正常，说明存在生产访问差异；现有脱敏日志没有 HTTP 状态码，不能断言具体阻断原因。该问题未解决，不把六来源宣称全部成功。9 月 30 日已有历史行情保留，大屏会展示该来源异常，下一轮继续补查。
+- 无 Authorization 的生产采集请求返回 401；生产登录和 snapshot 均 200，automatic_collection=true。
+- 浏览器实际大屏显示“行情每日定时采集”、2,221 条行情及新发地异常提示。最近成功入库时间为北京时间 2026-10-02 09:50:27。
+- 每天北京时间 20:00–20:59 的六个 Cron 已 Enabled。自然定时触发及长期稳定性需用之后的审计记录确认；年度/季度产业资料仍按报告更新。
+
+验收截图：/Users/chenjun/.codex/visualizations/2026/10/02/funeng-cron-dashboard-live.png；Secret 配置成功截图：/Users/chenjun/.codex/visualizations/2026/10/02/funeng-cron-secret-configured.png。
