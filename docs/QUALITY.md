@@ -118,13 +118,15 @@ cd frontend && npx tsc --noEmit
 
 ## CI Gates
 
-| 门禁 | 命令 | 阻断 PR? | 说明 |
-|------|------|---------|------|
-| **TypeScript 类型检查** | `npx tsc --noEmit` | ✅ 是 | 前端类型安全 |
-| **ESLint 代码风格** | `npm run lint` | ⚠️ 警告 | 代码一致性 |
-| **Agent Lint** | `bash scripts/agent-lint.sh` | ✅ 是 | 架构不变量 |
-| **后端语法检查** | `python -m py_compile` | ✅ 是 | 后端语法正确 |
-| **AGENTS.md 长度** | `wc -l AGENTS.md` | ✅ 是 | ≤150 行 |
+| 必须检查 | 命令 | 说明 |
+|------|------|------|
+| **Vue 类型检查** | `npm run lint` | 前台与管理后台 vue-tsc；不是 ESLint |
+| **前台单元测试** | `npm --prefix frontend test` | Node 测试；不是浏览器 E2E |
+| **后端测试** | `npm test` | pytest 使用临时数据库 |
+| **Agent Lint** | `bash scripts/agent-lint.sh` | 综合类型、测试、密钥、界面及 AGENTS 长度检查 |
+| **前端构建** | `npm run build` | 前台与管理后台 Vite 构建 |
+
+以上为必需门禁约定。当前仓库未包含 GitHub Actions 工作流，平台自动执行与受保护分支需独立配置和验证。发布流程与验收记录见 [RELEASE_WORKFLOW.md](RELEASE_WORKFLOW.md)。
 
 ---
 

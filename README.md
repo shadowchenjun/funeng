@@ -211,6 +211,8 @@ npm run test
 
 ## 部署
 
+后续发布遵循[部署与发布流程](docs/RELEASE_WORKFLOW.md)：检查 → Preview 验收 → 使用生产配置构建暂存版本 → 验收后推广 → 正式域名检查。当前 Vercel / 外部数据库架构详见 [Supabase / Vercel 部署手册](docs/SUPABASE_DEPLOYMENT.md)；以下为自建环境的可选方式。
+
 ### Docker部署
 ```bash
 # 构建镜像

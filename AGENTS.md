@@ -32,6 +32,7 @@ This file is a **table of contents** — not a reference manual. Follow the link
 |------|---------------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layer rules, dependency graph, key invariants |
 | [`docs/QUALITY.md`](docs/QUALITY.md) | Coverage targets, security rules, **Sprint 评估标准** |
+| [`docs/RELEASE_WORKFLOW.md`](docs/RELEASE_WORKFLOW.md) | 检查、Preview 验收、生产暂存与正式推广、回滚记录 |
 | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | Naming conventions, code style |
 | [`docs/RESILIENCE.md`](docs/RESILIENCE.md) | Agent recovery protocols, 7-point checklist, VBR standards |
 | [`docs/EXECUTION_PLAN_TEMPLATE.md`](docs/EXECUTION_PLAN_TEMPLATE.md) | **Sprint 制**执行计划模板 |
@@ -61,6 +62,7 @@ npm run dev:backend | dev:frontend | dev:admin
    plan using `docs/EXECUTION_PLAN_TEMPLATE.md` before writing code.
 6. **Work in Sprints.** One feature at a time, evaluate after each sprint.
 7. **Fill HANDOFF_TEMPLATE.md** before context reset or task handoff.
+8. **Follow `docs/RELEASE_WORKFLOW.md` for releases.** Verify production config before promoting the tested production deployment.
 
 ---
 
@@ -91,7 +93,7 @@ npm run dev:backend | dev:frontend | dev:admin
 
 ## CI Gates
 
-Every PR runs agent-lint + tests + lints. All must pass.
+Every PR must pass agent-lint + tests + lints. Automatic enforcement must be verified separately; see `docs/RELEASE_WORKFLOW.md`.
 
 ---
 
