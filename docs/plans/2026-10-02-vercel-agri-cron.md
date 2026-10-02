@@ -70,3 +70,12 @@
 - 前台生产打包通过（15.14 秒）；已有 Element Plus 大包警告。
 - 生产 CRON_SECRET：等待创建凭据所需的浏览器当场确认，表单已限定 Production Secret。
 - 任务首次真实生产调用和大屏渲染验收待完成，不能仅以单测通过宣称定时采集上线。
+
+## 生产发布核查（尚待密钥确认）
+
+- `b76704dbc0744c1ff780f366adaa64745bba152f` 已推送 main。
+- 后端 `dpl_A9LSgCfxFsW2GiZ1ALzrwJ29LMcU`，前端 `dpl_DQrgdxMJ2g8Ygqer9FR2NCYzjmP8`，均 Production READY。
+- Vercel Settings / Cron Jobs 已列出六个来源、每天一次、Enabled。截图：`/Users/chenjun/.codex/visualizations/2026/10/02/funeng-vercel-cron-registered.png`。
+- 实际生产采集接口返回 503 `Cron is not configured`，符合未设密钥时关闭接口的设计；尚未实际采集写入。
+- 登录生产读取 snapshot 成功，原有 121 条产业资料、1148 条行情保留，automatic_collection=false。
+- Chrome 实际渲染大屏确认“定时采集未启用”；已发现并更新两处原模板的固定文字，使启用后说明一致。
